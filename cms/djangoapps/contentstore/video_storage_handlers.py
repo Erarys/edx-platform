@@ -13,11 +13,11 @@ import requests
 import shutil
 import pathlib
 import zipfile
+import boto3
 
 from contextlib import closing
 from datetime import datetime, timedelta
 from uuid import uuid4
-from boto.s3.connection import S3Connection
 from boto import s3
 from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
@@ -886,13 +886,13 @@ def storage_service_bucket():
             'aws_secret_access_key': settings.AWS_SECRET_ACCESS_KEY
         }
 
-    conn = S3Connection(**params)
+    conn = boto3.resource("s3", **params)
 
     # We don't need to validate our bucket, it requires a very permissive IAM permission
     # set since behind the scenes it fires a HEAD request that is equivalent to get_all_keys()
     # meaning it would need ListObjects on the whole bucket, not just the path used in each
     # environment (since we share a single bucket for multiple deployments in some configurations)
-    return conn.get_bucket(settings.VIDEO_UPLOAD_PIPELINE['VEM_S3_BUCKET'], validate=False)
+    return conn.Bucket(settings.VIDEO_UPLOAD_PIPELINE['VEM_S3_BUCKET'])
 
 
 def storage_service_key(bucket, file_name):
