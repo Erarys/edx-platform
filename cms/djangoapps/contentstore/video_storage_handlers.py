@@ -18,7 +18,6 @@ import boto3
 from contextlib import closing
 from datetime import datetime, timedelta
 from uuid import uuid4
-from boto import s3
 from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.http import FileResponse, HttpResponseNotFound, StreamingHttpResponse
@@ -826,7 +825,7 @@ def videos_post(course, request):
             return {'error': error_msg}, 400
 
         edx_video_id = str(uuid4())
-        key = storage_service_key(bucket, file_name=edx_video_id)
+        key_name = storage_service_key(bucket, file_name=edx_video_id)
 
         metadata_list = [
             ('client_video_id', file_name),
@@ -846,12 +845,20 @@ def videos_post(course, request):
             if transcript_preferences is not None:
                 metadata_list.append(('transcript_preferences', json.dumps(transcript_preferences)))
 
-        for metadata_name, value in metadata_list:
-            key.set_metadata(metadata_name, value)
-        upload_url = key.generate_url(
-            KEY_EXPIRATION_IN_SECONDS,
-            'PUT',
-            headers={'Content-Type': req_file['content_type']}
+        # Prepare metadata for presigned URL
+        metadata = {metadata_name: value for metadata_name, value in metadata_list}
+        
+        # Generate presigned URL using boto3
+        s3_client = bucket.meta.client
+        upload_url = s3_client.generate_presigned_url(
+            'put_object',
+            Params={
+                'Bucket': bucket.name,
+                'Key': key_name,
+                'ContentType': req_file['content_type'],
+                'Metadata': metadata
+            },
+            ExpiresIn=KEY_EXPIRATION_IN_SECONDS
         )
 
         # persist edx_video_id in VAL
@@ -897,13 +904,12 @@ def storage_service_bucket():
 
 def storage_service_key(bucket, file_name):
     """
-    Returns an S3 key to the given file in the given bucket.
+    Returns an S3 key name for the given file in the given bucket.
     """
-    key_name = "{}/{}".format(
+    return "{}/{}".format(
         settings.VIDEO_UPLOAD_PIPELINE.get("ROOT_PATH", ""),
         file_name
     )
-    return s3.key.Key(bucket, key_name)
 
 
 def send_video_status_update(updates):
