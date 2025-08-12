@@ -62,10 +62,10 @@ class UniverView(GenericAPIView):
                 'gender': (None, gender),
                 'year_of_birth': (None, birth_year),
                 'honor_code': (None, 'true'),
-                'country': (None, 'KZ'),
-                'goals': (None, 'education'),
-                'surname': (None, surname),
-                'mailing_address': (None, 'Kaznu')
+                'country': (None, 'KZ')
+                
+                
+               
             }
             client = requests.session()
             client.get('http://192.168.199.128', verify=False)
@@ -199,10 +199,9 @@ class UniverView(GenericAPIView):
                 'gender': (None, gender),
                 'year_of_birth': (None, birth_year),
                 'honor_code': (None, 'true'),
-                'country': (None , 'KZ'),
-                'surname': (None, surname),
-                'goals': (None, 'education'),
-                'mailing_address': (None, 'Kaznu')
+                'country': (None , 'KZ')
+                
+               
             }
             client = requests.session()
             client.get(current_site, verify = False)
