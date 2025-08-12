@@ -25,6 +25,91 @@ from openedx.core.djangoapps.user_api.serializers import (
 from openedx.core.lib.api.permissions import ApiKeyHeaderPermission
 from openedx.core.lib.api.view_utils import require_post_params
 
+# univerapi
+import logging
+import lms.djangoapps.univerapi
+from django.shortcuts import redirect
+import jwt
+from univerapi.models import Univeruser
+# univerapi
+
+class LoginSessionView(APIView):
+    """HTTP end-points for logging in users. """
+
+    # This end-point is available to anonymous users,
+    # so do not require authentication.
+    authentication_classes = []
+
+    @method_decorator(ensure_csrf_cookie)
+    def get(self, request):
+        return HttpResponse(get_login_session_form(request).to_json(), content_type="application/json")
+
+    @method_decorator(require_post_params(["email", "password"]))
+    @method_decorator(csrf_protect)
+    def post(self, request):
+        """Log in a user.
+
+        You must send all required form fields with the request.
+
+        You can optionally send an `analytics` param with a JSON-encoded
+        object with additional info to include in the login analytics event.
+        Currently, the only supported field is "enroll_course_id" to indicate
+        that the user logged in while enrolling in a particular course.
+
+        Arguments:
+            request (HttpRequest)
+
+        Returns:
+            HttpResponse: 200 on success
+            HttpResponse: 400 if the request is not valid.
+            HttpResponse: 403 if authentication failed.
+                403 with content "third-party-auth" if the user
+                has successfully authenticated with a third party provider
+                but does not have a linked account.
+            HttpResponse: 302 if redirecting to another page.
+
+        Example Usage:
+
+            POST /user_api/v1/login_session
+            with POST params `email`, `password`, and `remember`.
+
+            200 OK
+
+        """
+        # univer
+        try:
+            if (request.POST.get('auth')):
+                auth = request.POST.get('auth')
+                auth = auth.split("auth=")[1]
+                #encoded_jwt = request.GET.get('auth')
+                decoded = jwt.decode(auth, "$ecRet@3#$2958GPIs!1", algorithms=["HS256"])
+
+                # Get user
+                exist_user = Univeruser.objects.get(univer_id=decoded['uname'])
+                exist_edx_user = User.objects.get(username=exist_user.edx_username)
+
+                # edit request
+                request.POST._mutable = True
+                request.POST["email"] = exist_edx_user.email
+                request.POST["password"] = decoded['upwd'][:75]
+                #request.POST. exist_edx_user.email
+                #decoded['upwd'][:75]
+
+                #return HttpResponse(repr(decoded))
+        except Exception as e:
+            return HttpResponse('error =' + str(e))
+        # univer
+
+        # For the initial implementation, shim the existing login view
+        # from the student Django app.
+        from openedx.core.djangoapps.user_authn.views.login import login_user
+        return shim_student_view(login_user, check_logged_in=True)(request)
+
+    @method_decorator(sensitive_post_parameters("password"))
+    def dispatch(self, request, *args, **kwargs):
+        return super(LoginSessionView, self).dispatch(request, *args, **kwargs)
+
+
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     """
