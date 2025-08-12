@@ -17,7 +17,7 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
 
-from univerapi.models import Univeruser
+from lms.djangoapps.univerapi.models import Univeruser
 from random import randint
 import json
 import random
