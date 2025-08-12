@@ -30,7 +30,7 @@ import logging
 import lms.djangoapps.univerapi
 from django.shortcuts import redirect
 import jwt
-from univerapi.models import Univeruser
+from lms.djangoapps.univerapi.models import Univeruser
 # univerapi
 
 class LoginSessionView(APIView):
