@@ -21,7 +21,7 @@ from lms.djangoapps.univerapi.models import Univeruser
 from random import randint
 import json
 import random
-from student.models import User
+from common.djangoapps.student.models import User
 import time
 from django.db import connection
 from django.contrib.sites.models import Site
