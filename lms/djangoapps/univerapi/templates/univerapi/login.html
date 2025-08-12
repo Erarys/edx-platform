@@ -1,0 +1,42 @@
+login page
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script type="text/javascript">
+	const queryString = window.location.search;
+    //console.log(queryString.split('auth=')[1]);
+
+
+$( document ).ready(function() {
+        // preventing from page reload and default actions
+        //e.preventDefault();
+        // serialize the data for sending the form data.
+        // make POST ajax call
+        var formData = {
+           auth: queryString,
+           csrfmiddlewaretoken: '{{ csrf_token }}'
+        };
+
+        $.ajax({
+            type: 'GET',
+            //async: false,
+            url: "http://192.168.199.128:8181/api/univertest",
+ 
+      data: formData,
+            dataType:"text",
+            success: function (data, status, xhr) {
+                // on successfull creating object
+                console.log(data);
+                //window.location.href = "/";
+            },
+            error: function (data, status, xhr) {
+                // alert the error if any error occured
+                console.log(xhr.status);
+                //alert(xhr);
+            }
+        })
+
+
+});
+
+</script>

@@ -1,0 +1,117 @@
+login page
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script type="text/javascript">
+	const queryString = window.location.search;
+    //console.log(queryString.split('auth=')[1]);
+
+
+$( document ).ready(function() {
+        // preventing from page reload and default actions
+        //e.preventDefault();
+        // serialize the data for sending the form data.
+        // make POST ajax call
+
+        //var formData = {
+        //   auth: queryString,
+        //   csrfmiddlewaretoken: '{{ csrf_token }}'
+        //};
+
+        const getUrl = window.location;
+        const baseUrl = getUrl.protocol + "//" + getUrl.host;
+        //alert (baseUrl);
+
+        const queryString = window.location.search;
+        //console.log(queryString.split('?auth=')[1]);
+
+        var formData0 = {
+            csrfmiddlewaretoken: '{{ csrf_token }}',
+            auth: queryString
+        };
+
+        $.ajax({
+            type: 'POST',
+            //async: false,
+            url: baseUrl + "/api/univerauthcheck",
+           
+            data: formData0,
+            dataType:"text",
+            success: function (data, status, xhr) {
+                // on successfull creating object
+                resp = JSON.parse(data);  
+                if (resp['success'] === 'true') {
+
+		        // serialize the data for sending the form data.
+		        var serializedData = $(this).serialize();
+		        // make POST ajax call
+		        var formData2 = {
+		           email: 'univer@kaznu.kz',
+		           password: 'univerpass',
+		           csrfmiddlewaretoken: '{{ csrf_token }}',
+		           auth: queryString
+		        };
+		        $.ajax({
+		            type: 'POST',
+		            //async: false,
+		            url: baseUrl + "/user_api/v1/account/login_session/",
+		           
+                            data: formData2,
+		            dataType:"text",
+		            success: function (data, status, xhr) {
+		                // on successfull creating object
+                        // alert(data);
+		                window.location.href = "/";
+		            },
+		            error: function (data, status, xhr) {
+		                // alert the error if any error occured
+		                console.log(xhr.status);
+		                alert(xhr);
+		            }
+		        })
+
+                } else {
+                	alert(data);
+                }
+                //window.location.href = "/";
+            },
+            error: function (data, status, xhr) {
+                // alert the error if any error occured
+                console.log(xhr.status);
+                alert(xhr);
+            }
+        })
+
+/*
+        // serialize the data for sending the form data.
+        var serializedData = $(this).serialize();
+        // make POST ajax call
+        var formData2 = {
+           email: 'hakymova.tyyshtyq663@kaznu.kz',
+           password: '0777F0980B31A60FCFEEC9DB3F91D9B8EEBAE8444600E471D2312B6240625B56E3D4D39D4AD',
+           csrfmiddlewaretoken: '{{ csrf_token }}',
+           auth: queryString
+        };
+        $.ajax({
+            type: 'POST',
+            //async: false,
+            url: "http://192.168.199.128:8181/user_api/v1/account/login_session/",
+           
+            data: formData0,
+            dataType:"text",
+            success: function (data, status, xhr) {
+                // on successfull creating object
+
+                window.location.href = "/";
+            },
+            error: function (data, status, xhr) {
+                // alert the error if any error occured
+                console.log(xhr.status);
+                alert(xhr);
+            }
+        })
+
+*/
+});
+
+</script>
