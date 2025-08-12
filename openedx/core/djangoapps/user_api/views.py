@@ -24,6 +24,7 @@ from openedx.core.djangoapps.user_api.serializers import (
 )
 from openedx.core.lib.api.permissions import ApiKeyHeaderPermission
 from openedx.core.lib.api.view_utils import require_post_params
+from django.views.decorators.csrf import csrf_protect
 
 # univerapi
 import logging
