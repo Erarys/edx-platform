@@ -3033,6 +3033,7 @@ YOUTUBE_API_KEY = 'PUT_YOUR_API_KEY_HERE'
 # - Make it a plugin (which are auto-registered) and add it to the EDXAPP_PRIVATE_REQUIREMENTS configuration variable
 #   (See https://github.com/openedx/edx-django-utils/tree/master/edx_django_utils/plugins)
 INSTALLED_APPS = [
+    'lms.djangoapps.univerapi'
     # Standard ones that are always installed...
     'django.contrib.auth',
     'django.contrib.contenttypes',
