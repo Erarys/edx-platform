@@ -94,9 +94,10 @@ notification_prefs_urls = [
 
 
 urlpatterns = [
-    url(r'^api/univertest$', univer_views.UniverView.as_view(), name="post"),
-    url(r'^univerauth$', univer_views.authview, name="test"),
-    url(r'^api/univerauthcheck$', univer_views.authview_check, name="check"),
+    
+    re_path(r'^api/univertest$', univer_views.UniverView.as_view(), name="post"),
+    re_path(r'^univerauth$', univer_views.authview, name="test"),
+    re_path(r'^api/univerauthcheck$', univer_views.authview_check, name="check"),
 
     path('', branding_views.index, name='root'),  # Main marketing page, or redirect to courseware
 
