@@ -50,7 +50,7 @@ from openedx.core.djangoapps.programs.models import ProgramsApiConfig
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.user_authn.views.login import redirect_to_lms_login
 from openedx.features.enterprise_support.api import enterprise_enabled
-from univerapi import views as univer_views
+from lms.djangoapps.univerapi import views as univer_views
 RESET_COURSE_DEADLINES_NAME = 'reset_course_deadlines'
 RENDER_XBLOCK_NAME = 'render_xblock'
 RENDER_VIDEO_XBLOCK_NAME = 'render_public_video_xblock'
