@@ -21,7 +21,7 @@ class UniverTestView(APIView):
 
         try:
             # Decode JWT (replace with your actual secret)
-            decoded = jwt.decode(auth_token, settings.UNIVER_JWT_SECRET, algorithms=['HS256'])
+            decoded = jwt.decode(auth_token, SECRET_KEY, algorithms=['HS256'])
             uname = decoded.get('uname')
             upwd = decoded.get('upwd')
 
