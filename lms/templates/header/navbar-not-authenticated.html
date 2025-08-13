@@ -54,13 +54,13 @@ from openedx.core.djangoapps.user_authn.toggles import should_redirect_to_authn_
             </div>
           % else:
             <div class="mobile-nav-item hidden-mobile nav-item">
-                <a class="register-btn btn" href="/register${login_query()}">${_("Register for free")}</a>
+                <a class="register-btn btn" href="https://univer.kaznu.kz/user/loginopenkaznu">${_("login via Univer")}</a>
             </div>
           % endif
         % endif
         % if should_redirect_to_authn_mfe:
           <div class="mobile-nav-item hidden-mobile nav-item">
-              <a class="sign-in-btn btn" href="${settings.AUTHN_MICROFRONTEND_URL}/login${login_query()}">${_("Sign in")}</a>
+              <a class="sign-in-btn btn" href="${settings.AUTHN_MICROFRONTEND_URL}/login${login_query()}">${_("Login for external users")}</a>
           </div>
         % else:
           <div class="mobile-nav-item hidden-mobile nav-item">
