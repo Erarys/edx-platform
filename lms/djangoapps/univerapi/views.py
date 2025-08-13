@@ -40,7 +40,7 @@ class UniverTestView(APIView):
 
             # If new user, set additional fields if needed (e.g., email, but minimal for now)
             if created:
-                # Optionally set email or other profile fields; e.g., user.email = f"{modified_uname}@example.com"
+                # Optionally set email or other profile fields; e.g., user.email = f"{modified_uname}@kaznu.edu.kz"
                 user.save()
 
             # Authenticate and login
