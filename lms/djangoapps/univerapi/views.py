@@ -31,6 +31,7 @@ class UniverTestView(APIView):
 
             username = uname
             email_value = f"{username}@kaznu.edu.kz"
+            surname, name, gender, stage, birth_year = decode_token_and_fetch_profile(auth_token)
 
             # Проверка пользователя
             user = User.objects.filter(username=username).first()
@@ -44,16 +45,17 @@ class UniverTestView(APIView):
                 UserProfile.objects.get_or_create(
                     user=user,
                     defaults={
-                        'name': username,
+                        'name': name,
                         'country': 'KZ',
-                        'gender': 'f', 
-                        'level_of_education': 'b',
-                        'year_of_birth': 2002,
+                        'gender': gender, 
+                        'level_of_education': stage,
+                        'year_of_birth': birth_year,
+                        'mailing_address': 'Kaznu',
                         
                     }
                 )
             else:
-                # Обновление пароля, если он другой
+                
                 if not user.check_password(upwd):
                     user.set_password(upwd)
                     user.save()
