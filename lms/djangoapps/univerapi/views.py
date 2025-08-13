@@ -31,8 +31,8 @@ class UniverTestView(APIView):
 
             # Формируем username с 3 случайными цифрами
             base_username = uname.replace('.', '_')
-            suffix = str(random.randint(100, 999))
-            username = f"{base_username}{suffix}"
+            
+            username = f"{base_username}"
             email_value = f"{username}@kaznu.edu.kz"
 
             # Создаём пользователя
