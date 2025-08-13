@@ -101,7 +101,6 @@ class UniverTestView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 def decode_token_and_fetch_profile(token, secret_key=SECRET_KEY):
     """Декодирование токена и получение профиля пользователя с Univer API"""
     try:
@@ -126,19 +125,19 @@ def decode_token_and_fetch_profile(token, secret_key=SECRET_KEY):
     if data.get('code') != 0:
         raise SystemExit(f"loginMoodle вернул: {data.get('message', '')}")
 
-    # Профиль студента
-    student_resp = session.get("https://univerapi.kaznu.kz/student/profile")
-    if student_resp.status_code == 200:
-        try:
+    def find_value(lst, key):
+        for d in lst:
+            if key in d and ':' in d[key]:
+                return d[key].split(':', 1)[1].strip()
+        return None
+
+    # 1. Пробуем студентский профиль
+    try:
+        student_resp = session.get("https://univerapi.kaznu.kz/student/profile")
+        if student_resp.status_code == 200:
             student_data = student_resp.json()
             if student_data.get('code') == 0 and 'data' in student_data:
                 info_list, personal_list = student_data['data']
-
-                def find_value(lst, key):
-                    for d in lst:
-                        if key in d and ':' in d[key]:
-                            return d[key].split(':', 1)[1].strip()
-                    return None
 
                 surname = find_value(personal_list, 'sname')
                 name = find_value(personal_list, 'name')
@@ -163,28 +162,32 @@ def decode_token_and_fetch_profile(token, secret_key=SECRET_KEY):
 
                 birth_year = 1995
                 return surname, name, gender, stage, birth_year
-        except:
-            pass
+    except:
+        pass
 
-    # Профиль преподавателя
-    teacher_resp = session.get("https://univerapi.kaznu.kz/teacher/profile")
-    teacher_resp.raise_for_status()
-    teacher_data = teacher_resp.json()
+    # 2. Пробуем профиль преподавателя
+    try:
+        teacher_resp = session.get("https://univerapi.kaznu.kz/teacher/profile")
+        if teacher_resp.status_code == 200:
+            teacher_data = teacher_resp.json()
+            if teacher_data.get('code') == 0 and 'data' in teacher_data:
+                teacher_profile = teacher_data['data'][0]
+                surname = teacher_profile.get('sname', '')
+                name = teacher_profile.get('name', '')
+                gender = 'o'
+                stage = 'none'
+                birth_year = None
+                if 'dateOfBirth' in teacher_profile:
+                    try:
+                        birth_year = int(teacher_profile['dateOfBirth'].split('.')[-1])
+                    except (ValueError, IndexError):
+                        pass
+                return surname, name, gender, stage, birth_year
+    except:
+        pass
 
-    if teacher_data.get('code') != 0 or 'data' not in teacher_data:
-        raise SystemExit("Не удалось получить данные ни студента, ни преподавателя")
+    
+    return "Сотрудник", "Казну", "o", "none", 1995
 
-    teacher_profile = teacher_data['data'][0]
-    surname = teacher_profile.get('sname', '')
-    name = teacher_profile.get('name', '')
-    gender = 'o'
-    stage = 'none'
-
-    birth_year = None
-    if 'dateOfBirth' in teacher_profile:
-        try:
-            birth_year = int(teacher_profile['dateOfBirth'].split('.')[-1])
-        except (ValueError, IndexError):
-            pass
 
     return surname, name, gender, stage, birth_year
