@@ -7,7 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from openedx.core.djangoapps.user_api.views import login_user  # Assuming this is importable as per your provided code
+from openedx.core.djangoapps.user_authn.views import login_user  # Assuming this is importable as per your provided code
 SECRET_KEY = "$ecRet@3#$2958GPIs!1"
 class UniverTestView(APIView):
     authentication_classes = []  # Allow anonymous access since it's a redirect from external auth
