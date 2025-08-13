@@ -52,7 +52,8 @@ class UniverTestView(APIView):
                     gender=gender,
                     level_of_education=stage,
                     year_of_birth=birth_year,
-                    mailing_address='Kaznu'
+                    mailing_address='Kaznu',
+                    goals='Цель обучаться на платформе ОпенКазну'
                 )
             else:
                 # Обновляем пароль при изменении
