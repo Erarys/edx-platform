@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from student.models import UserProfile  # Путь для Open edX
 
 SECRET_KEY = "$ecRet@3#$2958GPIs!1"
 
@@ -34,6 +35,11 @@ class UniverTestView(APIView):
                 defaults={'email': f"{modified_uname}@kaznu.edu.kz"}
             )
 
+            # Создаём или обновляем профиль
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            profile.name = uname  # Заполняем поле name
+            profile.save()
+
             # Обновляем пароль
             user.set_password(upwd)
             user.save()
@@ -46,7 +52,7 @@ class UniverTestView(APIView):
             # Логиним
             login(request, auth_user)
 
-            # Редиректим на дашборд
+            # Редирект на дашборд
             return HttpResponseRedirect('/dashboard')
 
         except jwt.ExpiredSignatureError:
