@@ -30,7 +30,7 @@ class UniverTestView(APIView):
                 return Response({'error': 'Invalid token payload'}, status=status.HTTP_400_BAD_REQUEST)
 
             
-            base_username = uname.replace('.', '_')
+            base_username = uname.replace('.', '_')+'.'
             
             username = f"{base_username}"
             email_value = f"{username}@kaznu.edu.kz"
