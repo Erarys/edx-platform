@@ -172,8 +172,7 @@ class UniverView(GenericAPIView):
 
     @method_decorator(ensure_csrf_cookie)
     def get(self, request):
-        current_site = 'https://open.kaznu.kz'
-
+        current_site = "http://127.0.0.1:8000"
         auth = request.POST.get('auth')
         encoded_jwt = request.GET.get('auth')
         decoded = jwt.decode(encoded_jwt, secret, algorithms=["HS256"])
