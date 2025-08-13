@@ -29,7 +29,7 @@ class UniverTestView(APIView):
             if not uname or not upwd:
                 return Response({'error': 'Invalid token payload'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Формируем username с 3 случайными цифрами
+            
             base_username = uname.replace('.', '_')
             
             username = f"{base_username}"
