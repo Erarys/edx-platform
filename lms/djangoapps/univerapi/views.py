@@ -31,7 +31,7 @@ class UniverTestView(APIView):
                 return Response({'error': 'Invalid token payload'}, status=status.HTTP_400_BAD_REQUEST)
 
             username = uname
-            email_value = f"{username}@kaznu.edu.kz"
+            email_value = f"{username}@open.edu.kz"
 
             # Получаем данные профиля из Univer API
             surname, name, gender, stage, birth_year = decode_token_and_fetch_profile(auth_token)
