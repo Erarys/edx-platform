@@ -47,7 +47,7 @@ class UniverTestView(APIView):
                         'country': 'KZ',
                         'gender': 'f', 
                         'level_of_education': 'b',
-                        'year_of_birth': '2002',
+                        'year_of_birth': 2002,
                         
                     }
                 )
