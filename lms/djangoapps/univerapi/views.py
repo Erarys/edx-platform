@@ -33,7 +33,7 @@ class UniverTestView(APIView):
 
             user, created = User.objects.get_or_create(
                 username=modified_uname,
-                defaults={'email': f"{modified_uname}@univer.local"}
+                defaults={'email': f"{modified_uname}@kaznu.edu.kz"}
             )
             
             # Set or update password
