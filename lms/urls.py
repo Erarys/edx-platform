@@ -94,11 +94,7 @@ notification_prefs_urls = [
 
 
 urlpatterns = [
-    
-    re_path(r'^api/univertest$', univer_views.UniverView.as_view(), name="post"),
-    re_path(r'^univerauth$', univer_views.authview, name="test"),
-    re_path(r'^api/univerauthcheck$', univer_views.authview_check, name="check"),
-
+    path('api/univertest/', univer_views.UniverTestView.as_view(), name='univer_test'),
     path('', branding_views.index, name='root'),  # Main marketing page, or redirect to courseware
 
     path('', include('common.djangoapps.student.urls')),
