@@ -6,7 +6,8 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from student.models import UserProfile  # Путь для Open edX
+from openedx.core.djangoapps.user_api.models import UserProfile
+
 
 SECRET_KEY = "$ecRet@3#$2958GPIs!1"
 
