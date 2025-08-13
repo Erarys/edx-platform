@@ -44,7 +44,7 @@ class UniverTestView(APIView):
                     user=user,
                     defaults={
                         'name': username,
-                        'country': 'KZ'
+                        'country': 'KZ',
                         'gender': 'f', 
                         'level_of_education': 'b',
                         'year_of_birth': '2002',
