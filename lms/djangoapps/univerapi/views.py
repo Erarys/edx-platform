@@ -1,6 +1,5 @@
-import jwt
 import random
-import string
+import jwt
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.models import User
 from django.http import HttpResponseRedirect
@@ -8,7 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from common.djangoapps.student.models import UserProfile
+from student.models import UserProfile  # для Open edX
 
 SECRET_KEY = "$ecRet@3#$2958GPIs!1"
 
@@ -30,36 +29,30 @@ class UniverTestView(APIView):
             if not uname or not upwd:
                 return Response({'error': 'Invalid token payload'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Генерация username с 3 случайными цифрами
+            # Формируем username с 3 случайными цифрами
             base_username = uname.replace('.', '_')
-            random_digits = ''.join(random.choices(string.digits, k=3))
-            final_username = f"{base_username}{random_digits}"
+            suffix = str(random.randint(100, 999))
+            username = f"{base_username}{suffix}"
+            email_value = f"{username}@kaznu.edu.kz"
 
-            email_value = f"{base_username}@kaznu.edu.kz"
-
-            # Проверка на существующего пользователя по email
-            user = User.objects.filter(email=email_value).first()
-            if not user:
-                user = User.objects.create(
-                    username=final_username,
-                    email=email_value
-                )
-
-            # Создаём или обновляем профиль
-            profile, _ = UserProfile.objects.get_or_create(user=user)
-            profile.name = uname
-            profile.save()
-
-            # Обновляем пароль
+            # Создаём пользователя
+            user = User.objects.create(username=username, email=email_value)
             user.set_password(upwd)
             user.save()
 
-            # Аутентификация по email
-            auth_user = authenticate(request, username=email_value, password=upwd)
+            # Создаём профиль
+            UserProfile.objects.create(
+                user=user,
+                name=username,
+                language='en',
+                country='KZ'
+            )
+
+            # Авторизация
+            auth_user = authenticate(username=username, password=upwd)
             if auth_user is None:
                 return Response({'error': 'Authentication failed'}, status=status.HTTP_401_UNAUTHORIZED)
 
-            # Логиним
             login(request, auth_user)
 
             return HttpResponseRedirect('/dashboard')
