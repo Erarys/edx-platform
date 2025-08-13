@@ -21,7 +21,6 @@ class UniverTestView(APIView):
             return Response({'error': 'Missing auth token'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Декодируем токен
             decoded = jwt.decode(auth_token, SECRET_KEY, algorithms=['HS256'])
             uname = decoded.get('uname')
             upwd = decoded.get('upwd')
@@ -32,30 +31,34 @@ class UniverTestView(APIView):
             username = uname
             email_value = f"{username}@kaznu.edu.kz"
 
-            # Проверяем, есть ли пользователь с таким username
+            # Проверка пользователя
             user = User.objects.filter(username=username).first()
 
             if not user:
-                # Если нет — создаём нового
+                # Создание нового
                 user = User.objects.create(username=username, email=email_value)
                 user.set_password(upwd)
                 user.save()
 
-                # Проверяем, есть ли профиль
-                if not UserProfile.objects.filter(user=user).exists():
-                    UserProfile.objects.create(
-                        user=user,
-                        name=username,
-                        language='en',
-                        country='KZ'
-                    )
+                UserProfile.objects.get_or_create(
+                    user=user,
+                    defaults={
+                        'name': username,
+                        'language': 'en',
+                        'country': 'KZ'
+                    }
+                )
+            else:
+                # Обновление пароля, если он другой
+                if not user.check_password(upwd):
+                    user.set_password(upwd)
+                    user.save()
 
-            # Аутентификация
+            # Авторизация
             auth_user = authenticate(username=username, password=upwd)
             if auth_user is None:
                 return Response({'error': 'Authentication failed'}, status=status.HTTP_401_UNAUTHORIZED)
 
-            # Логиним
             login(request, auth_user)
             return HttpResponseRedirect('/dashboard')
 
