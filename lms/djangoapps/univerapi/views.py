@@ -1,4 +1,6 @@
 import jwt
+import random
+import string
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.models import User
 from django.http import HttpResponseRedirect
@@ -28,31 +30,38 @@ class UniverTestView(APIView):
             if not uname or not upwd:
                 return Response({'error': 'Invalid token payload'}, status=status.HTTP_400_BAD_REQUEST)
 
-            modified_uname = uname.replace('.', '_')
+            # Генерация username с 3 случайными цифрами
+            base_username = uname.replace('.', '_')
+            random_digits = ''.join(random.choices(string.digits, k=3))
+            final_username = f"{base_username}{random_digits}"
 
-            user, created = User.objects.get_or_create(
-                username=modified_uname,
-                defaults={'email': f"{modified_uname}@kaznu.edu.kz"}
-            )
+            email_value = f"{base_username}@kaznu.edu.kz"
+
+            # Проверка на существующего пользователя по email
+            user = User.objects.filter(email=email_value).first()
+            if not user:
+                user = User.objects.create(
+                    username=final_username,
+                    email=email_value
+                )
 
             # Создаём или обновляем профиль
             profile, _ = UserProfile.objects.get_or_create(user=user)
-            profile.name = uname  # Заполняем поле name
+            profile.name = uname
             profile.save()
 
             # Обновляем пароль
             user.set_password(upwd)
             user.save()
 
-            # Аутентификация
-            auth_user = authenticate(username=modified_uname, password=upwd)
+            # Аутентификация по email
+            auth_user = authenticate(request, username=email_value, password=upwd)
             if auth_user is None:
                 return Response({'error': 'Authentication failed'}, status=status.HTTP_401_UNAUTHORIZED)
 
             # Логиним
             login(request, auth_user)
 
-            # Редирект на дашборд
             return HttpResponseRedirect('/dashboard')
 
         except jwt.ExpiredSignatureError:
