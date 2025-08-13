@@ -31,10 +31,12 @@ class UniverTestView(APIView):
             # Modify uname: replace '.' with '_'
             modified_uname = uname.replace('.', '_')
 
-            # Check if user exists
-            user, created = User.objects.get_or_create(username=modified_uname)
-
-            # Set or update password (handles updates)
+            user, created = User.objects.get_or_create(
+                username=modified_uname,
+                defaults={'email': f"{modified_uname}@univer.local"}
+            )
+            
+            # Set or update password
             user.set_password(upwd)
             user.save()
 
