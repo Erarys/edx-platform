@@ -109,7 +109,7 @@ REQUIRED_FIELD_GOALS_MSG = _("Tell us your goals")
 REQUIRED_FIELD_LEVEL_OF_EDUCATION_MSG = _("Select the highest level of education you have completed")
 REQUIRED_FIELD_YEAR_OF_BIRTH_MSG = _("Select your year of birth")
 REQUIRED_FIELD_GENDER_MSG = _("Select your gender")
-REQUIRED_FIELD_MAILING_ADDRESS_MSG = _("Enter your mailing address")
+REQUIRED_FIELD_MAILING_ADDRESS_MSG = _("Enter your educational institution")
 
 # HIBP Strings
 AUTHN_LOGIN_BLOCK_HIBP_POLICY_MSG = _(
