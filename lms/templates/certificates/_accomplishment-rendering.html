@@ -2,7 +2,15 @@
 <%! from django.utils.translation import gettext as _ %>
 <%namespace name='static' file='../static_content.html'/>
 <%
+from datetime import datetime
 course_mode_class = course_mode if course_mode else ''
+
+# Преобразуем дату в формат дд.мм.гггг
+try:
+    date_obj = datetime.strptime(certificate_date_issued, "%B %d, %Y")
+    formatted_date = date_obj.strftime("%d.%m.%Y")
+except:
+    formatted_date = certificate_date_issued
 %>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,13 +36,10 @@ course_mode_class = course_mode if course_mode else ''
       margin-left: 1070px;
     }
   }
-
-
-
 </style>
 
 <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align:center; font-family: 'Times New Roman', Times, serif !important;">
-  <div id="certificate-container" style="">
+  <div id="certificate-container">
     <div class="certificate" id="certificate" style="position: relative; width: 298mm; height: 210mm; background-color: #001A72; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); overflow: hidden;">
       <div class="certificate-inner" style="position: absolute; top: 40px; left: 40px; right: 40px; bottom: 40px; background-color: white; z-index: 15;">
         <div style="width: 100%; display: flex; flex-direction: column; align-items: center; margin-top: 10px;">
@@ -42,63 +47,62 @@ course_mode_class = course_mode if course_mode else ''
           <span style="font-size: 18px; color: #FFD700; letter-spacing: 2px;">FARABI UNIVERSITY</span>
 
           <span style=" font-size: 58px; color: #318CE7; font-weight: 400; margin-top: 25px; letter-spacing: 8px;">СЕРТИФИКАТ</span>
-        <div style="margin-top: 30px; font-size: 28px; color: #001A72;  max-width: 700px;">
-          Сертификат настоящим подтверждает, что
-        </div>
-        <span style="font-size: 38px; color: #001A72; border-bottom: 2px solid #001A72; min-width: 1000px; padding: 2px 8px;   margin-top: 30px;">${accomplishment_copy_name}</span>
-        </div>
-
-<div style="width: 100%; margin-top: 30px; font-size: 18px; color: #001A72; font-weight: bolder; text-align: left; padding-left: 15px">
-    <div style="margin-bottom: 20px;">
-        Прошел(-а) онлайн курс:
-        <span style="font-weight: bold; color: #FABF67; margin-left: 10px;"> ${accomplishment_copy_course_name}</span>
-    </div>
-    <div style="margin-bottom: 20px;">
-        Дата выдачи:
-        <span style="font-weight: bold; color: #FABF67; margin-left: 10px;"> ${certificate_date_issued}</span>
-    </div>
-    <div>
-        Регистрационный номер:
-        <span style="font-weight: bold; color: #FABF67; margin-left: 10px;"> ${certificate_id_number}</span>
-    </div>
-</div>
-
-<div style="position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; justify-content: space-between; align-items: center; z-index: 20;">
-
-  <div style="text-align: center; flex: 1; margin-top: 10px">
-    <img src="https://open.kaznu.kz/static/kaznu/images/sign1.png" alt="Signature 1" style="width: 150px; height: auto;">
-    <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Галеева А.К.</div>
-    <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Член Правления - проректор по академическим вопросам</div>
-  </div>
-  <div style="text-align: center; flex: 1; margin-top: 58px;">
-    <img src="https://open.kaznu.kz/static/kaznu/images/sign2.jpg" alt="Signature 2" style="width: 80px; height: auto;">
-    <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Круговых И.И.</div>
-    <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Руководитель Офиса академических и цифровых инноваций</div>
-  </div>
-
-<div style="text-align: center; flex: 1; margin-top: 33px;">
-    % if mode != 'base' and certificate_data:
-      % for signatory in certificate_data.get('signatories', []):
-        % if signatory.get('signature_image_path'):
-          <div style="width: 110px; height: 60px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-            <img src="${static.url(signatory['signature_image_path'])}"
-                 alt="${signatory['name']}"
-                 style="max-width: 100%; max-height: 100%; object-fit: contain;">
+          <div style="margin-top: 30px; font-size: 28px; color: #001A72;  max-width: 700px;">
+            Сертификат настоящим подтверждает, что
           </div>
-        % endif
-        <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">
-          ${signatory['name']}
+          <span style="font-size: 38px; color: #001A72; border-bottom: 2px solid #001A72; min-width: 1000px; padding: 2px 8px; margin-top: 30px;">
+            ${accomplishment_copy_name}
+          </span>
         </div>
-      % endfor
-        <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">
-          Автор курса
+
+        <div style="width: 100%; margin-top: 30px; font-size: 18px; color: #001A72; font-weight: bolder; text-align: left; padding-left: 15px">
+          <div style="margin-bottom: 20px;">
+              Прошел(-а) онлайн курс:
+              <span style="font-weight: bold; color: #FABF67; margin-left: 10px;">${accomplishment_copy_course_name}</span>
+          </div>
+          <div style="margin-bottom: 20px;">
+              Дата выдачи:
+              <span style="font-weight: bold; color: #FABF67; margin-left: 10px;">${formatted_date}</span>
+          </div>
+          <div>
+              Регистрационный номер:
+              <span style="font-weight: bold; color: #FABF67; margin-left: 10px;">${certificate_id_number}</span>
+          </div>
         </div>
-    % endif
-</div>
 
-
-</div>
+        <div style="position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; justify-content: space-between; align-items: center; z-index: 20;">
+          <div style="text-align: center; flex: 1; margin-top: 10px">
+            <img src="https://open.kaznu.kz/static/images/sign1.png" alt="Signature 1" style="width: 150px; height: auto;">
+            <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Галеева А.К.</div>
+            <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Член Правления - проректор по академическим вопросам</div>
+          </div>
+          <div style="text-align: center; flex: 1; margin-top: 58px;">
+            <img src="https://open.kaznu.kz/static/images/sign2.jpg" alt="Signature 2" style="width: 80px; height: auto;">
+            <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Круговых И.И.</div>
+            <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Руководитель Офиса академических и цифровых инноваций</div>
+          </div>
+          <div style="text-align: center; flex: 1; margin-top: 35px;">
+            % if mode != 'base' and certificate_data:
+              % for signatory in certificate_data.get('signatories', []):
+                % if signatory.get('signature_image_path'):
+                  <div style="width: 110px; height: 60px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                    <img src="${static.url(signatory['signature_image_path'])}"
+                         alt="${signatory['name']}"
+                         style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                  </div>
+                % endif
+                <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">
+                  ${signatory['name']}
+                </div>
+              % endfor
+              <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">
+                Автор курса
+              </div>
+            % endif
+          </div>
+        </div>
       </div>
+
       <div class="certificate-inner2" style="position: absolute; top: 20px; left: 20px; right: 20px; bottom: 20px; background-color: white; z-index: 12;"></div>
       <div class="triangle" style="position: absolute; bottom: 0; left: 0; width: 0; height: 0; border-style: solid; border-width: 200px 0 0 250px; border-color: transparent transparent transparent #007BFF; z-index: 10;"></div>
       <div class="triangle-secondary" style="position: absolute; bottom: 0; left: 0; width: 0; height: 0; border-style: solid; border-width: 250px 0 0 300px; border-color: transparent transparent transparent #318CE7; z-index: 5;"></div>
@@ -107,32 +111,24 @@ course_mode_class = course_mode if course_mode else ''
     </div>
   </div>
 </div>
+
 <button class="download-btn" style="margin-top: 20px; padding: 10px 20px; font-size: 16px; color: white; background-color: #007BFF; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: background-color 0.3s ease;" onmouseover="this.style.backgroundColor='#0056b3'" onmouseout="this.style.backgroundColor='#007BFF'" onclick="downloadCertificate()">Скачать сертификат</button>
+
 <script>
     async function downloadCertificate() {
       const certificateElement = document.getElementById('certificate');
-
-      // Use html2canvas to render the certificate element
       const canvas = await html2canvas(certificateElement, {
-        scale: 3, // Increase scale for better quality
-        useCORS: true // Enable cross-origin for images
+        scale: 3,
+        useCORS: true
       });
-
-      // Convert canvas to image data
       const imgData = canvas.toDataURL('image/png');
-
-      // Create PDF using jsPDF
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'px',
         format: [certificateElement.offsetWidth, certificateElement.offsetHeight]
       });
-
-      // Add image to PDF
       pdf.addImage(imgData, 'PNG', 0, 0, certificateElement.offsetWidth, certificateElement.offsetHeight);
-
-      // Save the PDF
       pdf.save('certificate.pdf');
     }
 </script>
