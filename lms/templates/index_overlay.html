@@ -1,4 +1,3 @@
-
 <%page expression_filter="h"/>
 
 <%!
@@ -82,12 +81,12 @@ from openedx.core.djangolib.markup import HTML, Text
 
 <section class="hero">
     <div class="hero-content">
-        <h1 data-aos="zoom-in">${"Open KazNU"}</h1>
+        <h1 data-aos="zoom-in">${_("Open KazNU")}</h1>
         <p data-aos="fade-right" data-aos-delay="300">
-            ${"ONLINE COURSES FROM LEADING PROFESSORS OF Al-Farabi KazNU"}
+            ${_("ONLINE COURSES FROM LEADING PROFESSORS OF Al-Farabi KazNU")}
         </p>
         <p data-aos="fade-right" data-aos-delay="500">
-            ${"Leader of higher education in Kazakhstan in implementing MOOCs on the Open edX platform"}
+            ${_("Leader of higher education in Kazakhstan in implementing MOOCs on the Open edX platform")}
         </p>
     </div>
 </section>
@@ -400,43 +399,37 @@ padding: 60px 20px !important;
     <!-- Левая часть: контент -->
     <div class="content-wrapper">
 
-
-
-
         <section class="about-mooc">
   <div class="icon-block" data-aos="fade-up" data-aos-delay="500">
     <div class="circle">
-      <div class="version">${"MOOC"}</div>
-      <div class="hex hex1">${"Online"}</div>
-      <div class="hex hex2">${"Courses"}</div>
-      <div class="hex hex3">${"Open"}</div>
-      <div class="hex hex4">${"Massive"}</div>
+      <div class="version">${_("MOOC")}</div>
+      <div class="hex hex1">${_("Online")}</div>
+      <div class="hex hex2">${_("Courses")}</div>
+      <div class="hex hex3">${_("Open")}</div>
+      <div class="hex hex4">${_("Massive")}</div>
     </div>
   </div>
   <div class="text-block">
-    <h2 data-aos="zoom-in">${"About MOOC"}</h2>
+    <h2 data-aos="zoom-in">${_("About MOOC")}</h2>
     <p data-aos="fade-left">
-      ${"Massive Open Online Courses (MOOCs) are free online courses available to everyone. MOOCs provide a flexible and accessible way to gain new skills, advance your career, and deliver quality education at scale."}
+      ${_("Massive Open Online Courses (MOOCs) are free online courses available to everyone. MOOCs provide a flexible and accessible way to gain new skills, advance your career, and deliver quality education at scale.")}
     </p>
     <p data-aos="fade-left">
-      ${"Millions of people worldwide use MOOCs for various reasons, including career advancement, career change, college preparation, additional education, lifelong learning, corporate e-learning, training, and much more."}
+      ${_("Millions of people worldwide use MOOCs for various reasons, including career advancement, career change, college preparation, additional education, lifelong learning, corporate e-learning, training, and much more.")}
     </p>
     <p data-aos="fade-left">
-      ${"MOOCs have fundamentally changed the way people learn around the world. Ready to get started?"}
+      ${_("MOOCs have fundamentally changed the way people learn around the world. Ready to get started?")}
     </p>
 
 <a href="/news" class="highlight-link">
   <div class="highlight" data-aos="fade-down" data-aos-delay="300">
-      <strong>${"Our  News!"}</strong><br />
-      ${"Check out our latest updates on the platform"}
+      <strong>${_("Our News!")}</strong><br />
+      ${_("Check out our latest updates on the platform")}
   </div>
 </a>
 
   </div>
 </section>
-
-
-
 
     </div>
 
@@ -445,33 +438,30 @@ padding: 60px 20px !important;
   <div class="card" data-aos="fade-right">
     <h3>
       <span class="icon-box"><i class="fas fa-book" aria-hidden="true"></i></span>
-      ${"Guide"}
+      ${_("Guide")}
     </h3>
-    <p>${"Follow the step-by-step guide to quickly and easily start learning."}</p>
-    <a href="#" class="card-link">${"Learn more"}</a>
+    <p>${_("Follow the step-by-step guide to quickly and easily start learning.")}</p>
+    <a href="#" class="card-link">${_("Learn more")}</a>
   </div>
 
   <div class="card" data-aos="fade-right">
     <h3>
       <span class="icon-box"><i class="fas fa-laptop-code" aria-hidden="true" style="color: white !important; font-size: 12px !important;"></i></span>
-      ${"Popular Topics"}
+      ${_("Popular Topics")}
     </h3>
-    <p>${"Artificial Intelligence, Digital Marketing, Web Development, Project Management, and Personal Growth."}</p>
-    <a href="#" class="card-link">${"Browse courses"}</a>
+    <p>${_("Artificial Intelligence, Digital Marketing, Web Development, Project Management, and Personal Growth.")}</p>
+    <a href="#" class="card-link">${_("Browse courses")}</a>
   </div>
 
   <div class="card" data-aos="fade-right">
     <h3>
       <span class="icon-box"><i class="fas fa-award" aria-hidden="true"></i></span>
-      ${"Join us!"}
+      ${_("Join us!")}
     </h3>
-    <p>${"Become part of a community of 2 million students. Connect, share projects, and find like-minded people."}</p>
-    <a href="#" class="card-link">${"Register"}</a>
+    <p>${_("Become part of a community of 2 million students. Connect, share projects, and find like-minded people.")}</p>
+    <a href="#" class="card-link">${_("Register")}</a>
   </div>
 </div>
-
-
-
 
 </div>
 
@@ -581,54 +571,54 @@ padding: 60px 20px !important;
 
 <section class="advantages-section">
     <div class="container">
-        <h2 data-aos="zoom-in">${"Advantages of Online Courses"}</h2>
+        <h2 data-aos="zoom-in">${_("Advantages of Online Courses")}</h2>
 
         <div class="advantage-card">
             <h3>
                 <span class="icon-box"><i class="fas fa-clock" aria-hidden="true"></i></span>
-                ${"Flexible Schedule"}
+                ${_("Flexible Schedule")}
             </h3>
-            <p>${"Learn at your own pace and at a convenient time, balancing studies with work or other commitments."}</p>
+            <p>${_("Learn at your own pace and at a convenient time, balancing studies with work or other commitments.")}</p>
         </div>
 
         <div class="advantage-card">
             <h3>
                 <span class="icon-box"><i class="fas fa-globe" aria-hidden="true"></i></span>
-                ${"Accessibility"}
+                ${_("Accessibility")}
             </h3>
-            <p>${"Get access to high-quality courses from anywhere in the world, without leaving your home."}</p>
+            <p>${_("Get access to high-quality courses from anywhere in the world, without leaving your home.")}</p>
         </div>
 
         <div class="advantage-card">
             <h3>
                 <span class="icon-box"><i class="fas fa-graduation-cap" aria-hidden="true"></i></span>
-                ${"Variety of Courses"}
+                ${_("Variety of Courses")}
             </h3>
-            <p>${"Choose from a wide range of programs: from programming to personal development."}</p>
+            <p>${_("Choose from a wide range of programs: from programming to personal development.")}</p>
         </div>
 
         <div class="advantage-card">
             <h3>
                 <span class="icon-box"><i class="fas fa-certificate" aria-hidden="true"></i></span>
-                ${"Certificates"}
+                ${_("Certificates")}
             </h3>
-            <p>${"Earn official certificates upon course completion to strengthen your resume."}</p>
+            <p>${_("Earn official certificates upon course completion to strengthen your resume.")}</p>
         </div>
 
         <div class="advantage-card">
             <h3>
                 <span class="icon-box"><i class="fas fa-users" aria-hidden="true"></i></span>
-                ${"Community"}
+                ${_("Community")}
             </h3>
-            <p>${"Connect with instructors and students, share experiences, and exchange ideas."}</p>
+            <p>${_("Connect with instructors and students, share experiences, and exchange ideas.")}</p>
         </div>
 
         <div class="advantage-card">
             <h3>
                 <span class="icon-box"><i class="fas fa-wallet" aria-hidden="true"></i></span>
-                ${"Free Learning"}
+                ${_("Free Learning")}
             </h3>
-            <p>${"Many courses are available for free, making education accessible to everyone."}</p>
+            <p>${_("Many courses are available for free, making education accessible to everyone.")}</p>
         </div>
     </div>
 </section>
