@@ -56,7 +56,11 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
     margin: 0 auto !important; /* центрирует по горизонтали */
 }
 }
-
+@media (max-width: 1024px) {
+    .fa-globe {
+        display: none !important;
+    }
+}
 </style>
 
 <header class="global-header ${'slim' if course else ''}">
