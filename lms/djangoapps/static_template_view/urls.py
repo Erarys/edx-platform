@@ -24,8 +24,7 @@ urlpatterns = [
     path('author', views.render, {'template': 'author.html'}, name="author"),
     path('detect', views.render, {'template': 'detect.html'}, name="detect"),
     path('honor_code', views.render, {'template': 'honor_code.html'}, name="honor_code"),
-    path('privacy', views.render, {'template': 'privacy.html'}, name="privacy"),
-    path('about_us', views.render, {'template': 'about_us.html'}, name="about_us"),
+    
     # Press releases
     re_path(r'^press/([_a-zA-Z0-9-]+)$', views.render_press_release, name='press_release'),
 ]
