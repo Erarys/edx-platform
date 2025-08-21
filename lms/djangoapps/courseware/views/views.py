@@ -851,7 +851,9 @@ def course_about(request, course_id):  # pylint: disable=too-many-statements
 
         # Overview
         overview = CourseOverview.get_from_id(course.id)
-
+        same_name_courses = CourseOverview.objects.filter(
+            display_name=overview.display_name
+        ).exclude(id=course.id)
         sidebar_html_enabled = ENABLE_COURSE_ABOUT_SIDEBAR_HTML.is_enabled()
 
         allow_anonymous = check_public_access(course, [COURSE_VISIBILITY_PUBLIC, COURSE_VISIBILITY_PUBLIC_OUTLINE])
@@ -882,6 +884,7 @@ def course_about(request, course_id):  # pylint: disable=too-many-statements
             'course_image_urls': overview.image_urls,
             'sidebar_html_enabled': sidebar_html_enabled,
             'allow_anonymous': allow_anonymous,
+            'same_name_courses': same_name_courses,
         }
 
         course_about_template = 'courseware/course_about.html'
