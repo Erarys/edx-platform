@@ -557,7 +557,7 @@ class RegistrationFormFactory:
 
         # Translators: These instructions appear on the registration form, immediately
         # below a field meant to hold the user's full name.
-        name_instructions = _("Full name (Surname and Name)")
+        name_instructions = _("Surname and Name")
 
         form_desc.add_field(
             "name",
