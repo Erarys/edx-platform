@@ -2,80 +2,859 @@
 <%!
   import json
   from django.utils.translation import gettext as _
-  from openedx.core.djangolib.js_utils import js_escaped_string, dump_js_escaped_json
+  from datetime import datetime
 %>
 <%inherit file="../main.html" />
-<%
-  course_discovery_enabled = settings.FEATURES.get('ENABLE_COURSE_DISCOVERY')
-%>
 
-<%namespace name='static' file='../static_content.html'/>
+<%block name="headextra">
+  <style>
+    :root {
+      --primary-dark: #1a263c;
+      --primary-accent: #4a6cf7;
+      --primary-accent-hover: #3b5be3;
+      --primary-light: #f5f7fa;
+      --text-dark: #2d3748;
+      --text-muted: #718096;
+      --text-light: #fff;
+      --border-color: #e2e8f0;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+      --border-radius: 8px;
+      --border-radius-lg: 12px;
+      --transition: all 0.3s ease;
+      --status-upcoming: #ffeaa7;
+      --status-ongoing: #a3e4d7;
+      --status-completed: #f8c8c6;
+      --status-upcoming-text: #856404;
+      --status-ongoing-text: #155724;
+      --status-completed-text: #721c24;
+      --sidebar-width: 320px;
+    }
 
-% if course_discovery_enabled:
-<%block name="header_extras">
-  % for template_name in ["course_card", "filter_bar", "filter", "facet", "facet_option"]:
-  <script type="text/template" id="${template_name}-tpl">
-      <%static:include path="discovery/${template_name}.underscore" />
-  </script>
-  % endfor
-  <%static:require_module module_name="js/discovery/discovery_factory" class_name="DiscoveryFactory">
-    DiscoveryFactory(
-      ${course_discovery_meanings | n, dump_js_escaped_json},
-      getParameterByName('search_query'),
-      "${user_language | n, js_escaped_string}",
-      "${user_timezone | n, js_escaped_string}",
-      ${set_default_filter | n, dump_js_escaped_json}
-    );
-  </%static:require_module>
+    /* Main Container */
+    .courses-wrapper {
+      display: flex;
+      width: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      gap: 30px;
+      position: relative;
+    }
+
+    /* Modern Sidebar */
+    .courses-sidebar {
+      width: var(--sidebar-width);
+      flex-shrink: 0;
+      background: white;
+      border-radius: var(--border-radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 25px;
+      position: sticky;
+      top: 30px;
+      height: fit-content;
+      max-height: calc(100vh - 100px);
+      overflow-y: auto;
+    }
+
+    .sidebar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-title svg {
+      width: 24px;
+      height: 24px;
+      color: var(--primary-accent);
+    }
+
+    /* Кнопка закрытия сайдбара для десктопа */
+    .sidebar-close {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 5px;
+      color: var(--text-muted);
+    }
+
+    .sidebar-close:hover {
+      color: var(--primary-dark);
+    }
+
+    .filter-group {
+      margin-bottom: 25px;
+    }
+
+    .filter-label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-dark);
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 14px 20px 14px 48px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      font-size: 1rem;
+      transition: var(--transition);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: 16px center;
+      background-size: 20px;
+      box-sizing: border-box;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary-accent);
+      box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.15);
+    }
+
+    .filter-select {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      background: white;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: var(--transition);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 15px center;
+      background-size: 16px;
+      padding-right: 40px;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      box-sizing: border-box;
+    }
+
+    .filter-select:focus {
+      outline: none;
+      border-color: var(--primary-accent);
+      box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.15);
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    /* Заменяем кнопки на ссылки с переопределением стилей */
+    .filter-link {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: var(--border-radius);
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      text-decoration: none;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    .apply-filters {
+      background: var(--primary-accent);
+      color: white;
+    }
+
+    .apply-filters:hover {
+      background: var(--primary-accent-hover);
+    }
+
+    .reset-filters {
+      background: var(--primary-light);
+      color: var(--text-dark);
+    }
+
+    .reset-filters:hover {
+      background: #e2e8f0;
+    }
+
+    /* Main Content */
+    .courses-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Results Info */
+    .results-info {
+      margin-bottom: 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .results-count {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    .mobile-filter-toggle {
+      display: none;
+      background: var(--primary-accent);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      font-weight: 600;
+      transition: var(--transition);
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      box-sizing: border-box;
+    }
+
+    .mobile-filter-toggle:hover {
+      background: var(--primary-accent-hover);
+    }
+
+    /* Иконка фильтра для десктопа */
+    .desktop-filter-toggle {
+      display: none;
+      background: var(--primary-accent);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      font-weight: 600;
+      transition: var(--transition);
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .desktop-filter-toggle:hover {
+      background: var(--primary-accent-hover);
+    }
+
+    /* Courses Grid - изменено на 3 курса в ряд */
+    .courses-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 25px;
+    }
+
+    .course-card {
+      background: white;
+      border-radius: var(--border-radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      transition: var(--transition);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .course-card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .course-image-container {
+      position: relative;
+      height: 180px;
+      overflow: hidden;
+    }
+
+    .course-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+
+    .course-card:hover .course-image {
+      transform: scale(1.05);
+    }
+
+    .course-status {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      z-index: 2;
+    }
+
+    .status-upcoming {
+      background: var(--status-upcoming);
+      color: var(--status-upcoming-text);
+    }
+
+    .status-ongoing {
+      background: var(--status-ongoing);
+      color: var(--status-ongoing-text);
+    }
+
+    .status-completed {
+      background: var(--status-completed);
+      color: var(--status-completed-text);
+    }
+
+    .course-details {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+    }
+
+    .course-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .course-org {
+      font-size: 0.85rem;
+      color: var(--primary-accent);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .course-language {
+      display: inline-flex;
+      align-items: center;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .course-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 15px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .course-dates {
+      margin-top: auto;
+      padding-top: 15px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-color);
+    }
+
+    .course-date-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .course-date-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .course-date-item svg {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      opacity: 0.6;
+    }
+
+    /* No Courses State */
+    .no-courses {
+      text-align: center;
+      padding: 60px 40px;
+      background: white;
+      border-radius: var(--border-radius-lg);
+      box-shadow: var(--shadow-md);
+      margin: 40px 0;
+    }
+
+    .no-courses-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      color: #e2e8f0;
+    }
+
+    .no-courses p {
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      margin-bottom: 25px;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+      .courses-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .courses-wrapper {
+        flex-direction: column;
+        padding: 15px;
+      }
+
+      .courses-sidebar {
+        width: 100%;
+        position: static;
+        max-height: none;
+        display: none;
+        box-sizing: border-box;
+        margin-bottom: 20px;
+      }
+
+      .sidebar-open .courses-sidebar {
+        display: block;
+      }
+
+      .mobile-filter-toggle {
+        display: flex;
+      }
+
+      /* Показываем кнопку закрытия в мобильной версии */
+      .sidebar-close {
+        display: block;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .courses-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .courses-wrapper {
+        gap: 20px;
+      }
+
+      .filter-actions {
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .course-details {
+        padding: 15px;
+      }
+
+      .no-courses {
+        padding: 40px 20px;
+      }
+
+      .results-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+
+      .sidebar-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+
+      .search-input,
+      .filter-select {
+        padding: 12px 15px;
+      }
+
+      .search-input {
+        padding-left: 40px;
+        background-position: 12px center;
+      }
+    }
+
+    /* Стили для десктопной версии при скрытом сайдбаре */
+    @media (min-width: 901px) {
+      .desktop-filter-toggle {
+        display: flex;
+      }
+
+      .sidebar-hidden .courses-sidebar {
+        display: none;
+      }
+
+      .sidebar-hidden .desktop-filter-toggle {
+        display: flex;
+      }
+
+      .sidebar-hidden .courses-main {
+        width: 100%;
+      }
+    }
+  </style>
 </%block>
-% endif
 
-<%block name="pagetitle">${_("Courses")}</%block>
+<div class="courses-wrapper" id="coursesWrapper">
+  <!-- Modern Sidebar -->
+  <aside class="courses-sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style = "color: #1a263c !important;" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="21" x2="4" y2="14"></line>
+          <line x1="4" y1="10" x2="4" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12" y2="3"></line>
+          <line x1="20" y1="21" x2="20" y2="16"></line>
+          <line x1="20" y1="12" x2="20" y2="3"></line>
+          <line x1="1" y1="14" x2="7" y2="14"></line>
+          <line x1="9" y1="8" x2="15" y2="8"></line>
+          <line x1="17" y1="16" x2="23" y2="16"></line>
+        </svg>
+        ${_("Filters")}
+      </div>
+      <button class="sidebar-close" id="sidebarClose">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
 
-<main id="main" aria-label="Content" tabindex="-1">
-    <section class="find-courses">
-      <section class="courses-container">
-        % if course_discovery_enabled:
-        <div id="discovery-form" role="search" aria-label="course" class="wrapper-search-context">
-          <div id="discovery-message" class="search-status-label"></div>
-          <form class="wrapper-search-input">
-            <label for="discovery-input" class="sr">${_('Search for a course')}</label>
-            <input id="discovery-input" class="discovery-input" placeholder="${_('Search for a course')}" type="text"/>
-            <button type="submit" class="button postfix discovery-submit" title="${_('Search')}">
-              <span class="icon fa fa-search" aria-hidden="true"></span>
-              <div aria-live="polite" aria-relevant="all">
-                <div id="loading-indicator" class="loading-spinner hidden">
-                  <span class="icon fa fa-spinner fa-spin" aria-hidden="true"></span>
-                  <span class="sr">${_('Loading')}</span>
-                </div>
+    <div class="filter-group">
+      <label class="filter-label" for="courseSearch">${_("Search Courses")}</label>
+      <input type="text" class="search-input" placeholder="${_('Search courses...')}" id="courseSearch">
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label" for="orgFilter">${_("Organization")}</label>
+      <select class="filter-select" id="orgFilter">
+        <option value="">${_("All Organizations")}</option>
+        <% orgs = set() %>
+        % for course in courses:
+          <% orgs.add(course.display_org_with_default) %>
+        % endfor
+        % for org in sorted(orgs):
+          <option value="${org}">${org}</option>
+        % endfor
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label" for="languageFilter">${_("Language")}</label>
+      <select class="filter-select" id="languageFilter">
+        <option value="">${_("All Languages")}</option>
+        <% languages = set() %>
+        % for course in courses:
+          % if hasattr(course, 'language') and course.language:
+            <% languages.add(course.language) %>
+          % endif
+        % endfor
+        % for lang in sorted(languages):
+          <option value="${lang}">${lang}</option>
+        % endfor
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label" for="statusFilter">${_("Status")}</label>
+      <select class="filter-select" id="statusFilter">
+        <option value="">${_("All Statuses")}</option>
+        <option value="upcoming">${_("Upcoming")}</option>
+        <option value="ongoing">${_("Ongoing")}</option>
+        <option value="completed">${_("Completed")}</option>
+      </select>
+    </div>
+
+    <div class="filter-actions">
+      <a href="javascript:void(0)" class="filter-link apply-filters"  style = "background-color: #1a263c !important; color: white !important; text-decoration: none !important;"id="applyFilters">${_("Apply Filters")}</a>
+      <a href="javascript:void(0)" class="filter-link reset-filters" id="resetFilters" style="color: #1a263c !important; text-decoration: none !important;">${_("Reset")}</a>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="courses-main">
+    <!-- Кнопка фильтра для десктопа -->
+    <a href="javascript:void(0)" class="desktop-filter-toggle" id="desktopFilterToggle" style = "background-color: #1a263c !important; color: white !important; text-decoration: none !important;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="4" y1="21" x2="4" y2="14"></line>
+        <line x1="4" y1="10" x2="4" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12" y2="3"></line>
+        <line x1="20" y1="21" x2="20" y2="16"></line>
+        <line x1="20" y1="12" x2="20" y2="3"></line>
+        <line x1="1" y1="14" x2="7" y2="14"></line>
+        <line x1="9" y1="8" x2="15" y2="8"></line>
+        <line x1="17" y1="16" x2="23" y2="16"></line>
+      </svg>
+      ${_("Filters")}
+    </a>
+
+    <div class="results-info">
+      <div class="results-count" id="resultsCount">
+        ${("Showing")} <span id="visibleCount">${len(courses)}</span> ${("of")} ${len(courses)} ${_("courses")}
+      </div>
+      <a href="javascript:void(0)" class="mobile-filter-toggle" id="mobileFilterToggle">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="21" x2="4" y2="14"></line>
+          <line x1="4" y1="10" x2="4" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12" y2="3"></line>
+          <line x1="20" y1="21" x2="20" y2="16"></line>
+          <line x1="20" y1="12" x2="20" y2="3"></line>
+          <line x1="1" y1="14" x2="7" y2="14"></line>
+          <line x1="9" y1="8" x2="15" y2="8"></line>
+          <line x1="17" y1="16" x2="23" y2="16"></line>
+        </svg>
+        ${_("Filters")}
+    </a>
+    </div>
+
+    % if courses:
+      <div class="courses-grid" id="coursesList">
+        % for course in courses:
+          <%
+            now = datetime.now().date()
+            status = "unknown"
+            status_text = _("Unknown")
+
+            if course.start and course.end:
+              start_date = course.start.date() if hasattr(course.start, 'date') else course.start
+              end_date = course.end.date() if hasattr(course.end, 'date') else course.end
+
+              if now < start_date:
+                status = "upcoming"
+                status_text = _("Upcoming")
+              elif start_date <= now <= end_date:
+                status = "ongoing"
+                status_text = _("Ongoing")
+              elif now > end_date:
+                status = "completed"
+                status_text = _("Completed")
+            elif course.start:
+              start_date = course.start.date() if hasattr(course.start, 'date') else course.start
+
+              if now < start_date:
+                status = "upcoming"
+                status_text = _("Upcoming")
+              else:
+                status = "ongoing"
+                status_text = _("Ongoing")
+          %>
+
+          <div class="course-card"
+               data-org="${course.display_org_with_default}"
+               data-language="${getattr(course, 'language', '')}"
+               data-status="${status}"
+               data-course-url="/courses/${course.id}/about">
+            <div class="course-image-container">
+              <img src="${course.course_image_url}" alt="${course.display_name_with_default}" class="course-image" onerror="this.src='/static/images/course_image_placeholder.png'">
+              <div class="course-status status-${status}">${status_text}</div>
+            </div>
+            <div class="course-details">
+              <div class="course-meta">
+                <div class="course-org" style="color: #d3985c !important;">${course.display_org_with_default}</div>
+                % if hasattr(course, 'language') and course.language:
+                  <span class="course-language">${course.language}</span>
+                % endif
               </div>
-            </button>
-          </form>
-        </div>
+              <h3 class="course-name">${course.display_name_with_default}</h3>
 
-        <div id="filter-bar" class="filters hide-phone is-collapsed">
-        </div>
-        % endif
+              <div class="course-dates">
+                % if course.start:
+                  <div class="course-date-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    ${_("Start")}: ${course.start.strftime('%Y-%m-%d')}
+                  </div>
+                % endif
+              </div>
+            </div>
+          </div>
+        % endfor
+      </div>
+    % else:
+      <div class="no-courses">
+        <div class="no-courses-icon">📚</div>
+        <p>${_("No courses available at the moment.")}</p>
+      </div>
+    % endif
+  </main>
+</div>
 
-        <div class="courses${'' if course_discovery_enabled else ' no-course-discovery'}" role="region" aria-label="${_('List of Courses')}">
-          <ul class="courses-listing courses-list">
-            %for course in courses:
-            <li class="courses-listing-item">
-              <%include file="../course.html" args="course=course" />
-            </li>
-            %endfor
-          </ul>
-        </div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Get DOM elements
+    const courseSearch = document.getElementById('courseSearch');
+    const orgFilter = document.getElementById('orgFilter');
+    const languageFilter = document.getElementById('languageFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const visibleCountSpan = document.getElementById('visibleCount');
+    const coursesList = document.getElementById('coursesList');
+    const mobileFilterToggle = document.getElementById('mobileFilterToggle');
+    const desktopFilterToggle = document.getElementById('desktopFilterToggle');
+    const sidebarClose = document.getElementById('sidebarClose');
+    const coursesWrapper = document.getElementById('coursesWrapper');
+    const applyFiltersBtn = document.getElementById('applyFilters');
+    const resetFiltersBtn = document.getElementById('resetFilters');
 
+    const courseCards = document.querySelectorAll('.course-card');
+    const totalCourses = courseCards.length;
 
-        % if course_discovery_enabled:
-        <aside aria-label="${_('Refine Your Search')}" class="search-facets phone-menu">
-          <h2 class="header-search-facets">${_('Refine Your Search')}</h2>
-          <section class="search-facets-lists">
-          </section>
-        </aside>
-        % endif
+    // Добавляем класс для скрытия сайдбара на десктопе по умолчанию
+    if (window.innerWidth > 900) {
+      coursesWrapper.classList.add('sidebar-hidden');
+    }
 
-      </section>
-    </section>
-</main>
+    // Add event listeners
+    courseSearch.addEventListener('input', debounce(filterCourses, 300));
+    orgFilter.addEventListener('change', filterCourses);
+    languageFilter.addEventListener('change', filterCourses);
+    statusFilter.addEventListener('change', filterCourses);
+
+    applyFiltersBtn.addEventListener('click', filterCourses);
+
+    resetFiltersBtn.addEventListener('click', function() {
+      courseSearch.value = '';
+      orgFilter.value = '';
+      languageFilter.value = '';
+      statusFilter.value = '';
+      filterCourses();
+    });
+
+    // Toggle mobile sidebar
+    mobileFilterToggle.addEventListener('click', function() {
+      coursesWrapper.classList.toggle('sidebar-open');
+    });
+
+    // Toggle desktop sidebar
+    desktopFilterToggle.addEventListener('click', function() {
+      coursesWrapper.classList.toggle('sidebar-hidden');
+    });
+
+    // Close sidebar
+    sidebarClose.addEventListener('click', function() {
+      if (window.innerWidth > 900) {
+        coursesWrapper.classList.add('sidebar-hidden');
+      } else {
+        coursesWrapper.classList.remove('sidebar-open');
+      }
+    });
+
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', function(event) {
+      if (window.innerWidth <= 900 &&
+          coursesWrapper.classList.contains('sidebar-open') &&
+          !event.target.closest('.courses-sidebar') &&
+          !event.target.closest('#mobileFilterToggle')) {
+        coursesWrapper.classList.remove('sidebar-open');
+      }
+    });
+
+    // Update sidebar state on window resize
+    window.addEventListener('resize', function() {
+      if (window.innerWidth > 900) {
+        coursesWrapper.classList.remove('sidebar-open');
+        // На десктопе скрываем сайдбар по умолчанию
+        if (!coursesWrapper.classList.contains('sidebar-hidden')) {
+          coursesWrapper.classList.add('sidebar-hidden');
+        }
+      } else {
+        coursesWrapper.classList.remove('sidebar-hidden');
+      }
+    });
+
+    // Добавляем обработчики клика на карточки курсов
+    courseCards.forEach(card => {
+      card.addEventListener('click', function(e) {
+        // Проверяем, не был ли клик на элементе, который не должен вызывать переход
+        if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || e.target.closest('a') || e.target.closest('button')) {
+          return;
+        }
+
+        const courseUrl = this.getAttribute('data-course-url');
+        if (courseUrl) {
+          window.location.href = courseUrl;
+        }
+      });
+    });
+
+    function updateResultsCount(visibleCount) {
+      visibleCountSpan.textContent = visibleCount;
+    }
+
+    function filterCourses() {
+      const searchText = courseSearch.value.toLowerCase();
+      const selectedOrg = orgFilter.value;
+      const selectedLanguage = languageFilter.value;
+      const selectedStatus = statusFilter.value;
+
+      let visibleCount = 0;
+
+      courseCards.forEach(card => {
+        const courseName = card.querySelector('.course-name').textContent.toLowerCase();
+        const courseOrg = card.getAttribute('data-org');
+        const courseLanguage = card.getAttribute('data-language');
+        const courseStatus = card.getAttribute('data-status');
+
+        const matchesSearch = courseName.includes(searchText);
+        const matchesOrg = !selectedOrg || courseOrg === selectedOrg;
+        const matchesLanguage = !selectedLanguage || courseLanguage === selectedLanguage;
+        const matchesStatus = !selectedStatus || courseStatus === selectedStatus;
+
+        if (matchesSearch && matchesOrg && matchesLanguage && matchesStatus) {
+          card.style.display = 'flex';
+          visibleCount++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      updateResultsCount(visibleCount);
+
+      // Close sidebar on mobile after applying filters
+      if (window.innerWidth <= 900) {
+        coursesWrapper.classList.remove('sidebar-open');
+      }
+    }
+
+    // Debounce function to limit how often filterCourses runs
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+  });
+</script>
