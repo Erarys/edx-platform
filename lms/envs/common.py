@@ -3034,6 +3034,7 @@ YOUTUBE_API_KEY = 'PUT_YOUR_API_KEY_HERE'
 #   (See https://github.com/openedx/edx-django-utils/tree/master/edx_django_utils/plugins)
 INSTALLED_APPS = [
     'lms.djangoapps.univerapi',
+    'lms.djangoapps.retake_catalog',
     # Standard ones that are always installed...
     'django.contrib.auth',
     'django.contrib.contenttypes',
