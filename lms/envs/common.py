@@ -710,7 +710,7 @@ FEATURES = {
     # .. toggle_warning: You should set the languages in the DarkLangConfig table to get this working. If you have
     #   not set any languages in the DarkLangConfig table then the language selector will not be visible in the header.
     # .. toggle_tickets: https://github.com/openedx/edx-platform/pull/15133
-    'SHOW_HEADER_LANGUAGE_SELECTOR': False,
+    'SHOW_HEADER_LANGUAGE_SELECTOR': True,
 
     # At edX it's safe to assume that English transcripts are always available
     # This is not the case for all installations.
