@@ -1985,7 +1985,7 @@ LANGUAGES = [
     ('id', 'Bahasa Indonesia'),  # Indonesian
     ('it-it', 'Italiano (Italia)'),  # Italian (Italy)
     ('ja-jp', '日本語 (日本)'),  # Japanese (Japan)
-    ('kk', 'қазақ тілі (Қазақстан)'),  # Kazakh (Kazakhstan)
+    ('kk', 'Қазақ тілі'),  # Kazakh (Kazakhstan)
     ('km-kh', 'ភាសាខ្មែរ (កម្ពុជា)'),  # Khmer (Cambodia)
     ('kn', 'ಕನ್ನಡ'),  # Kannada
     ('ko-kr', '한국어 (대한민국)'),  # Korean (Korea)
