@@ -12,13 +12,14 @@ def news_list(request):
     }
     return render_to_response('news/list.html', context, request=request)
 
-def news_detail(request, pk):
-    news = get_object_or_404(News, pk=pk)
+def news_detail(request, news_id):  # используем news_id
+    news = get_object_or_404(News, pk=news_id)  # все равно используем pk для поиска
     context = {
         'news': news,
-        'list_url': reverse('news_list'),
+        'list_url': reverse('news:news_list'),
     }
     return render_to_response('news/detail.html', context, request=request)
+
 
 def news_create(request):
     if request.method == 'POST':
