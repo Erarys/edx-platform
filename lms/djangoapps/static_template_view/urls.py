@@ -15,7 +15,6 @@ urlpatterns = [
     path('faq', views.render, {'template': 'faq.html'}, name="faq"),
     path('help', views.render, {'template': 'help.html'}, name="help_edx"),
     path('jobs', views.render, {'template': 'jobs.html'}, name="jobs"),
-    path('news', views.render, {'template': 'news.html'}, name="news"),
     path('press', views.render, {'template': 'press.html'}, name="press"),
     path('media-kit', views.render, {'template': 'media-kit.html'}, name="media-kit"),
     path('copyright', views.render, {'template': 'copyright.html'}, name="copyright"),
