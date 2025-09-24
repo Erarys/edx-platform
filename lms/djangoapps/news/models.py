@@ -1,22 +1,21 @@
 from django.db import models
-from django.utils import timezone
-
-
-class Category(models.Model):
-    
-    name = models.CharField(max_length=100, unique=True)
-
-    def __str__(self):
-        return self.name
-
 
 class News(models.Model):
-    
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="news")
-    title = models.CharField(max_length=255)
-    content = models.TextField()
-    pub_date = models.DateTimeField(default=timezone.now)
-    image = models.ImageField(upload_to="articles/", blank=True, null=True)  
+    title = models.CharField(max_length=200, verbose_name="Заголовок")
+    content = models.TextField(verbose_name="Содержание")
+    image = models.ImageField(
+        upload_to='articles/',
+        verbose_name="Изображение",
+        blank=True,
+        null=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
+
+    class Meta:
+        verbose_name = "Новость"
+        verbose_name_plural = "Новости"
+        ordering = ['-created_at']
 
     def __str__(self):
         return self.title
