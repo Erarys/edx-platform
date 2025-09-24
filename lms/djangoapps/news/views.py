@@ -1,11 +1,22 @@
-from django.shortcuts import get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from common.djangoapps.edxmako.shortcuts import render_to_response
 from .models import News
+from .forms import NewsForm
 
 def news_list(request):
     news = News.objects.all()
-    return render_to_response('news/news_list.html', {'news_list': news})
+    return render_to_response('news/list.html', {'news_list': news})
 
-def news_detail(request, news_id):
-    news_item = get_object_or_404(News, id=news_id)
-    return render_to_response('news/news_detail.html', {'news': news_item})
+def news_detail(request, pk):
+    news = get_object_or_404(News, pk=pk)
+    return render_to_response('news/detail.html', {'news': news})
+
+def news_create(request):
+    if request.method == 'POST':
+        form = NewsForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('news_list')
+    else:
+        form = NewsForm()
+    return render_to_response('news/form.html', {'form': form})
