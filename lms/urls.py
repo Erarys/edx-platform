@@ -96,7 +96,7 @@ notification_prefs_urls = [
 
 urlpatterns = [
     path('news/', news_views.news_list, name='news_list'),
-    path('news/<int:news_id>/', views.news_detail, name='news_detail'),
+    path('news/<int:news_id>/', news_views.news_detail, name='news_detail'),
     path('create/', news_views.news_create, name='news_create'),
     path('api/univertest/', univer_views.UniverTestView.as_view(), name='univer_test'),
     path('', branding_views.index, name='root'),  # Main marketing page, or redirect to courseware
