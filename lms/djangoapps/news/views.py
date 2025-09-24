@@ -1,15 +1,24 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from common.djangoapps.edxmako.shortcuts import render_to_response
 from .models import News
 from .forms import NewsForm
 
 def news_list(request):
     news = News.objects.all()
-    return render_to_response('news/list.html', {'news_list': news})
+    context = {
+        'news_list': news,
+        'create_url': reverse('news_create'),
+    }
+    return render_to_response('news/list.html', context, request=request)
 
 def news_detail(request, pk):
     news = get_object_or_404(News, pk=pk)
-    return render_to_response('news/detail.html', {'news': news})
+    context = {
+        'news': news,
+        'list_url': reverse('news_list'),
+    }
+    return render_to_response('news/detail.html', context, request=request)
 
 def news_create(request):
     if request.method == 'POST':
@@ -19,4 +28,9 @@ def news_create(request):
             return redirect('news_list')
     else:
         form = NewsForm()
-    return render_to_response('news/form.html', {'form': form})
+    
+    context = {
+        'form': form,
+        'list_url': reverse('news_list'),
+    }
+    return render_to_response('news/form.html', context, request=request)
