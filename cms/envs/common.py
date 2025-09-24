@@ -1608,8 +1608,9 @@ VIDEO_UPLOAD_PIPELINE = {
 # remember to check that you are not creating new
 # RemovedInDjango19Warnings in the test logs.
 INSTALLED_APPS = [
-    'lms.djangoapps.retake_catalog',
+    'lms.djangoapps.news',
     'lms.djangoapps.univerapi',
+
     # Standard apps
     'django.contrib.auth',
     'django.contrib.contenttypes',
