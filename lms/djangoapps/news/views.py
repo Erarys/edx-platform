@@ -3,6 +3,7 @@ from django.urls import reverse
 from common.djangoapps.edxmako.shortcuts import render_to_response
 from .models import News
 from .forms import NewsForm
+from django.contrib.auth.decorators import user_passes_test
 
 def news_list(request):
     news = News.objects.all()
@@ -36,3 +37,4 @@ def news_create(request):
         'list_url': reverse('news_list'),
     }
     return render_to_response('news/form.html', context, request=request)
+
