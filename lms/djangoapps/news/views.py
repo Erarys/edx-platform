@@ -21,6 +21,7 @@ def news_detail(request, news_id):  # используем news_id
     return render_to_response('news/detail.html', context, request=request)
 
 
+@user_passes_test(lambda u: u.is_staff)
 def news_create(request):
     if request.method == 'POST':
         form = NewsForm(request.POST, request.FILES)
