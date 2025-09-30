@@ -14,10 +14,10 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='News',
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_>
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('title', models.CharField(max_length=200, verbose_name='Заголовок')),
                 ('content', models.TextField(verbose_name='Содержание')),
-                ('image', models.ImageField(blank=True, null=True, upload_to='articles/', verbose_name>
+                ('image', models.ImageField(blank=True, null=True, upload_to='articles/', verbose_name='Изображение')),
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Дата обновления')),
             ],
@@ -28,4 +28,3 @@ class Migration(migrations.Migration):
             },
         ),
     ]
-
