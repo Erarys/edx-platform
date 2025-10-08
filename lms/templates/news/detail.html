@@ -1,0 +1,21 @@
+
+<%! from django.utils.html import escape %>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>${escape(news.title)}</title>
+</head>
+<body>
+    <article>
+        <h1>${escape(news.title)}</h1>
+        <p><em>${news.created_at.date()}</em></p>
+
+        % if news.image:
+            <img src="${news.image.url}" alt="${escape(news.title)}" style="max-width: 500px;">
+        % endif
+
+        <div>${news.content | n}</div>
+    </article>
+    <a href="/news/">Назад к списку</a>
+</body>
+</html>
