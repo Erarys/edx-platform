@@ -12,7 +12,7 @@ from openedx.core.lib.safe_lxml import defuse_xml_libs
 
 defuse_xml_libs()
 
-
+asdasdsas
 # Set the default Django settings module for the 'celery' program
 # and then instantiate the Celery singleton.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lms.envs.production')
