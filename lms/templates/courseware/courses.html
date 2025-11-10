@@ -249,7 +249,7 @@
         <select id="languageFilter" onchange="filterCourses()">
           <option value="">${_('All languages')}</option>
           % for lang in sorted(set([c.language for c in courses if c.language])):
-            <option value="${lang}">${lang}</option>
+            <option value="${lang}">${_(lang)}</option>
           % endfor
         </select>
 
