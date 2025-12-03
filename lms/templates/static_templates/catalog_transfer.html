@@ -1,0 +1,277 @@
+<%page expression_filter="h"/>
+<%! from django.utils.translation import gettext as _ %>
+<%inherit file="../main.html" />
+
+<%block name="pagetitle">${_("Catalog Mook")}</%block>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>МООК КазНУ им.Аль-Фараби</title>
+
+    <style>
+        .course-card {
+            padding: 15px;
+            border: 1px solid #ccc;
+            background: #fafafa;
+            margin: 10px 0;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h3>Фильтры</h3>
+<select id="platformFilter">
+    <option value="all">Все платформы</option>
+    <option value="coursera">Coursera</option>
+    <option value="edx">edX</option>
+</select>
+
+<select id="languageFilter">
+    <option value="all">Все языки</option>
+    <option value="russian">Русский</option>
+    <option value="english">Английский</option>
+    <option value="kazakh">Казахский</option>
+</select>
+
+<select id="levelFilter">
+    <option value="all">Все уровни</option>
+    <option value="medium">Средний</option>
+    <option value="easy">Лёгкий</option>
+    <option value="hard">Сложный</option>
+</select>
+
+<hr>
+
+<section>
+    <div class="catalog">
+
+        <!-- КАРТОЧКА КУРСА -->
+        <div class="course-card"
+             data-type="spoc"
+             data-level="medium"
+             data-platform="coursera"
+             data-language="russian"
+             data-discipline="Базовый восточный язык С1"
+             data-credits="5"
+             data-hours="17"
+        >
+            <h1>Methods of molecular biology</h1>
+            <p>Тип курса: SPOC</p>
+            <p>Уровень сложности: средний</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 17.0</p>
+            <p>Учебная нагрузка (кредиты): 0.5</p>
+            <p>Область образования: 6B02 Искусство и гуманитарные науки</p>
+            <p>Область профессиональной подготовки: 6B022 Гуманитарные науки</p>
+            <p>Код и название образовательной программы: 6B02207-востоковедения</p>
+            <p>Описание курса: ...</p>
+            <p>Осваиваемые навыки: ...</p>
+            <p>Язык курса: русский</p>
+            <p>Дисциплины для перезачета: Базовый восточный язык С1</p>
+            <p>Учебная нагрузка в кредитах: 5.0</p>
+            <p>Ссылка на курс: <a href="https://www.coursera.org/learn/korean-advanced1" target="_blank">Открыть
+                курс</a></p>
+            <p>Организация: Sungkyunkwan University</p>
+        </div>
+        <div class="course-card"
+             data-type="mooc"
+             data-level="medium"
+             data-platform="coursera"
+             data-language="english"
+             data-discipline="Восточный язык международного общения (Арабский)"
+             data-credits="9"
+             data-hours="17"
+        >
+            <h1>Arabic for Beginners: Communicating in Arabic Culture</h1>
+            <p>Тип курса: MOOC</p>
+            <p>Уровень сложности: средний</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 17.0</p>
+            <p>Учебная нагрузка (кредиты): 0.5</p>
+            <p>Область образования: 6B02 Искусство и гуманитарные науки</p>
+            <p>Область профессиональной подготовки: 7M022 Гуманитарные науки</p>
+            <p>Код и название образовательной программы: 7M03115-Регионоведение (восточные страны)</p>
+
+            <p>Описание курса: Araic for Beginners: Communicating in Arabic Culture — курс Khalifa University
+                (государственный исследовательский университет, Абу-Даби, ОАЭ).
+                Курс является вторым из трёх в специализации по начальному арабскому языку.
+                Содержит погружение в лексику образования и школьной среды, полезен для общения
+                в международной рабочей среде, путешествий и финансовых ситуаций.
+                Подчёркивает важность коммуникации в технологически развитом глобальном обществе.
+                Особое внимание уделено пониманию частей тела в спортивном и медицинском контексте
+                и как они используются как физические и эмоциональные выражения в арабской культуре.
+                Основная информация: курс 2/3 в специализации, уровень Intermediate, 4 недели обучения по 2–3 часа в
+                неделю.</p>
+
+            <p>Осваиваемые навыки: Повседневные фразы межличностного общения в личной и профессиональной среде.</p>
+            <p>Язык курса: английский</p>
+            <p>Дисциплины для перезачета: Восточный язык международного общения (Арабский)</p>
+            <p>Учебная нагрузка в кредитах: 9.0</p>
+            <p>Ссылка на курс: <a href="https://www.coursera.org/account/accomplishments/verify/GXXSKPK3SPH6"
+                                  target="_blank">Открыть курс</a></p>
+            <p>Организация: Khalifa University (государственный исследовательский университет, Абу-Даби, ОАЭ)</p>
+        </div>
+        <div class="course-card"
+             data-type="spoc"
+             data-level="medium"
+             data-platform="coursera"
+             data-language="russian"
+             data-discipline="Современные исторические процессы в изучаемой страны"
+             data-credits="5"
+             data-hours="17"
+        >
+            <h1>Экономическое развитие Кореи</h1>
+            <p>Тип курса: SPOC</p>
+            <p>Уровень сложности: средний</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 17.0</p>
+            <p>Учебная нагрузка (кредиты): 0.5</p>
+            <p>Область образования: 6B02 Искусство и гуманитарные науки</p>
+            <p>Область профессиональной подготовки: 6B022 Гуманитарные науки</p>
+            <p>Код и название образовательной программы: 6B02207-востоковедения</p>
+            <p>Описание курса: Сформировать способность анализировать политические и социально-экономические положения
+                изучаемой страны для определения основных комплексных факторов современного исторического процесса.</p>
+            <p>Осваиваемые навыки: Дисциплина направлена на изучение теоретической и методологической основы факторов
+                исторических процессов; их взаимосвязи с современной политической модернизацией и экономическим
+                развитием, влияние на культурное изменение и общественно-политической жизни изучаемой страны
+                Востока.</p>
+            <p>Язык курса: русский</p>
+            <p>Дисциплины для перезачета: Современные исторические процессы в изучаемой страны</p>
+            <p>Учебная нагрузка в кредитах: 5.0</p>
+            <p>Ссылка на курс: <a href="https://www.coursera.org/learn/korean-economy" target="_blank">Открыть курс</a>
+            </p>
+            <p>Организация: Yonsei University</p>
+        </div>
+        <div class="course-card"
+             data-type="spoc"
+             data-level="medium"
+             data-platform="coursera"
+             data-language="russian"
+             data-discipline="Базовый восточный язык С1"
+             data-credits="5"
+             data-hours="17"
+        >
+            <h1>A Bridge to the World: Korean Language for Advanced I</h1>
+            <p>Тип курса: SPOC</p>
+            <p>Уровень сложности: средний</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 17.0</p>
+            <p>Учебная нагрузка (кредиты): 0.5</p>
+            <p>Область образования: 6B02 Искусство и гуманитарные науки</p>
+            <p>Область профессиональной подготовки: 6B022 Гуманитарные науки</p>
+            <p>Код и название образовательной программы: 6B02207-востоковедения</p>
+            <p>Описание курса: Цель дисциплины cформировать способность определять основную идею в незнакомом тексте;
+                применять в речи более сложные лексико-грамматические темы, конструкции, фразеологизмы, чем на
+                предыдущем уровне; осуществлять письменный перевод с соблюдением норм лексической эквивалентности.</p>
+            <p>Осваиваемые навыки: Дисциплина направлена на повышение культуры речи; пополнение лексического запаса при
+                изучении сложных текстов различной тематики; расширение профессионального кругозора.</p>
+            <p>Язык курса: русский</p>
+            <p>Дисциплины для перезачета: Базовый восточный язык С1</p>
+            <p>Учебная нагрузка в кредитах: 5.0</p>
+            <p>Ссылка на курс: <a href="https://www.coursera.org/learn/korean-advanced1" target="_blank">Открыть
+                курс</a></p>
+            <p>Организация: Sungkyunkwan University</p>
+        </div>
+
+        <div class="course-card"
+             data-type="spoc"
+             data-level="medium"
+             data-platform="coursera"
+             data-language="russian"
+             data-discipline="Глобальная дипломатия в современном мире"
+             data-credits="5"
+             data-hours="17"
+        >
+            <h1>Global Diplomacy – Diplomacy in the Modern World</h1>
+            <p>Тип курса: SPOC</p>
+            <p>Уровень сложности: средний</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 17.0</p>
+            <p>Учебная нагрузка (кредиты): 0.5</p>
+            <p>Область образования: 6B02 Искусство и гуманитарные науки</p>
+            <p>Область профессиональной подготовки: 6B022 Гуманитарные науки</p>
+            <p>Код и название образовательной программы: 6B02207-востоковедения</p>
+            <p>Описание курса: Цель дисциплины — сформировать способность понимать содержание понятий, подходов,
+                используемых мировой наукой в изучении роли глобализации. Курс формирует знания об основных трактовках
+                понятия глобализации, факторах влияния на глобальное развитие.</p>
+            <p>Осваиваемые навыки: Дисциплина направлена на изучение ключевых направлений влияния глобализации на
+                дипломатию в мировой политике, процесса внедрения глобальных тенденций в развитие международных
+                отношений.</p>
+            <p>Язык курса: русский</p>
+            <p>Дисциплины для перезачета: Глобальная дипломатия в современном мире</p>
+            <p>Учебная нагрузка в кредитах: 5.0</p>
+            <p>Ссылка на курс: <a
+                    href="https://www.coursera.org/account/accomplishments/verify/CVSU62JSKP3B?utm_source%3Dandroid%26utm_medium%3Dcertificate%26utm_content%3Dcert_image%26utm_campaign%3Dsharing_cta%26utm_product%3Dcourse"
+                    target="_blank">Открыть курс</a></p>
+            <p>Организация: University of London</p>
+        </div>
+        <div class="course-card"
+             data-type="mooc"
+             data-level="basic"
+             data-platform="coursera"
+             data-language="russian"
+             data-discipline="Внешняя политика изучаемой страны Востока"
+             data-credits="5"
+             data-hours="28.91"
+        >
+            <h1>Структурирование ценностей в современном Китае</h1>
+            <p>Тип курса: MOOC</p>
+            <p>Уровень сложности: базовый</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 28.91</p>
+            <p>Учебная нагрузка (кредиты): 0.964</p>
+            <p>Область образования: 8D02 Искусство и гуманитарные науки</p>
+            <p>Область профессиональной подготовки: 6B022 Гуманитарные науки</p>
+            <p>Код и название образовательной программы: 6В02207-Востоковедение</p>
+            <p>Описание курса: Эта последовательность из четырех курсов предложит междисциплинарный подход к изучению
+                истории китайской культуры, рассматриваемой как последовательность режимов рациональности (философского,
+                бюрократического и экономического). Основное внимание будет уделено моментам смены парадигмы от одного
+                режима рациональности к другому. Для каждого из этих моментов культурные факты и артефакты — мысли,
+                литература, ритуалы — будут рассматриваться в связи с изменением социальных, политических и
+                экономических систем.</p>
+            <p>Осваиваемые навыки: Слушатели смогут рассматривать культурные ценности в связи с изменением социальных,
+                политических и экономических систем.</p>
+            <p>Язык курса: русский</p>
+            <p>Дисциплины для перезачета: Внешняя политика изучаемой страны Востока</p>
+            <p>Учебная нагрузка в кредитах: 5.0</p>
+            <p>Ссылка на курс: <a href="https://www.coursera.org/learn/structuring-values-modern-china" target="_blank">Открыть
+                курс</a></p>
+            <p>Организация: The Chinese University of Hong Kong</p>
+        </div>
+
+
+    </div>
+</section>
+
+<script>
+    document.querySelectorAll("select").forEach(select => {
+        select.addEventListener("change", filterCourses);
+    });
+
+    function filterCourses() {
+        let platformValue = document.getElementById("platformFilter").value;
+        let languageValue = document.getElementById("languageFilter").value;
+        let levelValue = document.getElementById("levelFilter").value;
+
+        let courses = document.querySelectorAll(".course-card");
+
+        courses.forEach(card => {
+            let platform = card.dataset.platform;
+            let language = card.dataset.language;
+            let level = card.dataset.level;
+
+            let okPlatform = (platformValue === "all" || platform === platformValue);
+            let okLanguage = (languageValue === "all" || language === languageValue);
+            let okLevel = (levelValue === "all" || level === levelValue);
+
+            card.style.display = (okPlatform && okLanguage && okLevel) ? "block" : "none";
+        });
+    }
+</script>
+
+</body>
+</html>
+
