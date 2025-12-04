@@ -7,43 +7,115 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>МООК КазНУ им.Аль-Фараби</title>
+    <title>Каталог МООК КазНУ</title>
 
     <style>
-        .course-card {
-            padding: 15px;
-            border: 1px solid #ccc;
-            background: #fafafa;
-            margin: 10px 0;
+        body {
+            margin: 40px;
+            font-family: Arial, sans-serif;
+            background: white;
+
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* --- ФИЛЬТРЫ --- */
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+            justify-content: center;
+        }
+
+        .filters input,
+        .filters select {
+            padding: 10px 14px;
+            font-size: 15px;
             border-radius: 6px;
+            border: 1px solid #ccc;
+            background: white;
+            min-width: 200px;
+        }
+
+        /* --- КАТАЛОГ --- */
+        .catalog {
+<!--            display: grid;-->
+<!--            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));-->
+            gap: 20px;
+        }
+
+        /* --- КАРТОЧКА КУРСА --- */
+        .course-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+            border-left: 5px solid rgb(211, 152, 92);
+            transition: transform 0.2s;
+        }
+
+        .course-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .course-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2d2d2d;
+            margin-bottom: 8px;
+        }
+
+        .course-info p {
+            margin: 4px 0;
+            color: #444;
+            font-size: 14px;
+        }
+
+        .course-card a {
+            text-decoration: none;
+            color: #2d89ef;
+            font-weight: bold;
+        }
+
+        .course-card a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 
 <body>
 
-<h3>Фильтры</h3>
-<select id="platformFilter">
-    <option value="all">Все платформы</option>
-    <option value="coursera">Coursera</option>
-    <option value="edx">edX</option>
-</select>
+<h1>Каталог МООК КазНУ им. Аль-Фараби</h1>
 
-<select id="languageFilter">
-    <option value="all">Все языки</option>
-    <option value="russian">Русский</option>
-    <option value="english">Английский</option>
-    <option value="kazakh">Казахский</option>
-</select>
+<div class="filters">
+    <input type="text" id="searchInput" placeholder="Поиск по названию...">
+    <select id="platformFilter">
+        <option value="all">Все платформы</option>
+        <option value="coursera">Coursera</option>
+        <option value="edx">edX</option>
+    </select>
 
-<select id="levelFilter">
-    <option value="all">Все уровни</option>
-    <option value="medium">Средний</option>
-    <option value="easy">Лёгкий</option>
-    <option value="hard">Сложный</option>
-</select>
+    <select id="languageFilter">
+        <option value="all">Все языки</option>
+        <option value="russian">Русский</option>
+        <option value="english">Английский</option>
+        <option value="kazakh">Казахский</option>
+    </select>
 
-<hr>
+    <select id="levelFilter">
+        <option value="all">Все уровни</option>
+        <option value="easy">Лёгкий</option>
+        <option value="medium">Средний</option>
+        <option value="hard">Сложный</option>
+    </select>
+</div>
+
+<hr style="margin-bottom: 25px;">
 
 <section>
     <div class="catalog">
@@ -242,16 +314,272 @@
             <p>Организация: The Chinese University of Hong Kong</p>
         </div>
 
+        <div class="course-card"
+             data-type="mooc"
+             data-level="basic"
+             data-platform="coursera"
+             data-language="russian"
+             data-discipline="Государственно-политический строй Китая"
+             data-credits="5"
+             data-hours="15.66"
+        >
+            <h1>Подходы социальных наук к изучению китайского общества Часть 1</h1>
+            <p>Тип курса: MOOC</p>
+            <p>Уровень сложности: базовый</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 15.66</p>
+            <p>Учебная нагрузка (кредиты): 0.522</p>
+            <p>Область образования: 8D02 Искусство и гуманитарные науки</p>
+            <p>Область профессиональной подготовки: 6B022 Гуманитарные науки</p>
+            <p>Код и название образовательной программы: 6В02207-Востоковедение</p>
+            <p>Описание курса: Цель этого курса — превратить обучающихся в информированных потребителей исследований в
+                области социальных наук. Курс знакомит заинтересованных неспециалистов с концепциями, стандартами и
+                принципами проведения исследований в области социальных наук.</p>
+            <p>Осваиваемые навыки: могут оценивать доказательства и критически оценивать утверждения о важных социальных
+                явлениях</p>
+            <p>Язык курса: русский</p>
+            <p>Дисциплины для перезачета: Государственно-политический строй Китая</p>
+            <p>Учебная нагрузка в кредитах: 5.0</p>
+            <p>Ссылка на курс: <a href="https://www.coursera.org/learn/social-science-study-chinese-society"
+                                  target="_blank">Открыть курс</a></p>
+            <p>Организация: The Hong Kong University of Science and Technology</p>
+        </div>
+        <div class="course-card"
+             data-type="mooc"
+             data-level="medium"
+             data-platform="coursera"
+             data-language="english/russian"
+             data-discipline="YaDEISV 4307 Язык дипломатии и этикета изучаемой стран Востока"
+             data-credits="5"
+             data-hours="17.0"
+        >
+            <h1>Successful Negotiation: Essential Strategies and Skills</h1>
+            <p>Тип курса: MOOC</p>
+            <p>Уровень сложности: средний</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 17.0</p>
+            <p>Учебная нагрузка (кредиты): 5.0</p>
+            <p>Область образования: 6B02 Искусство и гуманитарные науки</p>
+            <p>Область профессиональной подготовки: 6B022 Гуманитарные науки</p>
+            <p>Код и название образовательной программы: 6B02207-Востоковедение</p>
+            <p>Описание курса: Successful Negotiation: Essential Strategies and Skills</p>
+            <p>Осваиваемые навыки: Этот модуль фокусируется на анализ переговоров, понимания стратегии и навыков ведения
+                переговоров</p>
+            <p>Язык курса: английский/русский</p>
+            <p>Дисциплины для перезачета: YaDEISV 4307 Язык дипломатии и этикета изучаемой стран Востока</p>
+            <p>Учебная нагрузка в кредитах: 5.0</p>
+            <p>Ссылка на курс: <a href="https://www.coursera.org/account/accomplishments/verify/PKS79WJBRLSM"
+                                  target="_blank">Открыть курс</a></p>
+            <p>Организация: University of Michigan</p>
+        </div>
+
+        <div class="course-card"
+             data-type="mooc"
+             data-level="medium"
+             data-platform="coursera"
+             data-language="english"
+             data-discipline="Разработка инновационных решений для менеджмента в сфере туризма и гостеприимства"
+             data-credits="5"
+             data-hours="30.0"
+        >
+            <h1>Management Foundations in the Hospitality Industry</h1>
+            <p>Тип курса: MOOC</p>
+            <p>Уровень сложности: средний</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 30.0</p>
+            <p>Учебная нагрузка (кредиты): 2.0</p>
+            <p>Область образования: 8D11 Услуги</p>
+            <p>Область профессиональной подготовки: 8D111 Сфера обслуживания</p>
+            <p>Код и название образовательной программы: 8D11102 Туризм и гостеприимство</p>
+            <p>Описание курса: Этот курс представляет собой введение в мотивацию, лидерство, коммуникации, принятие
+                решений и руководство людьми посредством эффективного управления человеческими ресурсами (HR), этику,
+                социальную ответственность и управление потребительским опытом в индустрии гостеприимства путем изучения
+                основ менеджмента, ориентированного на обслуживание. Все необходимые материалы для чтения представлены в
+                модулях курса. Они включают внешние ссылки, статьи, графику и видео. Курс состоит из следующих
+                элементов: тематические видеоматериалы, обсуждения и тесты для проверки понимания.</p>
+            <p>Осваиваемые навыки: Понимать, как HR-отделы анализируют распределение ресурсов по рабочим местам и
+                факторы, влияющие на разработку рабочих мест; определять наиболее эффективные методы найма талантливых
+                сотрудников; применять лучшие практики при проведении собеседований; оценивать программу обучения и
+                социализации сотрудников; понимать оценку результатов работы; избегать юридической ответственности за
+                "небрежный прием на работу".</p>
+            <p>Язык курса: английский</p>
+            <p>Дисциплины для перезачета: Разработка инновационных решений для менеджмента в сфере туризма и
+                гостеприимства</p>
+            <p>Учебная нагрузка в кредитах: 5.0</p>
+            <p>Ссылка на курс: <a href="https://www.coursera.org/learn/hmgt3860mooc" target="_blank">Открыть курс</a>
+            </p>
+            <p>Организация: University of North Texas</p>
+        </div>
+
+        <div class="course-card"
+             data-type="mooc"
+             data-level="medium"
+             data-platform="coursera"
+             data-language="english"
+             data-discipline="Прогнозирование и планирование в сфере гостеприимства"
+             data-credits="5"
+             data-hours="45.0"
+        >
+            <h1>Foundations of Hotel Budgeting and Forecasting</h1>
+            <p>Тип курса: MOOC</p>
+            <p>Уровень сложности: средний</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 45.0</p>
+            <p>Учебная нагрузка (кредиты): 3.0</p>
+            <p>Область образования: 7M11 Услуги</p>
+            <p>Область профессиональной подготовки: 8D111 Сфера обслуживания</p>
+            <p>Код и название образовательной программы: 7M11104 - Ресторанное дело и гостиничный бизнес</p>
+            <p>Описание курса: Курс предназначен для обучения основным навыкам и знаниям бюджетирования и
+                прогнозирования в гостиничном бизнесе. Он предоставляет всестороннее понимание фундаментальных
+                концепций, практик и инструментов составления бюджета и прогнозирования, включая практические упражнения
+                и примеры из реальной жизни для применения знаний в индустрии гостеприимства.</p>
+            <p>Осваиваемые навыки: Составление бюджета отелей, оценка финансовых показателей, понимание тенденций в
+                отрасли, разработка стратегий на основе финансовых данных, практическое применение знаний в гостиничном
+                бизнесе.</p>
+            <p>Язык курса: английский</p>
+            <p>Дисциплины для перезачета: Прогнозирование и планирование в сфере гостеприимства</p>
+            <p>Учебная нагрузка в кредитах: 5.0</p>
+            <p>Ссылка на курс: <a href="https://www.coursera.org/learn/foundations-of-hotel-budgeting-and-forecasting"
+                                  target="_blank">Открыть курс</a></p>
+            <p>Организация: Starweaver</p>
+        </div>
+        <div class="course-card"
+             data-type="mooc"
+             data-level="medium"
+             data-platform="coursera"
+             data-language="english"
+             data-discipline="Қоршаған ортаға әсерін бағалау және экологиялық сараптама"
+             data-credits="5"
+             data-hours="13.01"
+        >
+            <h1>Introduction to Process Safety and Risk Analysis</h1>
+            <p>Тип курса: MOOC</p>
+            <p>Уровень сложности: средний</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 13.01</p>
+            <p>Учебная нагрузка (кредиты): 0.434</p>
+            <p>Область образования: 6B05 Естественные науки, математика и статистика</p>
+            <p>Область профессиональной подготовки: 6B052 Окружающая среда</p>
+            <p>Код и название образовательной программы: 6В05202 Экология</p>
+            <p>Описание курса: Каждый курс включает задание на рецензирование, в котором будут использованы знания,
+                полученные при изучении основополагающих концепций, аутентичных примеров из мировой и американской
+                практики, а также методов применения. Обратная связь в процессе экспертной оценки очень важна; учащимся,
+                а также нынешним и будущим специалистам в области общественного здравоохранения придется давать
+                критические отзывы.</p>
+            <p>Осваиваемые навыки: Environmental justice, Public Health</p>
+            <p>Язык курса: английский</p>
+            <p>Дисциплины для перезачета: Қоршаған ортаға әсерін бағалау және экологиялық сараптама</p>
+            <p>Учебная нагрузка в кредитах: 5.0</p>
+            <p>Ссылка на курс: <a href="https://www.coursera.org/learn/introduction-to-process-safety-and-risk-analysis"
+                                  target="_blank">Открыть курс</a></p>
+            <p>Организация: University of California, Davis</p>
+        </div>
+        <div class="course-card"
+             data-type="mooc"
+             data-level="basic"
+             data-platform="coursera"
+             data-language="english"
+             data-discipline="Қоршаған ортаға әсерін бағалау және экологиялық сараптама"
+             data-credits="5"
+             data-hours="115.0"
+        >
+            <h1>Impacts of the Environment on Global Public Health Specialization</h1>
+            <p>Тип курса: MOOC</p>
+            <p>Уровень сложности: базовый</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 115.0</p>
+            <p>Учебная нагрузка (кредиты): 3.85</p>
+            <p>Область образования: 6B05 Естественные науки, математика и статистика</p>
+            <p>Область профессиональной подготовки: 6B052 Окружающая среда</p>
+            <p>Код и название образовательной программы: 6B11202- Экологическая инженерия</p>
+            <p>Описание курса: Каждый курс включает задание на рецензирование, в котором будут использованы знания,
+                полученные при изучении основополагающих концепций, аутентичных примеров из мировой и американской
+                практики, а также методов применения. Обратная связь в процессе экспертной оценки очень важна; учащимся,
+                а также нынешним и будущим специалистам в области общественного здравоохранения придется давать
+                критические отзывы.</p>
+            <p>Осваиваемые навыки: Environmental justice, Public Health</p>
+            <p>Язык курса: английский</p>
+            <p>Дисциплины для перезачета: Қоршаған ортаға әсерін бағалау және экологиялық сараптама</p>
+            <p>Учебная нагрузка в кредитах: 5.0</p>
+            <p>Ссылка на курс: <a
+                    href="https://www.coursera.org/specializations/impacts-of-the-environment-on-global-public-health"
+                    target="_blank">Открыть курс</a></p>
+            <p>Организация: University of California, Davis</p>
+        </div>
+        <div class="course-card"
+             data-type="mooc"
+             data-level="medium"
+             data-platform="coursera"
+             data-language="english"
+             data-discipline="Экологический риск"
+             data-credits="5"
+             data-hours="13.01"
+        >
+            <h1>Экология: Динамика экосистем и их сохранение</h1>
+            <p>Тип курса: MOOC</p>
+            <p>Уровень сложности: средний</p>
+            <p>Платформа: Coursera</p>
+            <p>Учебная нагрузка (часы): 13.01</p>
+            <p>Учебная нагрузка (кредиты): 0.434</p>
+            <p>Область образования: 6B05 Естественные науки, математика и статистика</p>
+            <p>Область профессиональной подготовки: 6B052 Окружающая среда</p>
+            <p>Код и название образовательной программы: 6В05202 Экология</p>
+            <p>Описание курса: Этот курс представляет собой введение в экологию и динамику экосистем с использованием
+                системного мышления. На примере национального парка Горонгоза в Мозамбике слушатели изучат, как ученые
+                изучают экосистемы, и исследуют сложный комплекс факторов, которые лежат в основе управленческих усилий.
+                По окончании курса слушатели смогут решать реальные вопросы, связанные с охраной природы, например,
+                смогут ли экосистемы восстановиться после антропогенного воздействия и какую роль в этом восстановлении
+                могут и должны играть люди.</p>
+            <p>Осваиваемые навыки: В конце курса учащиеся смогут решать реальные вопросы охраны природы, например, может
+                ли экосистема восстановиться после антропогенного нарушения и какую роль люди могут и должны играть в
+                этом восстановлении.</p>
+            <p>Язык курса: английский</p>
+            <p>Дисциплины для перезачета: Экологический риск</p>
+            <p>Учебная нагрузка в кредитах: 5.0</p>
+            <p>Ссылка на курс: <a href="https://www.coursera.org/learn/ecology-conservation" target="_blank">Открыть
+                курс</a></p>
+            <p>Организация: American Museum of Natural History</p>
+        </div>
+    <div class="course-card"
+     data-type="mooc"
+     data-level="medium"
+     data-platform="coursera"
+     data-language="english"
+     data-discipline="Стандарты менеджмента окружающей среды"
+     data-credits="5"
+     data-hours="18.79"
+>
+    <h1>Глобальный экологический менеджмент</h1>
+    <p>Тип курса: MOOC</p>
+    <p>Уровень сложности: средний</p>
+    <p>Платформа: Coursera</p>
+    <p>Учебная нагрузка (часы): 18.79</p>
+    <p>Учебная нагрузка (кредиты): 0.626</p>
+    <p>Область образования: 6B05 Естественные науки, математика и статистика</p>
+    <p>Область профессиональной подготовки: 6B052 Окружающая среда</p>
+    <p>Код и название образовательной программы: 6В05202 Экология</p>
+    <p>Описание курса: Узнайте о лучших экологических технологиях для устойчивого развития и о том, как ими управляют в различных условиях по всему миру. Этот курс дает Вам возможность узнать о глобальных тенденциях, влияющих на нашу окружающую среду и условия жизни, а также о том, как различные системы и подходы к управлению окружающей средой, применяемые во всем мире, позволяют управлять ею. Сюда входят современные технологии, созданные для охраны окружающей среды, и технологии устойчивого управления почвой, методы защиты грунтовых вод и интегрированное управление водными ресурсами.</p>
+    <p>Осваиваемые навыки: Городское планирование, Развитие водных ресурсов, Природные ресурсы, Зеленые технологии</p>
+    <p>Язык курса: английский</p>
+    <p>Дисциплины для перезачета: Стандарты менеджмента окружающей среды</p>
+    <p>Учебная нагрузка в кредитах: 5.0</p>
+    <p>Ссылка на курс: <a href="https://www.coursera.org/learn/global-environmental-management" target="_blank">Открыть курс</a></p>
+    <p>Организация: Technical University of Denmark (DTU)</p>
+</div>
+
 
     </div>
+
 </section>
 
 <script>
+    document.getElementById("searchInput").addEventListener("input", filterCourses);
     document.querySelectorAll("select").forEach(select => {
         select.addEventListener("change", filterCourses);
     });
 
     function filterCourses() {
+        let searchValue = document.getElementById("searchInput").value.toLowerCase();
         let platformValue = document.getElementById("platformFilter").value;
         let languageValue = document.getElementById("languageFilter").value;
         let levelValue = document.getElementById("levelFilter").value;
@@ -259,19 +587,22 @@
         let courses = document.querySelectorAll(".course-card");
 
         courses.forEach(card => {
+            let text = card.textContent.toLowerCase();
             let platform = card.dataset.platform;
             let language = card.dataset.language;
             let level = card.dataset.level;
 
+            let matchesSearch = text.includes(searchValue);
             let okPlatform = (platformValue === "all" || platform === platformValue);
-            let okLanguage = (languageValue === "all" || language === languageValue);
+            let okLanguage = (languageValue === "all" || language.includes(languageValue));
             let okLevel = (levelValue === "all" || level === levelValue);
 
-            card.style.display = (okPlatform && okLanguage && okLevel) ? "block" : "none";
+            card.style.display = (okPlatform && okLanguage && okLevel && matchesSearch)
+                ? "block"
+                : "none";
         });
     }
 </script>
 
 </body>
 </html>
-
