@@ -743,7 +743,7 @@ class ProblemGradeReport(GradeReportBase):
 
     def _problem_grades_header(self):
         """Problem Grade report header."""
-        return OrderedDict([('id', 'Student ID'), ('email', 'Email'), ('username', 'Username')])
+        return OrderedDict([('id', 'Student ID'), ('email', 'Email'), ('first_name', 'First Name'), ('last_name', 'Last Name'), ('username', 'Username')])
 
     def _rows_for_users(self, users):
         """
