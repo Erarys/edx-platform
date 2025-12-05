@@ -463,24 +463,25 @@ class GradeReportBase:
             if verified_only:
                 filter_kwargs['courseenrollment__mode'] = CourseMode.VERIFIED
             #
-            users_qs = get_user_model().objects.filter(**filter_kwargs).select_related('profile').order_by('id')
-            chunk_size = 100
-
-            for i in range(0, users_qs.count(), chunk_size):
-                yield users_qs[i:i + chunk_size]
-            # user_ids_list = get_user_model().objects.filter(**filter_kwargs).values_list('id', flat=True).order_by('id')
-            # user_chunks = grouper(user_ids_list)
-            # for user_ids in user_chunks:
-            #     user_ids = [user_id for user_id in user_ids if user_id is not None]
-            #     min_id = min(user_ids)
-            #     max_id = max(user_ids)
-            #     users = get_user_model().objects.filter(
-            #         id__gte=min_id,
-            #         id__lte=max_id,
-            #         **filter_kwargs
-            #     ).select_related('profile')
+            # users_qs = get_user_model().objects.filter(**filter_kwargs).select_related('profile').order_by('id')
+            # chunk_size = 100
             #
-            #     yield users
+            # for i in range(0, users_qs.count(), chunk_size):
+            #     yield users_qs[i:i + chunk_size]
+            #
+            user_ids_list = get_user_model().objects.filter(**filter_kwargs).values_list('id', flat=True).order_by('id')
+            user_chunks = grouper(user_ids_list)
+            for user_ids in user_chunks:
+                user_ids = [user_id for user_id in user_ids if user_id is not None]
+                min_id = min(user_ids)
+                max_id = max(user_ids)
+                users = get_user_model().objects.filter(
+                    id__gte=min_id,
+                    id__lte=max_id,
+                    **filter_kwargs
+                ).select_related('profile')
+
+                yield users
 
         return get_enrolled_learners_for_course(
             course_id=self.context.course_id,
@@ -748,7 +749,7 @@ class ProblemGradeReport(GradeReportBase):
 
     def _problem_grades_header(self):
         """Problem Grade report header."""
-        return OrderedDict([('id', 'Student ID'), ('email', 'Email'), ('name', 'Name'), ('username', 'Username')])
+        return OrderedDict([('id', 'Student ID'), ('email', 'Email'), ('username', 'Username')])
 
     def _rows_for_users(self, users):
         """
