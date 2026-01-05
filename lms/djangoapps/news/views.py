@@ -31,10 +31,13 @@ def news_create(request):
             return redirect('news_list')
     else:
         form = NewsForm()
-    
+
     context = {
         'form': form,
         'list_url': reverse('news_list'),
     }
     return render_to_response('news/form.html', context, request=request)
+
+def meme_page(request):
+    return render(request, 'courseware/meme_page.html')
 
