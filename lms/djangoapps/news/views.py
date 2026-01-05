@@ -38,6 +38,6 @@ def news_create(request):
     }
     return render_to_response('news/form.html', context, request=request)
 
-def meme_page(request):
-    return render(request, 'courseware/meme_page.html')
+def analyze(request):
+    return render(request, 'courseware/analyze.html')
 
