@@ -39,5 +39,5 @@ def news_create(request):
     return render_to_response('news/form.html', context, request=request)
 
 def analyze(request):
-    return render(request, 'courseware/analyze.html')
+    return render(request, 'news/analyze.html')
 
