@@ -13,20 +13,16 @@
 
     <p>Всего курсов: <strong>${courses_count}</strong></p>
 
-    <!-- КРУГЛЫЙ ГРАФИК -->
     <div style="max-width: 500px; margin: 30px auto;">
         <canvas id="coursesByFacultyChart"></canvas>
     </div>
 
-    <!-- СПИСОК -->
-    <h2>📚 Курсы</h2>
     <ul>
     % for course in courses:
         <li>
             <strong>${course.display_name}</strong><br/>
             <small>
-                ${course.id}
-                | факультет: ${course.org}
+                ${course.id} | факультет: ${course.org}
             </small>
         </li>
     % endfor
@@ -34,42 +30,25 @@
 </div>
 
 <script>
-    const ctx = document.getElementById('coursesByFacultyChart');
-
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ${chart_labels | n},
-            datasets: [{
-                data: ${chart_data | n},
-                backgroundColor: [
-                    '#4e79a7',
-                    '#f28e2b',
-                    '#e15759',
-                    '#76b7b2',
-                    '#59a14f',
-                    '#edc949',
-                    '#af7aa1',
-                    '#ff9da7',
-                    '#9c755f',
-                    '#bab0ab'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.label + ': ' + context.raw + ' курсов';
-                        }
-                    }
+    new Chart(
+        document.getElementById('coursesByFacultyChart'),
+        {
+            type: 'doughnut',
+            data: {
+                labels: ${chart_labels | n},
+                datasets: [{
+                    data: ${chart_data | n},
+                    backgroundColor: [
+                        '#4e79a7','#f28e2b','#e15759','#76b7b2',
+                        '#59a14f','#edc949','#af7aa1','#ff9da7'
+                    ]
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { position: 'bottom' }
                 }
             }
         }
-    });
+    );
 </script>
