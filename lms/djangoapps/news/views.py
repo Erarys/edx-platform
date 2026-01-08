@@ -4,6 +4,7 @@ from common.djangoapps.edxmako.shortcuts import render_to_response
 from .models import News
 from .forms import NewsForm
 from django.contrib.auth.decorators import user_passes_test
+from django.db.models import Count
 
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 # from ..commerce.api.v1.models import Course
@@ -46,14 +47,21 @@ def news_create(request):
 
 
 def analyze(request):
-    courses = CourseOverview.objects.all().order_by('-created')
+    courses = CourseOverview.objects.all()
+
+    courses_by_org = (
+        CourseOverview.objects
+        .values("org")
+        .annotate(total=Count("id"))
+        .order_by("-total")
+    )
 
     context = {
-        "courses": courses,
+        "courses": courses[:50],
         "courses_count": courses.count(),
+        "chart_labels": [c["org"] for c in courses_by_org],
+        "chart_data": [c["total"] for c in courses_by_org],
     }
-
-    # return render(request, "news/analyze.html", context)
 
 
     return render_to_response('news/analyze.html', context, request=request)
