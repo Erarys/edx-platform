@@ -53,7 +53,7 @@ def analyze(request):
         "courses_count": courses.count(),
     }
 
-    return render(request, "news/analyze.html", context)
+    # return render(request, "news/analyze.html", context)
 
 
     return render_to_response('news/analyze.html', context, request=request)
