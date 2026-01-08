@@ -64,5 +64,5 @@ def analyze(request):
     }
 
 
-    return render_to_response('news/analyze.html', context, request=request)
+    return render('news/analyze.html', context, request=request)
 
