@@ -39,5 +39,10 @@ def news_create(request):
     return render_to_response('news/form.html', context, request=request)
 
 def analyze(request):
-    return render(request, 'news/analyze.html')
+    news = News.objects.all()
+    context = {
+        'news_list': news,
+        'create_url': reverse('news_create'),
+    }
+    return render_to_response('news/analyze.html', context, request=request)
 
