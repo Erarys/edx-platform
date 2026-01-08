@@ -2,13 +2,23 @@
 <%! from django.utils.translation import gettext as _ %>
 <%inherit file="../main.html" />
 
-<%block name="pagetitle">${_("News")}</%block>
-
-<%block name="extrahead">
-
-</%block>
+<%block name="pagetitle">${_("Analyze")}</%block>
 
 <div class="analyze">
-    <h1>Hello world</h1>
-</div>
+    <h1>📊 Курсы</h1>
 
+    <p>Всего курсов: <strong>${courses_count}</strong></p>
+
+    <ul>
+    % for course in courses:
+        <li>
+            <strong>${course.display_name}</strong><br/>
+            <small>
+                ${course.course_id}
+                | org: ${course.org}
+                | start: ${course.start}
+            </small>
+        </li>
+    % endfor
+    </ul>
+</div>

@@ -5,6 +5,10 @@ from .models import News
 from .forms import NewsForm
 from django.contrib.auth.decorators import user_passes_test
 
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
+# from ..commerce.api.v1.models import Course
+
+
 def news_list(request):
     news = News.objects.all()
     context = {
@@ -38,6 +42,19 @@ def news_create(request):
     }
     return render_to_response('news/form.html', context, request=request)
 
+
+
+
 def analyze(request):
-    return render_to_response('news/analyze.html', request=request)
+    courses = CourseOverview.objects.all().order_by('-created')
+
+    context = {
+        "courses": courses,
+        "courses_count": courses.count(),
+    }
+
+    return render(request, "news/analyze.html", context)
+
+
+    return render_to_response('news/analyze.html', context, request=request)
 
