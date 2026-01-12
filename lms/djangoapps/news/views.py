@@ -63,6 +63,11 @@ def analyze(request):
         "chart_data": [c["total"] for c in courses_by_org],
     }
 
+    news = News.objects.all()
+    context = {
+        'news_list': news,
+        'create_url': reverse('news_create'),
+    }
 
     return render(request, "news/analyze.html", context)
 
