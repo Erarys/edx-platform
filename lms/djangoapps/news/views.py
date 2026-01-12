@@ -55,24 +55,17 @@ def analyze(request):
         .annotate(total=Count("id"))
         .order_by("-total")
     )
+
     news = News.objects.all()
+
     context = {
         "courses": courses[:50],
-        "courses_count": 10, # courses.count(),
+        "courses_count": courses.count(),
         "chart_labels": [c["org"] for c in courses_by_org],
         "chart_data": [c["total"] for c in courses_by_org],
-
-        'news_list': news,
-        'create_url': reverse('news_create'),
+        "news_list": news,
+        "create_url": reverse("news_create"),
     }
 
-
-
-    news = News.objects.all()
-    context = {
-        "courses": courses[:50],
-        'news_list': news,
-        'create_url': reverse('news_create'),
-    }
-    return render_to_response('news/analyze2.html', context, request=request)
+    return render_to_response("news/analyze2.html", context, request=request)
 
