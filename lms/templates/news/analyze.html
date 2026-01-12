@@ -2,7 +2,7 @@
 <%! from django.utils.translation import gettext as _ %>
 <%inherit file="../main.html" />
 
-<%block name="pagetitle">${_("News")}</%block>
+<%block name="pagetitle">${_("Analyze")}</%block>
 
 <%block name="extrahead">
     <style>
@@ -12,51 +12,74 @@
 
 <div class="news-container">
     <div class="page-header">
-        <h1>${_("Analyze")}</h1>
+        <h1>${_("News")}</h1>
         <p>${_("Stay updated with the latest news and announcements")}</p>
     </div>
-
+    <div>
+        ${courses}
+    </div>
     % if news_list:
-    <div class="news-grid">
-        % for news in news_list:
-        <div class="news-card">
-            % if news.image:
-            <img src="${news.image.url}" alt="${news.title}" class="news-image">
-            % else:
-            <div class="no-image-placeholder">
-                <i class="fas fa-newspaper"></i>
-            </div>
-            % endif
+        <div class="news-grid">
+            % for news in news_list:
+                <div class="news-card">
+                    % if news.image:
+                        <img src="${news.image.url}" alt="${news.title}" class="news-image">
+                    % else:
+                        <div class="no-image-placeholder">
+                            <i class="fas fa-newspaper"></i>
+                        </div>
+                    % endif
 
-            <div class="news-content">
-                <div class="news-title">
-                    <a href="/news/${news.pk}/">${news.title}</a>
+                    <div class="news-content">
+                        <div class="news-title">
+                            <a href="/news/${news.pk}/">${news.title}</a>
+                        </div>
+
+                        <div class="news-date">
+                            ${news.created_at.date()}
+                        </div>
+
+                        <div class="news-excerpt">
+                            ${news.content[:100]}...
+                        </div>
+
+                        <a href="/news/${news.pk}/" class="read-more">
+                            ${_("Read more")} →
+                        </a>
+                    </div>
                 </div>
-
-                <div class="news-date">
-                    ${news.created_at.date()}
-                </div>
-
-                <div class="news-excerpt">
-                    ${news.content[:100]}...
-                </div>
-
-                <a href="/news/${news.pk}/" class="read-more">
-                    ${_("Read more")} →
-                </a>
-            </div>
+            % endfor
         </div>
-        % endfor
-    </div>
     % else:
-    <div class="no-news">
-        <div class="no-news-icon">📰</div>
-        <h3>${_("No news available")}</h3>
-        <p>${_("Check back later for updates")}</p>
-    </div>
+        <div class="no-news">
+            <div class="no-news-icon">📰</div>
+            <h3>${_("No news available")}</h3>
+            <p>${_("Check back later for updates")}</p>
+        </div>
     % endif
 </div>
 
 <%block name="extrajs">
+    <script>
+        // Add subtle animation when news cards come into view
+        document.addEventListener('DOMContentLoaded', function() {
+            const newsCards = document.querySelectorAll('.news-card');
 
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = 1;
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            newsCards.forEach(card => {
+                card.style.opacity = 0;
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                observer.observe(card);
+            });
+        });
+    </script>
 </%block>
