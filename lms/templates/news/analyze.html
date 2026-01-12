@@ -18,17 +18,18 @@
     </div>
 
     <ul>
-    % for course in courses:
+        % for course in courses:
         <li>
             <strong>${course.display_name}</strong><br/>
             <small>
                 ${course.id} | факультет: ${course.org}
             </small>
         </li>
-    % endfor
+        % endfor
     </ul>
 </div>
 
+<%block name="extrajs">
 <script>
     new Chart(
         document.getElementById('coursesByFacultyChart'),
@@ -52,3 +53,4 @@
         }
     );
 </script>
+</%block>
