@@ -46,7 +46,6 @@ def news_create(request):
 from django.db.models import Count
 from django.db.models.functions import ExtractYear
 from django.shortcuts import render
-from course_overviews.models import CourseOverview
 
 
 # def analyze(request):
