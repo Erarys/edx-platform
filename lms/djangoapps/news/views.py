@@ -43,12 +43,34 @@ def news_create(request):
     }
     return render_to_response('news/form.html', context, request=request)
 
+from django.db.models import Count
+from django.db.models.functions import ExtractYear
+from django.shortcuts import render
+from course_overviews.models import CourseOverview
 
 
-
+# def analyze(request):
+#     courses = CourseOverview.objects.all()
+#
+#     courses_by_org = (
+#         CourseOverview.objects
+#         .values("org")
+#         .annotate(total=Count("id"))
+#         .order_by("-total")
+#     )
+#
+#     context = {
+#         "courses": courses[:50],
+#         "courses_count": courses.count(),
+#         "chart_labels": [c["org"] for c in courses_by_org],
+#         "chart_data": [c["total"] for c in courses_by_org],
+#     }
+#
+#     return render_to_response("news/analyze2.html", context, request=request)
 def analyze(request):
     courses = CourseOverview.objects.all()
 
+    # 1️⃣ Курсы по факультетам (org)
     courses_by_org = (
         CourseOverview.objects
         .values("org")
@@ -56,16 +78,51 @@ def analyze(request):
         .order_by("-total")
     )
 
-    news = News.objects.all()
+    # 2️⃣ Курсы по годам старта
+    courses_by_year = (
+        CourseOverview.objects
+        .exclude(start__isnull=True)
+        .annotate(year=ExtractYear("start"))
+        .values("year")
+        .annotate(total=Count("id"))
+        .order_by("year")
+    )
+
+    # 3️⃣ Курсы по языкам
+    courses_by_lang = (
+        CourseOverview.objects
+        .exclude(language__isnull=True)
+        .values("language")
+        .annotate(total=Count("id"))
+        .order_by("-total")
+    )
+
+    # 4️⃣ Формат обучения
+    paced_data = [
+        CourseOverview.objects.filter(self_paced=True).count(),
+        CourseOverview.objects.filter(self_paced=False).count(),
+    ]
 
     context = {
+        # список курсов
         "courses": courses[:50],
         "courses_count": courses.count(),
-        "chart_labels": [c["org"] for c in courses_by_org],
-        "chart_data": [c["total"] for c in courses_by_org],
-        "news_list": news,
-        "create_url": reverse("news_create"),
+
+        # факультеты
+        "org_labels": [c["org"] for c in courses_by_org],
+        "org_data": [c["total"] for c in courses_by_org],
+
+        # годы
+        "year_labels": [c["year"] for c in courses_by_year],
+        "year_data": [c["total"] for c in courses_by_year],
+
+        # языки
+        "lang_labels": [c["language"] for c in courses_by_lang],
+        "lang_data": [c["total"] for c in courses_by_lang],
+
+        # формат
+        "paced_labels": ["Self-paced", "Instructor-led"],
+        "paced_data": paced_data,
     }
 
-    return render_to_response("news/analyze2.html", context, request=request)
-
+    return render(request, "news/analyze3.html", context)

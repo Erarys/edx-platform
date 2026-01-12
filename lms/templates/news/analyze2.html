@@ -35,45 +35,6 @@
         </ul>
 
     </div>
-    % if news_list:
-    <div class="news-grid">
-        % for news in news_list:
-        <div class="news-card">
-            % if news.image:
-            <img src="${news.image.url}" alt="${news.title}" class="news-image">
-            % else:
-            <div class="no-image-placeholder">
-                <i class="fas fa-newspaper"></i>
-            </div>
-            % endif
-
-            <div class="news-content">
-                <div class="news-title">
-                    <a href="/news/${news.pk}/">${news.title}</a>
-                </div>
-
-                <div class="news-date">
-                    ${news.created_at.date()}
-                </div>
-
-                <div class="news-excerpt">
-                    ${news.content[:100]}...
-                </div>
-
-                <a href="/news/${news.pk}/" class="read-more">
-                    ${_("Read more")} →
-                </a>
-            </div>
-        </div>
-        % endfor
-    </div>
-    % else:
-    <div class="no-news">
-        <div class="no-news-icon">📰</div>
-        <h3>${_("No news available")}</h3>
-        <p>${_("Check back later for updates")}</p>
-    </div>
-    % endif
 </div>
 
 <%block name="extrajs">
