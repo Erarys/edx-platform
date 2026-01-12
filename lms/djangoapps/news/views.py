@@ -58,7 +58,7 @@ def analyze(request):
 
     context = {
         "courses": courses[:50],
-        "courses_count": courses.count(),
+        "courses_count": 10, # courses.count(),
         "chart_labels": [c["org"] for c in courses_by_org],
         "chart_data": [c["total"] for c in courses_by_org],
     }
