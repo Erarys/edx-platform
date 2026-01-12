@@ -73,5 +73,5 @@ def analyze(request):
         'news_list': news,
         'create_url': reverse('news_create'),
     }
-    return render_to_response('news/list.html', context, request=request)
+    return render_to_response('news/analyze2.html', context, request=request)
 
