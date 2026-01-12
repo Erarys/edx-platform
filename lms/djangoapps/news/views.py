@@ -47,29 +47,30 @@ def news_create(request):
 
 
 def analyze(request):
-    # courses = CourseOverview.objects.all()
-    #
-    # courses_by_org = (
-    #     CourseOverview.objects
-    #     .values("org")
-    #     .annotate(total=Count("id"))
-    #     .order_by("-total")
-    # )
-    # news = News.objects.all()
-    # context = {
-    #     "courses": courses[:50],
-    #     "courses_count": 10, # courses.count(),
-    #     "chart_labels": [c["org"] for c in courses_by_org],
-    #     "chart_data": [c["total"] for c in courses_by_org],
-    #
-    #     'news_list': news,
-    #     'create_url': reverse('news_create'),
-    # }
-    #
-    #
-    # return render(request, "news/analyze.html", context)
+    courses = CourseOverview.objects.all()
+
+    courses_by_org = (
+        CourseOverview.objects
+        .values("org")
+        .annotate(total=Count("id"))
+        .order_by("-total")
+    )
     news = News.objects.all()
     context = {
+        "courses": courses[:50],
+        "courses_count": 10, # courses.count(),
+        "chart_labels": [c["org"] for c in courses_by_org],
+        "chart_data": [c["total"] for c in courses_by_org],
+
+        'news_list': news,
+        'create_url': reverse('news_create'),
+    }
+
+
+
+    news = News.objects.all()
+    context = {
+        "courses": courses[:50],
         'news_list': news,
         'create_url': reverse('news_create'),
     }
