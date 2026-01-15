@@ -72,7 +72,6 @@ import json
 from django.db.models import Count
 from django.db.models.functions import ExtractYear
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
-from edxmako.shortcuts import render_to_response
 
 
 def analyze(request):
