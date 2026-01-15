@@ -43,8 +43,8 @@ def news_create(request):
     }
     return render_to_response('news/form.html', context, request=request)
 
-from django.db.models import Count
-from django.db.models.functions import ExtractYear
+# from django.db.models import Count
+# from django.db.models.functions import ExtractYear
 
 #
 # def analyze(request):
@@ -66,67 +66,67 @@ from django.db.models.functions import ExtractYear
 #
 #     return render_to_response("news/analyze2.html", context, request=request)
 
-import json
+# import json
+#
+# import json
+# from django.db.models import Count
+# from django.db.models.functions import ExtractYear
+# from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 
-import json
-from django.db.models import Count
-from django.db.models.functions import ExtractYear
-from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
-
-
-def analyze(request):
-    courses = CourseOverview.objects.all()
-
-    courses_by_org = (
-        CourseOverview.objects
-        .values("org")
-        .annotate(total=Count("id"))
-        .order_by("-total")
-    )
-
-    courses_by_year = (
-        CourseOverview.objects
-        .exclude(start__isnull=True)
-        .annotate(year=ExtractYear("start"))
-        .values("year")
-        .annotate(total=Count("id"))
-        .order_by("year")
-    )
-
-    courses_by_lang = (
-        CourseOverview.objects
-        .exclude(language__isnull=True)
-        .values("language")
-        .annotate(total=Count("id"))
-        .order_by("-total")
-    )
-
-    paced_data = [
-        CourseOverview.objects.filter(self_paced=True).count(),
-        CourseOverview.objects.filter(self_paced=False).count(),
-    ]
-
-    context = {
-        # список курсов (НЕ для JS — оставляем как есть)
-        "courses": courses[:50],
-        "courses_count": courses.count(),
-
-        # факультеты
-        "org_labels": json.dumps([c["org"] for c in courses_by_org]),
-        "org_data": json.dumps([c["total"] for c in courses_by_org]),
-
-        # годы
-        "year_labels": json.dumps([c["year"] for c in courses_by_year]),
-        "year_data": json.dumps([c["total"] for c in courses_by_year]),
-
-        # языки
-        "lang_labels": json.dumps([c["language"] for c in courses_by_lang]),
-        "lang_data": json.dumps([c["total"] for c in courses_by_lang]),
-
-        # формат
-        "paced_labels": json.dumps(["Self-paced", "Instructor-led"]),
-        "paced_data": json.dumps(paced_data),
-    }
-
-    return render_to_response("news/analyze3.html", context, request=request)
-
+#
+# def analyze(request):
+#     courses = CourseOverview.objects.all()
+#
+#     courses_by_org = (
+#         CourseOverview.objects
+#         .values("org")
+#         .annotate(total=Count("id"))
+#         .order_by("-total")
+#     )
+#
+#     courses_by_year = (
+#         CourseOverview.objects
+#         .exclude(start__isnull=True)
+#         .annotate(year=ExtractYear("start"))
+#         .values("year")
+#         .annotate(total=Count("id"))
+#         .order_by("year")
+#     )
+#
+#     courses_by_lang = (
+#         CourseOverview.objects
+#         .exclude(language__isnull=True)
+#         .values("language")
+#         .annotate(total=Count("id"))
+#         .order_by("-total")
+#     )
+#
+#     paced_data = [
+#         CourseOverview.objects.filter(self_paced=True).count(),
+#         CourseOverview.objects.filter(self_paced=False).count(),
+#     ]
+#
+#     context = {
+#         # список курсов (НЕ для JS — оставляем как есть)
+#         "courses": courses[:50],
+#         "courses_count": courses.count(),
+#
+#         # факультеты
+#         "org_labels": json.dumps([c["org"] for c in courses_by_org]),
+#         "org_data": json.dumps([c["total"] for c in courses_by_org]),
+#
+#         # годы
+#         "year_labels": json.dumps([c["year"] for c in courses_by_year]),
+#         "year_data": json.dumps([c["total"] for c in courses_by_year]),
+#
+#         # языки
+#         "lang_labels": json.dumps([c["language"] for c in courses_by_lang]),
+#         "lang_data": json.dumps([c["total"] for c in courses_by_lang]),
+#
+#         # формат
+#         "paced_labels": json.dumps(["Self-paced", "Instructor-led"]),
+#         "paced_data": json.dumps(paced_data),
+#     }
+#
+#     return render_to_response("news/analyze3.html", context, request=request)
+#
