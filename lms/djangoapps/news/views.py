@@ -123,4 +123,4 @@ def analyze(request):
         "paced_data": paced_data,
     }
 
-    return render_to_response(request, "news/analyze3.html", context)
+    return render_to_response("news/analyze3.html", context, request)
