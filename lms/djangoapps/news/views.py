@@ -43,8 +43,8 @@ def news_create(request):
     }
     return render_to_response('news/form.html', context, request=request)
 
-# from django.db.models import Count
-# from django.db.models.functions import ExtractYear
+from django.db.models import Count
+from django.db.models.functions import ExtractYear
 
 #
 # def analyze(request):
