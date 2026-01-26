@@ -45,7 +45,7 @@ def news_create(request):
 
 # from django.db.models import Count
 # from django.db.models.functions import ExtractYear
-
+#
 #
 # def analyze(request):
 #     courses = CourseOverview.objects.all()
@@ -65,14 +65,14 @@ def news_create(request):
 #     }
 #
 #     return render_to_response("news/analyze2.html", context, request=request)
-
+#
 # import json
 #
 # import json
 # from django.db.models import Count
 # from django.db.models.functions import ExtractYear
 # from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
-
+#
 #
 # def analyze(request):
 #     courses = CourseOverview.objects.all()
@@ -129,4 +129,4 @@ def news_create(request):
 #     }
 #
 #     return render_to_response("news/analyze3.html", context, request=request)
-#
+
