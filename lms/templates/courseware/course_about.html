@@ -228,6 +228,7 @@ from openedx.core.lib.courses import course_image_url
           % if get_course_about_section(request, course, "complexity"):
             <li class="important-dates-item"><span class="icon fa fa-pencil" aria-hidden="true"></span><p class="important-dates-item-title">${_("Course Difficulties")}</p><span class="important-dates-item-text complexity">${get_course_about_section(request, course, "complexity")}</span></li>
           % endif
+            <h1>Hello world</h1>
           ##<li class="important-dates-item"><span class="icon fa fa-clock-o" aria-hidden="true"></span><p class="important-dates-item-title">${_('Course Length')}</p><span class="important-dates-item-text course-length">${_('{number} weeks').format(number=15)}</span></li>
 
           %if course_price and (is_cosmetic_price_enabled):
