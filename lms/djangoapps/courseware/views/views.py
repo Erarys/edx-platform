@@ -857,7 +857,7 @@ def course_about(request, course_id):  # pylint: disable=too-many-statements
         sidebar_html_enabled = ENABLE_COURSE_ABOUT_SIDEBAR_HTML.is_enabled()
 
         allow_anonymous = check_public_access(course, [COURSE_VISIBILITY_PUBLIC, COURSE_VISIBILITY_PUBLIC_OUTLINE])
-        complexity = overview.other_course_settings.get("complexity")
+        complexity = overview.complexity
 
         context = {
             'course': course,
