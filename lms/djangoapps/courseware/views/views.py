@@ -975,7 +975,10 @@ def _progress(request, course_key, student_id):
             student_id = int(student_id)
         # Check for ValueError if 'student_id' cannot be converted to integer.
         except ValueError:
-            raise Http404  # lint-amnesty, pylint: disable=raise-missing-from
+            try:
+                user_by_username = User.objects.get(username=student_id)
+            except User.DoesNotExist:
+                raise Http404
 
     course = get_course_with_access(request.user, 'load', course_key)
 
@@ -997,9 +1000,12 @@ def _progress(request, course_key, student_id):
         if not has_access_on_students_profiles:
             raise Http404
         try:
-            student = User.objects.get(id=student_id)
+            if user_by_username:
+                student = user_by_username
+            else:
+                student = User.objects.get(id=student_id)
         except User.DoesNotExist:
-            raise Http404  # lint-amnesty, pylint: disable=raise-missing-from
+            raise Http404 # lint-amnesty, pylint: disable=raise-missing-from
 
     # NOTE: To make sure impersonation by instructor works, use
     # student instead of request.user in the rest of the function.
