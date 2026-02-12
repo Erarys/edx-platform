@@ -57,7 +57,7 @@ class StudentGradebookEntrySerializer(serializers.Serializer):
     external_user_key = serializers.CharField(required=False)
     percent = serializers.FloatField()
     section_breakdown = SectionBreakdownSerializer(many=True)
-
+    profile_username = serializers.CharField(required=False, allow_null=True)
 
 class SubsectionGradeOverrideSerializer(serializers.Serializer):
     """
