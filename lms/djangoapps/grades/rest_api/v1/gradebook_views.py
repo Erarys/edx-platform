@@ -508,7 +508,7 @@ class GradebookView(GradeViewMixin, PaginatedAPIView):
         )
         user_entry['user_id'] = user.id
         profile = getattr(user, 'profile', None)
-        user_entry['profile_username'] = getattr(profile, 'username', None)
+        user_entry['profile_name'] = getattr(profile, 'name', None)
 
         def is_masters_student():
             # If this is a multiple-user lookup (didn't use the username param) we insert
