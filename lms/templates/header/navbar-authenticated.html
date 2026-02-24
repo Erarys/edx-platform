@@ -42,6 +42,27 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
     color: #1a263c !important;
   }
 }
+/* делаем .main flex, чтобы gap работал */
+.nav-links .main {
+  display: flex !important;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px !important;
+}
+
+/* одинаковые отступы для всех пунктов */
+.nav-links .main .nav-item,
+.nav-links .main .mobile-nav-item {
+  margin: 0 !important;
+  margin-top: 3px !important;
+  padding: 0 !important;      /* чтобы inline не нужен был */
+}
+
+/* “воздух” внутри клика */
+.nav-links .main a {
+  padding: 0 6px !important;
+  line-height: 1.2 !important;
+}
 </style>
 
 <div class="nav-links">
