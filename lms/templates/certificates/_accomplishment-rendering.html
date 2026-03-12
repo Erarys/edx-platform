@@ -161,13 +161,13 @@ qr_code_url = "https://open.kaznu.kz/certificates/" + certificate_id_number
             % if mode != 'base' and certificate_data:
               <%
               signatories = certificate_data.get('signatories', [])
-              label = "Автор"
+              label = "Автор курса"
 
               if signatories:
                   name_text = signatories[0].get('name', '')
                   matches = re.findall(r'[А-ЯЁA-Z]\.[А-ЯЁA-Z]\.', name_text)
                   if len(matches) > 1:
-                    label = "Авторы"
+                    label = "Авторы курса"
               %>
               % for signatory in certificate_data.get('signatories', []):
                 % if signatory.get('signature_image_path'):
