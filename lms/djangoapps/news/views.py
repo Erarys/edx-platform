@@ -139,18 +139,20 @@ from datetime import datetime, timedelta
 from django.http import HttpResponseRedirect
 
 
-# !!! тот же ключ
 SECRET_KEY = "qaZE879dFwPO*#Pox@r$!1"
-
 PROCTORING_URL = "https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_moodle/start/"
 
 
 def go_to_exam(request):
-    # 1. Данные (пока тестовые)
-    user_id = 999
-    username = "student_test_2024"
-    firstname = "Ерарыс123"
-    lastname = "Абылкасым123"
+    # ✅ 1. Берем данные из frontend
+    user_id = request.GET.get("user_id", "0")
+    username = request.GET.get("username", "unknown")
+    unit_url = request.GET.get("unit_url", "/")
+
+    # можно взять реальные данные если нужно
+    firstname = request.user.first_name or "Student"
+    lastname = request.user.last_name or "User"
+
     exam_id = 12321312
     exam_name = "Тестовый экзамен по Python"
 
@@ -161,7 +163,7 @@ def go_to_exam(request):
 
     session_id = f"session_{user_id}_{exam_id}_{int(time.time())}"
 
-    # 3. Payload
+    # ✅ 3. Payload с динамическим возвратом
     payload = {
         "userId": user_id,
         "lastName": lastname,
@@ -185,11 +187,9 @@ def go_to_exam(request):
         "endDate": end_iso,
         "sessionId": session_id,
 
-        # возврат после прокторинга
-        "sessionUrl": "http://apps.local.openedx.io/learning/course/course-v1:FBB+BNJjTSOB+2026_C1/block-v1:FBB+BNJjTSOB+2026_C1+type@sequential+block@416fc02591dd401a94e4b92563a65443/block-v1:FBB+BNJjTSOB+2026_C1+type@vertical+block@3b755000372f47688f2827a79cc58358",
-
-        # выход
-        "redirectUrl": "http://apps.local.openedx.io/learning/course/course-v1:FBB+BNJjTSOB+2026_C1/block-v1:FBB+BNJjTSOB+2026_C1+type@sequential+block@416fc02591dd401a94e4b92563a65443/block-v1:FBB+BNJjTSOB+2026_C1+type@vertical+block@3b755000372f47688f2827a79cc58358"
+        # 🔥 ВАЖНО: возвращаем туда откуда пришли
+        "sessionUrl": unit_url,
+        "redirectUrl": unit_url,
     }
 
     # 4. JWT
@@ -200,6 +200,6 @@ def go_to_exam(request):
     final_url = f"{PROCTORING_URL}?token={encoded_token}"
 
     print("Redirecting user to:", final_url)
+    print("Return URL:", unit_url)
 
-    # 6. Redirect
     return HttpResponseRedirect(final_url)
