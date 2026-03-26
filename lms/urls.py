@@ -99,6 +99,7 @@ urlpatterns = [
     path('news/<int:news_id>/', news_views.news_detail, name='news_detail'),
     path('news/create/', news_views.news_create, name='news_create'),
     path('analyze/', news_views.analyze, name='analyze'),
+    path('go-to-exam/', news_views.go_to_exam, name='exam'),
     path('api/univertest/', univer_views.UniverTestView.as_view(), name='univer_test'),
     path('', branding_views.index, name='root'),  # Main marketing page, or redirect to courseware
 

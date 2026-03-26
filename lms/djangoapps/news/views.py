@@ -130,3 +130,76 @@ def analyze(request):
 
     return render_to_response("news/analyze3.html", context, request=request)
 
+
+import jwt
+import urllib.parse
+import time
+from datetime import datetime, timedelta
+
+from django.http import HttpResponseRedirect
+
+
+# !!! тот же ключ
+SECRET_KEY = "qaZE879dFwPO*#Pox@r$!1"
+
+PROCTORING_URL = "https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_moodle/start/"
+
+
+def go_to_exam(request):
+    # 1. Данные (пока тестовые)
+    user_id = 999
+    username = "student_test_2024"
+    firstname = "Ерарыс123"
+    lastname = "Абылкасым123"
+    exam_id = 12321312
+    exam_name = "Тестовый экзамен по Python"
+
+    # 2. Время
+    now = datetime.utcnow()
+    start_iso = now.isoformat() + "Z"
+    end_iso = (now + timedelta(hours=2)).isoformat() + "Z"
+
+    session_id = f"session_{user_id}_{exam_id}_{int(time.time())}"
+
+    # 3. Payload
+    payload = {
+        "userId": user_id,
+        "lastName": lastname,
+        "firstName": firstname,
+        "thirdName": username,
+        "language": "ru",
+        "accountName": "kaznu_moodle",
+        "examId": exam_id,
+        "examName": exam_name,
+        "duration": 60,
+        "schedule": False,
+        "proctoring": "online",
+        "examDesc": "<b>Курс:</b> Тестирование систем<br><b>Преподаватель:</b> AI Assistant",
+        "rules": {
+            "websites": True,
+            "look_away": True,
+            "move_away": False,
+            "voices": True,
+        },
+        "startDate": start_iso,
+        "endDate": end_iso,
+        "sessionId": session_id,
+
+        # возврат после прокторинга
+        "sessionUrl": "http://apps.local.openedx.io/learning/course/course-v1:FBB+BNJjTSOB+2026_C1/block-v1:FBB+BNJjTSOB+2026_C1+type@sequential+block@416fc02591dd401a94e4b92563a65443/block-v1:FBB+BNJjTSOB+2026_C1+type@vertical+block@3b755000372f47688f2827a79cc58358",
+
+        # выход
+        "redirectUrl": "http://apps.local.openedx.io/learning/course/course-v1:FBB+BNJjTSOB+2026_C1/block-v1:FBB+BNJjTSOB+2026_C1+type@sequential+block@416fc02591dd401a94e4b92563a65443/block-v1:FBB+BNJjTSOB+2026_C1+type@vertical+block@3b755000372f47688f2827a79cc58358"
+    }
+
+    # 4. JWT
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+    # 5. URL
+    encoded_token = urllib.parse.quote(token)
+    final_url = f"{PROCTORING_URL}?token={encoded_token}"
+
+    print("Redirecting user to:", final_url)
+
+    # 6. Redirect
+    return HttpResponseRedirect(final_url)
