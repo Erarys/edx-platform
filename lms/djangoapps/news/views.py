@@ -150,8 +150,8 @@ def go_to_exam(request):
     unit_url = request.GET.get("unit_url", "/")
 
     # можно взять реальные данные если нужно
-    firstname = request.user.first_name or "Student"
-    lastname = request.user.last_name or "User"
+    firstname = "Student"
+    lastname = "User"
 
     exam_id = 12321312
     exam_name = "Тестовый экзамен по Python"
