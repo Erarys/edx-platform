@@ -5,10 +5,12 @@ from .models import News
 from .forms import NewsForm
 from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Count
-
+from common.djangoapps.student.models import UserProfile
 
 # from ..commerce.api.v1.models import Course
+import logging
 
+logger = logging.getLogger(__name__)
 
 def news_list(request):
     news = News.objects.all()
@@ -150,8 +152,9 @@ def go_to_exam(request):
     unit_url = request.GET.get("unit_url", "/")
 
     # можно взять реальные данные если нужно
-    firstname = "Student"
+    firstname = request.user.profile.name
     lastname = "User"
+    logger.info(f"User name 1", firstname)
 
     exam_id = 12321312
     exam_name = "Тестовый экзамен по Python"
