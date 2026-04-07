@@ -133,15 +133,15 @@ qr_code_url = "https://open.kaznu.kz/certificates/" + certificate_id_number
 
         <div style="width: 100%; margin-top: 30px; font-size: 18px; color: #001A72; font-weight: bolder; text-align: left; padding-left: 15px">
           <div style="margin-bottom: 20px;">
-              Прошел(-а) онлайн курс:
+              ${_("Passed an online course")}:
               <span style="font-weight: bold; color: #FABF67; margin-left: 10px;">${accomplishment_copy_course_name}</span>
           </div>
           <div style="margin-bottom: 20px;">
-              Дата выдачи:
+              ${_("Date of issue")}:
               <span style="font-weight: bold; color: #FABF67; margin-left: 10px;">${formatted_date}</span>
           </div>
           <div>
-              Регистрационный номер:
+              ${_("Registration number")}:
               <span style="font-weight: bold; color: #FABF67; margin-left: 10px;">${certificate_id_number}</span>
           </div>
         </div>
@@ -150,12 +150,12 @@ qr_code_url = "https://open.kaznu.kz/certificates/" + certificate_id_number
           <div style="text-align: center; flex: 1; margin-top: 10px">
             <img src="https://open.kaznu.kz/static/images/sign1.png" alt="Signature 1" style="width: 150px; height: auto;">
             <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Галеева А.К.</div>
-            <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Член Правления - проректор <br>по академическим вопросам</div>
+            <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">${_("Board Member - Vice-Rector for")} <br>${_("Academic Affairs")}</div>
           </div>
           <div style="text-align: center; flex: 1; margin-top: 58px;">
             <img src="https://open.kaznu.kz/static/images/sign2.jpg" alt="Signature 2" style="width: 80px; height: auto;">
             <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Круговых И.И.</div>
-            <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Руководитель Офиса академических <br>и цифровых инноваций</div>
+            <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">${_("Head of the Office of")} <br>${_("academic and digital innovation")}</div>
           </div>
           <div style="text-align: center; flex: 1; margin-top: 35px;">
             % if mode != 'base' and certificate_data:
