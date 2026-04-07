@@ -147,18 +147,22 @@ PROCTORING_URL = "https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_mo
 
 def go_to_exam(request):
     # ✅ 1. Берем данные из frontend
-    user_id = request.GET.get("user_id", "0")
-    username = request.GET.get("username", "unknown")
+    user_id = request.user.id
+    username = request.user.username
     unit_url = request.GET.get("unit_url", "/")
+    course_name = request.GET.get("course_name", "empty")
+
 
     # можно взять реальные данные если нужно
-    firstname = request.user.profile.name
-    lastname = "User"
-    logger.info(f"User name 1", firstname)
+    try:
+        firstname, lastname = request.user.profile.name
+    except:
+        firstname, lastname = "None", "None"
 
     exam_id = 12321312
-    exam_name = "Тестовый экзамен по Python"
+    exam_name = f"Тестовый экзамен по {course_name}"
 
+    logger.info(f"User name 1", exam_name)
     # 2. Время
     now = datetime.utcnow()
     start_iso = now.isoformat() + "Z"
