@@ -158,35 +158,36 @@ qr_code_url = "https://open.kaznu.kz/certificates/" + certificate_id_number
             <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">${_("Head of the Office of")} <br>${_("academic and digital innovation")}</div>
           </div>
           <div style="text-align: center; flex: 1; margin-top: 35px;">
-            % if mode != 'base' and certificate_data:
-              <%
-              signatories = certificate_data.get('signatories', [])
-              label = "Автор"
+              % if mode != 'base' and certificate_data:
+                <%
+                signatories = certificate_data.get('signatories', [])
+                label = _("Course author")
 
-              if signatories:
-                  name_text = signatories[0].get('name', '')
-                  matches = re.findall(r'[А-ЯЁA-Z]\.[А-ЯЁA-Z]\.', name_text)
-                  if len(matches) > 1:
-                    label = "Авторы"
-              %>
-              % for signatory in certificate_data.get('signatories', []):
-                % if signatory.get('signature_image_path'):
-                  <div style="width: 110px; height: 60px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-                    <img src="${static.url(signatory['signature_image_path'])}"
-                         alt="${signatory['name']}"
-                         style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                if signatories:
+                    name_text = signatories[0].get('name', '')
+                    matches = re.findall(r'[А-ЯЁA-Z]\.[А-ЯЁA-Z]\.', name_text)
+                    if len(matches) > 1:
+                        label = _("Course authors")
+                %>
+
+                % for signatory in certificate_data.get('signatories', []):
+                  % if signatory.get('signature_image_path'):
+                    <div style="width: 110px; height: 60px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                      <img src="${static.url(signatory['signature_image_path'])}"
+                           alt="${signatory['name']}"
+                           style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                    </div>
+                  % endif
+                  <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">
+                    ${signatory['name']}
                   </div>
-                % endif
-                <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">
-                  ${signatory['name']}
-                </div>
-              % endfor
+                % endfor
 
-              <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">
-                ${label}
-              </div>
-            % endif
-          </div>
+                <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">
+                  ${label}
+                </div>
+              % endif
+            </div>
         </div>
       </div>
 
