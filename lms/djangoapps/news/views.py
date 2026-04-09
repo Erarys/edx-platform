@@ -19,9 +19,12 @@ import jwt
 import urllib.parse
 import time
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from django.http import HttpResponseRedirect
+import httpx
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 logger = logging.getLogger(__name__)
 
@@ -188,11 +191,24 @@ def go_to_exam(request):
     return HttpResponseRedirect(final_url)
 
 
-def finish_redirect(request):
+def finish_exam_api(request):
     session_id = request.session.get("proctoring_session_id")
 
-    redirect_url = request.GET.get("redirectUrl", "/")
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(minutes=5)).timestamp()),
+        "sessionId": session_id,
+    }
 
-    url = f"https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_moodle/finish/{session_id}/?redirectUrl={redirect_url}"
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
-    return HttpResponseRedirect(url)
+    url = f"https://farabi-proctoring.kaznu.kz/api/integration/simple/kaznu_moodle/sessions/{session_id}/finish/"
+
+    httpx.post(
+        url,
+        headers={"Authorization": f"Bearer {token}"},
+        json={"status": "finished"}
+    )
+
+    return JsonResponse({"status": "ok"})
