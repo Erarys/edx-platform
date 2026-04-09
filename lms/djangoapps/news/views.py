@@ -15,6 +15,13 @@ from django.db.models.functions import ExtractYear
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 # from ..commerce.api.v1.models import Course
 import logging
+import jwt
+import urllib.parse
+import time
+import random
+from datetime import datetime, timedelta
+
+from django.http import HttpResponseRedirect
 
 logger = logging.getLogger(__name__)
 
@@ -109,15 +116,6 @@ def analyze(request):
     return render_to_response("news/analyze3.html", context, request=request)
 
 
-import jwt
-import urllib.parse
-import time
-import random
-from datetime import datetime, timedelta
-
-from django.http import HttpResponseRedirect
-
-
 SECRET_KEY = "qaZE879dFwPO*#Pox@r$!1"
 PROCTORING_URL = "https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_moodle/start/"
 
@@ -136,8 +134,8 @@ def go_to_exam(request):
     except:
         firstname, lastname = "None", "None"
 
-    exam_id = random.randint(10**10, 10**11 - 1)
-    session_id = exam_id
+    exam_id = random.randint(10**7, 10**8 - 1)
+    session_id = random.randint(10**10, 10**11 - 1)
     exam_name = f"Тестовый экзамен по {course_name}"
 
     request.session["proctoring_session_id"] = session_id
