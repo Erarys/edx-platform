@@ -136,6 +136,7 @@ def analyze(request):
 import jwt
 import urllib.parse
 import time
+import random
 from datetime import datetime, timedelta
 
 from django.http import HttpResponseRedirect
@@ -159,16 +160,17 @@ def go_to_exam(request):
     except:
         firstname, lastname = "None", "None"
 
-    exam_id = 12321312
+    exam_id = random.randint(10**10, 10**11 - 1)
+    session_id = exam_id
     exam_name = f"Тестовый экзамен по {course_name}"
+
+    request.session["proctoring_session_id"] = session_id
 
     logger.info(f"User name 1", exam_name)
     # 2. Время
     now = datetime.utcnow()
     start_iso = now.isoformat() + "Z"
     end_iso = (now + timedelta(hours=2)).isoformat() + "Z"
-
-    session_id = f"session_{user_id}_{exam_id}_{int(time.time())}"
 
     # ✅ 3. Payload с динамическим возвратом
     payload = {
@@ -210,3 +212,13 @@ def go_to_exam(request):
     print("Return URL:", unit_url)
 
     return HttpResponseRedirect(final_url)
+
+
+def finish_redirect(request):
+    session_id = request.session.get("proctoring_session_id")
+
+    redirect_url = request.GET.get("redirectUrl", "/")
+
+    url = f"https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_moodle/finish/{session_id}/?redirectUrl={redirect_url}"
+
+    return HttpResponseRedirect(url)
