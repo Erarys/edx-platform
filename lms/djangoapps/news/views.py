@@ -159,7 +159,7 @@ def go_to_exam(request):
         "accountName": "kaznu_moodle",
         "examId": exam_id,
         "examName": exam_name,
-        "duration": 60,
+        "duration": 5,
         "schedule": False,
         "proctoring": "online",
         "examDesc": "<b>Курс:</b> Тестирование систем<br><b>Преподаватель:</b> AI Assistant",
