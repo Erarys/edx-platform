@@ -124,7 +124,7 @@ PROCTORING_URL = "https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_mo
 
 
 def go_to_exam(request):
-    SECRET_KEY = str(settings.SECRET_KEY)
+    SECRET_KEY = str(settings.PROCTORING_API_KEY)
     # ✅ 1. Берем данные из frontend
     user_id = request.user.id
     username = request.user.username
