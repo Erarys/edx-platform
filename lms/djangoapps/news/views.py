@@ -25,7 +25,7 @@ from django.http import HttpResponseRedirect
 import httpx
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-
+from django.conf import settings
 logger = logging.getLogger(__name__)
 
 def news_list(request):
@@ -119,11 +119,12 @@ def analyze(request):
     return render_to_response("news/analyze3.html", context, request=request)
 
 
-SECRET_KEY = "qaZE879dFwPO*#Pox@r$!1"
+
 PROCTORING_URL = "https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_moodle/start/"
 
 
 def go_to_exam(request):
+    SECRET_KEY = str(settings.SECRET_KEY)
     # ✅ 1. Берем данные из frontend
     user_id = request.user.id
     username = request.user.username
