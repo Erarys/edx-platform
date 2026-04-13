@@ -134,7 +134,11 @@ def go_to_exam(request):
 
     # можно взять реальные данные если нужно
     try:
-        firstname, lastname = request.user.profile.name
+        name = request.user.profile.name.strip()
+        parts = name.split(maxsplit=1)
+
+        firstname = parts[0] if len(parts) > 0 else ""
+        lastname = parts[1] if len(parts) > 1 else ""
     except:
         firstname, lastname = "None", "None"
 
