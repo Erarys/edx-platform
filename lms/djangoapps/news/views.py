@@ -5,10 +5,28 @@ from .models import News
 from .forms import NewsForm
 from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Count
+from common.djangoapps.student.models import UserProfile
 
-
+from django.db.models import Count
+from django.db.models.functions import ExtractYear
+import json
+from django.db.models import Count
+from django.db.models.functions import ExtractYear
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 # from ..commerce.api.v1.models import Course
+import logging
+import jwt
+import urllib.parse
+import time
+import random
+from datetime import datetime, timedelta, timezone
 
+from django.http import HttpResponseRedirect
+import httpx
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
+logger = logging.getLogger(__name__)
 
 def news_list(request):
     news = News.objects.all()
@@ -42,36 +60,6 @@ def news_create(request):
         'list_url': reverse('news_list'),
     }
     return render_to_response('news/form.html', context, request=request)
-
-from django.db.models import Count
-from django.db.models.functions import ExtractYear
-
-
-def analyze(request):
-    courses = CourseOverview.objects.all()
-
-    courses_by_org = (
-        CourseOverview.objects
-        .values("org")
-        .annotate(total=Count("id"))
-        .order_by("-total")
-    )
-
-    context = {
-        "courses": courses[:50],
-        "courses_count": courses.count(),
-        "chart_labels": [c["org"] for c in courses_by_org],
-        "chart_data": [c["total"] for c in courses_by_org],
-    }
-
-    return render_to_response("news/analyze2.html", context, request=request)
-
-import json
-
-import json
-from django.db.models import Count
-from django.db.models.functions import ExtractYear
-from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 
 
 def analyze(request):
@@ -130,3 +118,89 @@ def analyze(request):
 
     return render_to_response("news/analyze3.html", context, request=request)
 
+
+
+PROCTORING_URL = "https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_moodle/start/"
+
+
+def go_to_exam(request):
+    SECRET_KEY = str(settings.PROCTORING_API_KEY)
+    # ✅ 1. Берем данные из frontend
+    user_id = request.user.id
+    username = request.user.username
+    unit_url = request.GET.get("unit_url", "/")
+    course_name = request.GET.get("course_name", "empty")
+
+
+    # можно взять реальные данные если нужно
+    try:
+        name = request.user.profile.name.strip()
+        parts = name.split(maxsplit=1)
+
+        firstname = parts[0] if len(parts) > 0 else ""
+        lastname = parts[1] if len(parts) > 1 else ""
+    except:
+        firstname, lastname = "None", "None"
+
+    exam_id = random.randint(10**7, 10**8 - 1)
+    session_id = random.randint(10**10, 10**11 - 1)
+    exam_name = f"Тестовый экзамен по {course_name}"
+
+    request.session["proctoring_session_id"] = session_id
+
+    logger.info(f"User name 1", exam_name)
+    # 2. Время
+    now = datetime.utcnow()
+    start_iso = now.isoformat() + "Z"
+    end_iso = (now + timedelta(hours=2)).isoformat() + "Z"
+
+    # ✅ 3. Payload с динамическим возвратом
+    payload = {
+        "userId": user_id,
+        "lastName": lastname,
+        "firstName": firstname,
+        "thirdName": username,
+        "language": "ru",
+        "accountName": "kaznu_moodle",
+        "examId": exam_id,
+        "examName": exam_name,
+        "duration": 5,
+        "schedule": False,
+        "proctoring": "online",
+        "examDesc": "<b>Курс:</b> Тестирование систем<br><b>Преподаватель:</b> AI Assistant",
+        "rules": {
+            "websites": True,
+            "look_away": True,
+            "move_away": False,
+            "voices": True,
+        },
+        "startDate": start_iso,
+        "endDate": end_iso,
+        "sessionId": session_id,
+
+        # 🔥 ВАЖНО: возвращаем туда откуда пришли
+        "sessionUrl": unit_url,
+        "redirectUrl": unit_url,
+    }
+
+    # 4. JWT
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+    # 5. URL
+    encoded_token = urllib.parse.quote(token)
+    final_url = f"{PROCTORING_URL}?token={encoded_token}"
+
+    print("Redirecting user to:", final_url)
+    print("Return URL:", unit_url)
+
+    return HttpResponseRedirect(final_url)
+
+
+def finish_exam(request):
+    session_id = request.session.get("proctoring_session_id")
+
+    redirect_url = request.GET.get("redirectUrl", "/")
+
+    url = f"https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_moodle/finish/{session_id}/?redirectUrl={redirect_url}"
+
+    return HttpResponseRedirect(url)
