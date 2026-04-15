@@ -120,7 +120,7 @@ def analyze(request):
 
 
 
-PROCTORING_URL = "https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_moodle/start/"
+PROCTORING_URL = "https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_open/start/"
 
 
 def go_to_exam(request):
@@ -161,7 +161,7 @@ def go_to_exam(request):
         "firstName": firstname,
         "thirdName": username,
         "language": "ru",
-        "accountName": "kaznu_moodle",
+        "accountName": "kaznu_open",
         "examId": exam_id,
         "examName": exam_name,
         "duration": 5,
