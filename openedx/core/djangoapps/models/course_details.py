@@ -27,6 +27,7 @@ ABOUT_ATTRIBUTES = [
     'short_description',
     'overview',
     'effort',
+    'complexity',
     'entrance_exam_enabled',
     'entrance_exam_id',
     'entrance_exam_minimum_score_pct',
