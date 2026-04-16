@@ -119,6 +119,7 @@ class CourseDetailsView(DeveloperErrorViewMixin, APIView):
     )
     @verify_course_exists()
     def put(self, request: Request, course_id: str):
+        print("REQUEST DATA:", request.data)
         """
         Update a course's details.
 
