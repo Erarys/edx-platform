@@ -28,7 +28,6 @@ ABOUT_ATTRIBUTES = [
     'overview',
     'effort',
     'complexity',
-    'complexity',
     'entrance_exam_enabled',
     'entrance_exam_id',
     'entrance_exam_minimum_score_pct',
@@ -195,6 +194,7 @@ class CourseDetails:
 
     @classmethod
     def update_from_json(cls, course_key, jsondict, user):  # pylint: disable=too-many-statements
+        print(">>> PAYLOAD:", jsondict)
         """
         Decode the json into CourseDetails and save any changed attrs to the db
         """
