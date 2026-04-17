@@ -312,19 +312,10 @@ class CourseDetails:
         # against db or could have client send over a list of which
         # fields changed.
         print(">>> ATTRIBUTES:", ABOUT_ATTRIBUTES)
-        # сначала сохрани всё кроме complexity
-        for attribute in ABOUT_ATTRIBUTES:
-            if attribute == "complexity":
-                continue
+        attributes_to_save = [a for a in ABOUT_ATTRIBUTES if a in jsondict]
 
-            if attribute in jsondict:
-                print(">>> SAVING:", attribute, jsondict[attribute])
-                cls.update_about_item(block, attribute, jsondict[attribute], user.id)
-
-        # потом отдельно complexity
-        if 'complexity' in jsondict:
-            print(">>> SAVING COMPLEXITY:", jsondict['complexity'])
-            cls.update_about_item(block, 'complexity', jsondict['complexity'], user.id)
+        for attribute in attributes_to_save:
+            cls.update_about_item(block, attribute, jsondict[attribute], user.id)
 
         cls.update_about_video(block, jsondict['intro_video'], user.id)
 
