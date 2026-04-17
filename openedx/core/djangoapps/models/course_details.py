@@ -313,6 +313,7 @@ class CourseDetails:
         # fields changed.
         for attribute in ABOUT_ATTRIBUTES:
             if attribute in jsondict:
+                print(">>> SAVING:", attribute, jsondict[attribute])
                 cls.update_about_item(block, attribute, jsondict[attribute], user.id)
 
         cls.update_about_video(block, jsondict['intro_video'], user.id)
