@@ -311,6 +311,7 @@ class CourseDetails:
         # the fields actually changed to make faster, could compare
         # against db or could have client send over a list of which
         # fields changed.
+        print(">>> ATTRIBUTES:", ABOUT_ATTRIBUTES)
         for attribute in ABOUT_ATTRIBUTES:
             if attribute in jsondict:
                 print(">>> SAVING:", attribute, jsondict[attribute])
