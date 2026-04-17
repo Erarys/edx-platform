@@ -314,6 +314,8 @@ class CourseDetails:
         print(">>> ATTRIBUTES:", ABOUT_ATTRIBUTES)
         for attribute in ABOUT_ATTRIBUTES:
             if attribute in jsondict:
+                print(">>> KEYS:", list(jsondict.keys()))
+                print(">>> COMPLEXITY IN JSONDICT:", "complexity" in jsondict)
                 print(">>> SAVING:", attribute, jsondict[attribute])
                 cls.update_about_item(block, attribute, jsondict[attribute], user.id)
 
