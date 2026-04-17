@@ -315,7 +315,10 @@ class CourseDetails:
         attributes_to_save = [a for a in ABOUT_ATTRIBUTES if a in jsondict]
 
         for attribute in attributes_to_save:
-            cls.update_about_item(block, attribute, jsondict[attribute], user.id)
+            if attribute == "complexity":
+                print(">>> BEFORE complexity save:", jsondict[attribute])
+                cls.update_about_item(block, attribute, jsondict[attribute], user.id)
+                print(">>> AFTER complexity save")
 
         cls.update_about_video(block, jsondict['intro_video'], user.id)
 
