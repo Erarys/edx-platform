@@ -22,7 +22,7 @@ import random
 from datetime import datetime, timedelta, timezone
 
 from django.http import HttpResponseRedirect
-import httpx
+
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings

@@ -19,7 +19,7 @@ qr_code_url = "https://open.kaznu.kz/certificates/" + certificate_id_number
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
+<meta charset="UTF-8">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
 
@@ -124,7 +124,7 @@ qr_code_url = "https://open.kaznu.kz/certificates/" + certificate_id_number
 
           <span style="font-size: 58px; color: #318CE7; font-weight: 400; margin-top: 25px; letter-spacing: 8px;">СЕРТИФИКАТ</span>
           <div style="margin-top: 30px; font-size: 28px; color: #001A72; max-width: 700px;">
-            ${_("This certificate hereby confirms")}
+            Сертификат настоящим подтверждает, что
           </div>
           <span style="font-size: 38px; color: #001A72; border-bottom: 2px solid #001A72; min-width: 1000px; padding: 2px 8px; margin-top: 30px;">
             ${accomplishment_copy_name}
@@ -133,15 +133,15 @@ qr_code_url = "https://open.kaznu.kz/certificates/" + certificate_id_number
 
         <div style="width: 100%; margin-top: 30px; font-size: 18px; color: #001A72; font-weight: bolder; text-align: left; padding-left: 15px">
           <div style="margin-bottom: 20px;">
-              ${_("Passed an online course")}:
+              Прошел(-а) онлайн курс:
               <span style="font-weight: bold; color: #FABF67; margin-left: 10px;">${accomplishment_copy_course_name}</span>
           </div>
           <div style="margin-bottom: 20px;">
-              ${_("Date of issue")}:
+              Дата выдачи:
               <span style="font-weight: bold; color: #FABF67; margin-left: 10px;">${formatted_date}</span>
           </div>
           <div>
-              ${_("Registration number")}:
+              Регистрационный номер:
               <span style="font-weight: bold; color: #FABF67; margin-left: 10px;">${certificate_id_number}</span>
           </div>
         </div>
@@ -150,44 +150,43 @@ qr_code_url = "https://open.kaznu.kz/certificates/" + certificate_id_number
           <div style="text-align: center; flex: 1; margin-top: 10px">
             <img src="https://open.kaznu.kz/static/images/sign1.png" alt="Signature 1" style="width: 150px; height: auto;">
             <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Галеева А.К.</div>
-            <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">${_("Board Member - Vice-Rector for")} <br>${_("Academic Affairs")}</div>
+            <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Член Правления - проректор <br>по академическим вопросам</div>
           </div>
           <div style="text-align: center; flex: 1; margin-top: 58px;">
             <img src="https://open.kaznu.kz/static/images/sign2.jpg" alt="Signature 2" style="width: 80px; height: auto;">
             <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Круговых И.И.</div>
-            <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">${_("Head of the Office of")} <br>${_("academic and digital innovation")}</div>
+            <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">Руководитель Офиса академических <br>и цифровых инноваций</div>
           </div>
           <div style="text-align: center; flex: 1; margin-top: 35px;">
-              % if mode != 'base' and certificate_data:
-                <%
-                signatories = certificate_data.get('signatories', [])
-                label = _("Course author")
+            % if mode != 'base' and certificate_data:
+              <%
+              signatories = certificate_data.get('signatories', [])
+              label = "Автор"
 
-                if signatories:
-                    name_text = signatories[0].get('name', '')
-                    matches = re.findall(r'[А-ЯЁA-Z]\.[А-ЯЁA-Z]\.', name_text)
-                    if len(matches) > 1:
-                        label = _("Course authors")
-                %>
-
-                % for signatory in certificate_data.get('signatories', []):
-                  % if signatory.get('signature_image_path'):
-                    <div style="width: 110px; height: 60px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-                      <img src="${static.url(signatory['signature_image_path'])}"
-                           alt="${signatory['name']}"
-                           style="max-width: 100%; max-height: 100%; object-fit: contain;">
-                    </div>
-                  % endif
-                  <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">
-                    ${signatory['name']}
+              if signatories:
+                  name_text = signatories[0].get('name', '')
+                  matches = re.findall(r'[А-ЯЁA-Z]\.[А-ЯЁA-Z]\.', name_text)
+                  if len(matches) > 1:
+                    label = "Авторы"
+              %>
+              % for signatory in certificate_data.get('signatories', []):
+                % if signatory.get('signature_image_path'):
+                  <div style="width: 110px; height: 60px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                    <img src="${static.url(signatory['signature_image_path'])}"
+                         alt="${signatory['name']}"
+                         style="max-width: 100%; max-height: 100%; object-fit: contain;">
                   </div>
-                % endfor
-
+                % endif
                 <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">
-                  ${label}
+                  ${signatory['name']}
                 </div>
-              % endif
-            </div>
+              % endfor
+
+              <div style="margin-top: 5px; font-size: 16px; color: #001A72; font-weight: bold;">
+                ${label}
+              </div>
+            % endif
+          </div>
         </div>
       </div>
 
