@@ -119,7 +119,6 @@ class CourseDetailsView(DeveloperErrorViewMixin, APIView):
     )
     @verify_course_exists()
     def put(self, request: Request, course_id: str):
-        print("REQUEST DATA:", request.data)
         """
         Update a course's details.
 
@@ -151,6 +150,14 @@ class CourseDetailsView(DeveloperErrorViewMixin, APIView):
             updated_data = update_course_details(request, course_key, request.data, course_block)
         except ValidationError as err:
             return JsonResponseBadRequest({"error": err.message})
+
+        from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
+
+        print("REQUEST DATA:", course_id, request.data)
+        complexity = request.data.get("complexity")
+
+        if complexity:
+            CourseOverview.objects.filter(id=course_key).update(complexity=complexity)
 
         serializer = CourseDetailsSerializer(updated_data)
         return Response(serializer.data)
