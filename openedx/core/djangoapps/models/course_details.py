@@ -27,7 +27,7 @@ ABOUT_ATTRIBUTES = [
     'short_description',
     'overview',
     'effort',
-    'complexity',
+    # 'complexity',
     'entrance_exam_enabled',
     'entrance_exam_id',
     'entrance_exam_minimum_score_pct',
@@ -194,7 +194,7 @@ class CourseDetails:
 
     @classmethod
     def update_from_json(cls, course_key, jsondict, user):  # pylint: disable=too-many-statements
-        print(">>> PAYLOAD:", jsondict)
+        # print(">>> PAYLOAD:", jsondict)
         """
         Decode the json into CourseDetails and save any changed attrs to the db
         """
@@ -311,14 +311,11 @@ class CourseDetails:
         # the fields actually changed to make faster, could compare
         # against db or could have client send over a list of which
         # fields changed.
-        print(">>> ATTRIBUTES:", ABOUT_ATTRIBUTES)
-        attributes_to_save = [a for a in ABOUT_ATTRIBUTES if a in jsondict]
+        # print(">>> ATTRIBUTES:", ABOUT_ATTRIBUTES)
+        for attribute in ABOUT_ATTRIBUTES:
 
-        for attribute in attributes_to_save:
-            if attribute == "complexity":
-                print(">>> BEFORE complexity save:", jsondict[attribute])
+            if attribute in jsondict:
                 cls.update_about_item(block, attribute, jsondict[attribute], user.id)
-                print(">>> AFTER complexity save")
 
         cls.update_about_video(block, jsondict['intro_video'], user.id)
 

@@ -99,7 +99,7 @@ class CourseSerializer(serializers.Serializer):  # pylint: disable=abstract-meth
 
     blocks_url = serializers.SerializerMethodField()
     effort = serializers.CharField()
-    complexity = serializers.SerializerMethodField()
+    # complexity = serializers.SerializerMethodField()
     end = serializers.DateTimeField()
     enrollment_start = serializers.DateTimeField()
     enrollment_end = serializers.DateTimeField()
