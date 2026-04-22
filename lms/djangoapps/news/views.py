@@ -17,7 +17,6 @@ from openedx.core.djangoapps.content.course_overviews.models import CourseOvervi
 import logging
 import jwt
 import urllib.parse
-import time
 import random
 from datetime import datetime, timedelta, timezone
 
@@ -116,7 +115,7 @@ def analyze(request):
         "paced_data": json.dumps(paced_data),
     }
 
-    return render_to_response("news/analyze3.html", context, request=request)
+    return render_to_response("news/analyze.html", context, request=request)
 
 
 
