@@ -147,7 +147,7 @@ def go_to_exam(request):
 
     request.session["proctoring_session_id"] = session_id
 
-    logger.info(f"User name 1", exam_name)
+    logger.info("my-log: exam start", extra={"sessionID": session_id})
     # 2. Время
     now = datetime.utcnow()
     start_iso = now.isoformat() + "Z"
@@ -197,8 +197,10 @@ def go_to_exam(request):
 
 def finish_exam(request):
     session_id = request.session.get("proctoring_session_id")
+    logger.info("my-log: exam finished", extra={"sessionID": session_id})
 
     redirect_url = request.GET.get("redirectUrl", "/")
+    logger.info("my-log: exam finished", extra={"redirect_url": redirect_url})
 
     url = f"https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_moodle/finish/{session_id}/?redirectUrl={redirect_url}"
 
