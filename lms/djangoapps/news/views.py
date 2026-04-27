@@ -144,7 +144,7 @@ def go_to_exam(request):
     exam_id = random.randint(10**7, 10**8 - 1)
     session_id = random.randint(10**10, 10**11 - 1)
     exam_name = f"Тестовый экзамен по {course_name}"
-
+    request.session["proctoring_session_id"] = session_id
     logger.info(f"my-log: exam start {session_id}")
 
     redirect_with_session = f"{unit_url}&session_id={session_id}"
@@ -197,7 +197,7 @@ def go_to_exam(request):
 
 
 def finish_exam(request):
-    session_id = request.GET.get("session_id")
+    session_id = request.session.get("proctoring_session_id")
     logger.info(f"my-log: exam finished {session_id}")
 
     redirect_url = request.GET.get("redirectUrl", "/")
