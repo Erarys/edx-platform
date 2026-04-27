@@ -147,7 +147,10 @@ def go_to_exam(request):
 
     logger.info(f"my-log: exam start {session_id}")
 
-    redirect_with_session = f"{unit_url}?session_id={session_id}"
+    if "?" in unit_url:
+        redirect_with_session = f"{unit_url}&session_id={session_id}"
+    else:
+        redirect_with_session = f"{unit_url}?session_id={session_id}"
 
     # 2. Время
     now = datetime.utcnow()
