@@ -163,10 +163,10 @@ def go_to_exam(request):
         "accountName": "kaznu_open",
         "examId": exam_id,
         "examName": exam_name,
-        "duration": 5,
+        "duration": 30,
         "schedule": False,
         "proctoring": "online",
-        "examDesc": "<b>Курс:</b> Тестирование систем<br><b>Преподаватель:</b> AI Assistant",
+        "examDesc": f"<b>Курс:</b> Тестирование систем<br><b>Преподаватель:</b> AI Assistant",
         "rules": {
             "websites": True,
             "look_away": True,
@@ -191,6 +191,7 @@ def go_to_exam(request):
 
     print("Redirecting user to:", final_url)
     print("Return URL:", unit_url)
+    logger.info(f"Data {payload}")
 
     return HttpResponseRedirect(final_url)
 
