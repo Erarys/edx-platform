@@ -143,7 +143,7 @@ def go_to_exam(request):
 
     exam_id = random.randint(10**7, 10**8 - 1)
     session_id = random.randint(10**10, 10**11 - 1)
-    exam_name = f"Тестовый экзамен по {course_name}"
+    exam_name = f"Экзамен по {course_name}"
     request.session["proctoring_session_id"] = session_id
     logger.info(f"my-log: exam start {session_id}")
 
@@ -166,7 +166,7 @@ def go_to_exam(request):
         "duration": 30,
         "schedule": False,
         "proctoring": "online",
-        "examDesc": f"<b>Курс:</b> Тестирование систем<br><b>Преподаватель:</b> AI Assistant",
+        "examDesc": f"<b>Курс:</b> {course_name}<br><b>Преподаватель:</b> AI Assistant",
         "rules": {
             "websites": True,
             "look_away": True,
@@ -189,9 +189,7 @@ def go_to_exam(request):
     encoded_token = urllib.parse.quote(token)
     final_url = f"{PROCTORING_URL}?token={encoded_token}"
 
-    print("Redirecting user to:", final_url)
-    print("Return URL:", unit_url)
-    logger.info(f"Data {payload}")
+    logger.info(f"my-log: request get {request.GET}")
 
     return HttpResponseRedirect(final_url)
 
