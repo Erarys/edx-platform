@@ -202,6 +202,6 @@ def finish_exam(request):
     redirect_url = request.GET.get("redirectUrl", "/")
     logger.info(f"my-log: exam finished {redirect_url}")
 
-    url = f"https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_moodle/finish/{session_id}/?redirectUrl={redirect_url}"
+    url = f"https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_open/finish/{session_id}/?redirectUrl={redirect_url}"
 
     return HttpResponseRedirect(url)
