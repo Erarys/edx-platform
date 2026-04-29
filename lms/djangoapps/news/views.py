@@ -129,6 +129,7 @@ def go_to_exam(request):
     username = request.user.username
     unit_url = request.GET.get("unit_url", "/")
     course_name = request.GET.get("course_name", "empty")
+    section_name = request.GET.get("section_name", "empty")
 
 
     # можно взять реальные данные если нужно
@@ -166,7 +167,7 @@ def go_to_exam(request):
         "duration": 30,
         "schedule": False,
         "proctoring": "online",
-        "examDesc": f"<b>Курс:</b> {course_name}<br><b>Преподаватель:</b> AI Assistant",
+        "examDesc": f"<b>Курс:</b> {course_name}<br><b>Модуль:</b> {section_name}<br><br>Ссылка на задание</b> {unit_url}",
         "rules": {
             "websites": True,
             "look_away": True,
