@@ -63,16 +63,23 @@ def news_create(request):
 
 def analyze(request):
     courses = CourseOverview.objects.all()
+    course_org_filter = ["Test_kaznu", "rty", "123"]
+    today = timezone.now().date()
 
-    courses_by_org = (
+    courses_qs = (
         CourseOverview.objects
+        .exclude(org__in=course_org_filter)
+        .exclude(start__gt=today)
+    )
+    courses_by_org = (
+        courses_qs
         .values("org")
         .annotate(total=Count("id"))
         .order_by("-total")
     )
 
     courses_by_year = (
-        CourseOverview.objects
+        courses_qs
         .exclude(start__isnull=True)
         .annotate(year=ExtractYear("start"))
         .values("year")
@@ -81,7 +88,7 @@ def analyze(request):
     )
 
     courses_by_lang = (
-        CourseOverview.objects
+        courses_qs
         .exclude(language__isnull=True)
         .values("language")
         .annotate(total=Count("id"))
@@ -89,14 +96,14 @@ def analyze(request):
     )
 
     paced_data = [
-        CourseOverview.objects.filter(self_paced=True).count(),
-        CourseOverview.objects.filter(self_paced=False).count(),
+        courses_qs.objects.filter(self_paced=True).count(),
+        courses_qs.objects.filter(self_paced=False).count(),
     ]
 
     context = {
         # список курсов (НЕ для JS — оставляем как есть)
-        "courses": courses[:50],
-        "courses_count": courses.count(),
+        "courses": courses_qs[:50],
+        "courses_count": courses_qs.count(),
 
         # факультеты
         "org_labels": json.dumps([c["org"] for c in courses_by_org]),
