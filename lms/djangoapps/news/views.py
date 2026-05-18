@@ -62,7 +62,6 @@ def news_create(request):
 
 
 def analyze(request):
-    courses = CourseOverview.objects.all()
     course_org_filter = ["Test_kaznu", "rty", "123"]
     today = timezone.now().date()
 
@@ -96,8 +95,8 @@ def analyze(request):
     )
 
     paced_data = [
-        courses_qs.objects.filter(self_paced=True).count(),
-        courses_qs.objects.filter(self_paced=False).count(),
+        courses_qs.filter(self_paced=True).count(),
+        courses_qs.filter(self_paced=False).count(),
     ]
 
     context = {
