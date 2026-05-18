@@ -11,6 +11,7 @@ from django.db.models import Count
 from django.db.models.functions import ExtractYear
 import json
 from django.db.models import Count
+from django.utils import timezone
 from django.db.models.functions import ExtractYear
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 # from ..commerce.api.v1.models import Course
@@ -18,7 +19,7 @@ import logging
 import jwt
 import urllib.parse
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from django.http import HttpResponseRedirect
 
