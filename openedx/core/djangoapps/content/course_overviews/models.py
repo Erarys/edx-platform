@@ -139,6 +139,9 @@ class CourseOverview(TimeStampedModel):
         null=False,
         blank=False,
     )
+    faculty = models.TextField(null=True)
+    directions = models.TextField(null=True)
+
     self_paced = models.BooleanField(default=False)
     marketing_url = models.TextField(null=True)
     eligible_for_financial_aid = models.BooleanField(default=True)
