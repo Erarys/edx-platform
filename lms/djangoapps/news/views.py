@@ -71,9 +71,12 @@ def analyze(request):
         .exclude(org__in=course_org_filter)
         .exclude(start__gt=today)
     )
-    courses_by_org = (
+
+    courses_by_faculty = (
         courses_qs
-        .values("org")
+        .exclude(faculty__isnull=True)
+        .exclude(faculty="")
+        .values("faculty")
         .annotate(total=Count("id"))
         .order_by("-total")
     )
@@ -101,20 +104,19 @@ def analyze(request):
     ]
 
     context = {
-        # список курсов (НЕ для JS — оставляем как есть)
         "courses": courses_qs[:50],
         "courses_count": courses_qs.count(),
 
         # факультеты
-        "org_labels": json.dumps([c["org"] for c in courses_by_org]),
-        "org_data": json.dumps([c["total"] for c in courses_by_org]),
+        "org_labels": json.dumps([c["faculty"] for c in courses_by_faculty], ensure_ascii=False),
+        "org_data": json.dumps([c["total"] for c in courses_by_faculty]),
 
         # годы
         "year_labels": json.dumps([c["year"] for c in courses_by_year]),
         "year_data": json.dumps([c["total"] for c in courses_by_year]),
 
         # языки
-        "lang_labels": json.dumps([c["language"] for c in courses_by_lang]),
+        "lang_labels": json.dumps([c["language"] for c in courses_by_lang], ensure_ascii=False),
         "lang_data": json.dumps([c["total"] for c in courses_by_lang]),
 
         # формат
