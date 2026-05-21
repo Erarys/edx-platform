@@ -108,8 +108,12 @@ def analyze(request):
         "courses_count": courses_qs.count(),
 
         # факультеты
-        "org_labels": json.dumps([c["faculty"] for c in courses_by_faculty], ensure_ascii=False),
-        "org_data": json.dumps([c["total"] for c in courses_by_faculty]),
+        "faculty_labels": json.dumps([c["faculty"] for c in courses_by_faculty], ensure_ascii=False),
+        "faculty_data": json.dumps([c["total"] for c in courses_by_faculty]),
+
+        # факультеты
+        "directions_labels": json.dumps([c["directions"] for c in courses_by_faculty], ensure_ascii=False),
+        "directions_data": json.dumps([c["total"] for c in courses_by_faculty]),
 
         # годы
         "year_labels": json.dumps([c["year"] for c in courses_by_year]),

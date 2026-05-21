@@ -40,7 +40,12 @@
     <!-- 1️⃣ Курсы по факультетам -->
     <div class="chart-box">
         <h3>Курсы по факультетам</h3>
-        <canvas id="byOrg"></canvas>
+        <canvas id="byFaculty"></canvas>
+    </div>
+
+    <div class="chart-box">
+        <h3>Курсы по факультетам</h3>
+        <canvas id="byDirections"></canvas>
     </div>
 
     <!-- 2️⃣ Курсы по годам -->
@@ -68,8 +73,8 @@
         % for course in courses:
         <div class="course-card">
             <strong>${course.display_name}</strong>
-            <div>Org: ${course.faculty}</div>
-            <div>Org: ${course.directions}</div>
+            <div>Faculty: ${course.faculty}</div>
+            <div>Directions: ${course.directions}</div>
             <div>Language: ${course.language}</div>
             % if course.start:
                 <div>Start: ${course.start.strftime('%d.%m.%Y')}</div>
@@ -89,11 +94,19 @@
 
 <%block name="extrajs">
 <script>
-new Chart(document.getElementById("byOrg"), {
+new Chart(document.getElementById("byFaculty"), {
     type: "doughnut",
     data: {
-        labels: ${org_labels | n},
-        datasets: [{ data: ${org_data | n} }]
+        labels: ${faculty_labels | n},
+        datasets: [{ data: ${faculty_data | n} }]
+    }
+});
+
+new Chart(document.getElementById("byDirections"), {
+    type: "doughnut",
+    data: {
+        labels: ${directions_labels | n},
+        datasets: [{ data: ${directions_data | n} }]
     }
 });
 
