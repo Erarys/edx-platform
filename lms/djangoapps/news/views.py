@@ -81,6 +81,15 @@ def analyze(request):
         .order_by("-total")
     )
 
+    courses_by_directions = (
+        courses_qs
+        .exclude(directions__isnull=True)
+        .exclude(directions="")
+        .values("directions")
+        .annotate(total=Count("id"))
+        .order_by("-total")
+    )
+
     courses_by_year = (
         courses_qs
         .exclude(start__isnull=True)
@@ -112,8 +121,8 @@ def analyze(request):
         "faculty_data": json.dumps([c["total"] for c in courses_by_faculty]),
 
         # факультеты
-        "directions_labels": json.dumps([c["directions"] for c in courses_by_faculty], ensure_ascii=False),
-        "directions_data": json.dumps([c["total"] for c in courses_by_faculty]),
+        "directions_labels": json.dumps([c["directions"] for c in courses_by_directions], ensure_ascii=False),
+        "directions_data": json.dumps([c["total"] for c in courses_by_directions]),
 
         # годы
         "year_labels": json.dumps([c["year"] for c in courses_by_year]),
