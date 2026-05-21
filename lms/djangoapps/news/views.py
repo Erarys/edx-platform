@@ -65,11 +65,19 @@ def news_create(request):
 def analyze(request):
     course_org_filter = ["Test_kaznu", "rty", "123"]
     today = timezone.now().date()
+    current_year = today.year
 
     courses_qs = (
         CourseOverview.objects
         .exclude(org__in=course_org_filter)
         .exclude(start__gt=today)
+    )
+
+    current_year_courses_qs = (
+        courses_qs
+        .exclude(start__isnull=True)
+        .filter(start__year=current_year)
+        .order_by("-start", "display_name")
     )
 
     courses_by_faculty = (
@@ -78,7 +86,7 @@ def analyze(request):
         .exclude(faculty="")
         .values("faculty")
         .annotate(total=Count("id"))
-        .order_by("-total")
+        .order_by("-total", "faculty")[:12]
     )
 
     courses_by_directions = (
@@ -87,7 +95,7 @@ def analyze(request):
         .exclude(directions="")
         .values("directions")
         .annotate(total=Count("id"))
-        .order_by("-total")
+        .order_by("-total", "directions")[:12]
     )
 
     courses_by_year = (
@@ -102,39 +110,49 @@ def analyze(request):
     courses_by_lang = (
         courses_qs
         .exclude(language__isnull=True)
+        .exclude(language="")
         .values("language")
         .annotate(total=Count("id"))
-        .order_by("-total")
+        .order_by("-total", "language")
     )
 
-    paced_data = [
-        courses_qs.filter(self_paced=True).count(),
-        courses_qs.filter(self_paced=False).count(),
+    top_courses = list(current_year_courses_qs[:50])
+    courses_json = [
+        {
+            "id": str(course.id),
+            "display_name": course.display_name or str(course.id),
+            "faculty": course.faculty or "",
+            "directions": course.directions or "",
+            "language": course.language or "",
+            "start": course.start.strftime("%d.%m.%Y") if course.start else "",
+            "url": "/courses/{}/about".format(course.id),
+        }
+        for course in top_courses
     ]
 
     context = {
-        "courses": courses_qs[:50],
         "courses_count": courses_qs.count(),
+        "current_year": current_year,
+        "current_year_courses_count": current_year_courses_qs.count(),
+        "faculty_count": courses_qs.exclude(faculty__isnull=True).exclude(faculty="").values("faculty").distinct().count(),
+        "directions_count": courses_qs.exclude(directions__isnull=True).exclude(directions="").values("directions").distinct().count(),
+        "generated_at": timezone.localtime().strftime("%d.%m.%Y %H:%M"),
 
-        # факультеты
-        "faculty_labels": json.dumps([c["faculty"] for c in courses_by_faculty], ensure_ascii=False),
-        "faculty_data": json.dumps([c["total"] for c in courses_by_faculty]),
+        "language_summary": [
+            {"label": row["language"], "total": row["total"]}
+            for row in courses_by_lang
+        ],
 
-        # факультеты
-        "directions_labels": json.dumps([c["directions"] for c in courses_by_directions], ensure_ascii=False),
-        "directions_data": json.dumps([c["total"] for c in courses_by_directions]),
+        "faculty_labels": json.dumps([row["faculty"] for row in courses_by_faculty], ensure_ascii=False),
+        "faculty_data": json.dumps([row["total"] for row in courses_by_faculty]),
 
-        # годы
-        "year_labels": json.dumps([c["year"] for c in courses_by_year]),
-        "year_data": json.dumps([c["total"] for c in courses_by_year]),
+        "directions_labels": json.dumps([row["directions"] for row in courses_by_directions], ensure_ascii=False),
+        "directions_data": json.dumps([row["total"] for row in courses_by_directions]),
 
-        # языки
-        "lang_labels": json.dumps([c["language"] for c in courses_by_lang], ensure_ascii=False),
-        "lang_data": json.dumps([c["total"] for c in courses_by_lang]),
+        "year_labels": json.dumps([row["year"] for row in courses_by_year]),
+        "year_data": json.dumps([row["total"] for row in courses_by_year]),
 
-        # формат
-        "paced_labels": json.dumps(["Self-paced", "Instructor-led"]),
-        "paced_data": json.dumps(paced_data),
+        "courses_json": json.dumps(courses_json, ensure_ascii=False),
     }
 
     return render_to_response("news/analyze.html", context, request=request)
