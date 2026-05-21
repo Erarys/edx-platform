@@ -85,7 +85,7 @@ def analyze(request):
         .exclude(faculty__isnull=True)
         .exclude(faculty="")
         .values("faculty")
-        .annotate(total=Count("id"))
+        .annotate(total=Count("display_name", distinct=True))
         .order_by("-total", "faculty")[:12]
     )
 
@@ -94,7 +94,7 @@ def analyze(request):
         .exclude(directions__isnull=True)
         .exclude(directions="")
         .values("directions")
-        .annotate(total=Count("id"))
+        .annotate(total=Count("display_name", distinct=True))
         .order_by("-total", "directions")[:12]
     )
 
