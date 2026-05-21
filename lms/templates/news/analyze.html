@@ -68,7 +68,8 @@
         % for course in courses:
         <div class="course-card">
             <strong>${course.display_name}</strong>
-            <div>Org: ${course.org}</div>
+            <div>Org: ${course.faculty}</div>
+            <div>Org: ${course.directions}</div>
             <div>Language: ${course.language}</div>
             % if course.start:
                 <div>Start: ${course.start.strftime('%d.%m.%Y')}</div>
