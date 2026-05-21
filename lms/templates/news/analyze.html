@@ -11,14 +11,28 @@
     --analytics-bg: #f6f8fb;
     --analytics-surface: #ffffff;
     --analytics-surface-soft: #f9fafc;
-    --analytics-border: #d9e0ea;
+
+    --analytics-border: #d7e0ea;
+    --analytics-border-soft: #e7edf4;
+
     --analytics-text: #172033;
     --analytics-muted: #667085;
-    --analytics-accent: #1b5e8f;
-    --analytics-accent-strong: #123f63;
-    --analytics-accent-soft: #e8f2f8;
-    --analytics-good: #2f7d5a;
+
+    /* Мягкий синий: не слишком яркий, но все еще аккуратный */
+    --analytics-accent: #2f6f95;
+    --analytics-accent-strong: #244b66;
+    --analytics-accent-dark: #18384f;
+    --analytics-accent-soft: #edf5fa;
+    --analytics-accent-soft-2: #f5f9fc;
+
+    --analytics-good: #3b8067;
+
+    --analytics-radius-sm: 6px;
+    --analytics-radius-md: 10px;
+    --analytics-radius-lg: 12px;
+
     --analytics-shadow: 0 14px 40px rgba(16, 24, 40, 0.08);
+    --analytics-shadow-soft: 0 2px 8px rgba(16, 24, 40, 0.05);
 }
 
 .analytics-page {
@@ -52,6 +66,7 @@
 }
 
 .analytics-title {
+    color: var(--analytics-text);
     font-size: 34px;
     font-weight: 700;
     line-height: 1.15;
@@ -80,9 +95,9 @@
 
 .summary-card {
     background: var(--analytics-surface);
-    border: 1px solid var(--analytics-border);
-    border-radius: 6px;
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    border: 1px solid var(--analytics-border-soft);
+    border-radius: var(--analytics-radius-md);
+    box-shadow: var(--analytics-shadow-soft);
     padding: 18px;
 }
 
@@ -108,9 +123,9 @@
 
 .language-strip {
     background: var(--analytics-surface);
-    border: 1px solid var(--analytics-border);
-    border-radius: 6px;
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    border: 1px solid var(--analytics-border-soft);
+    border-radius: var(--analytics-radius-md);
+    box-shadow: var(--analytics-shadow-soft);
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
@@ -129,8 +144,8 @@
 .language-chip,
 .filter-chip {
     align-items: center;
-    background: var(--analytics-surface-soft);
-    border: 1px solid var(--analytics-border);
+    background: var(--analytics-accent-soft-2);
+    border: 1px solid #d4e4ee;
     border-radius: 999px;
     color: var(--analytics-text);
     display: inline-flex;
@@ -138,7 +153,7 @@
     font-weight: 600;
     gap: 8px;
     min-height: 30px;
-    padding: 5px 11px;
+    padding: 5px 12px;
 }
 
 .language-chip strong,
@@ -159,6 +174,7 @@
 }
 
 .section-heading h2 {
+    color: var(--analytics-text);
     font-size: 21px;
     font-weight: 700;
     margin: 0;
@@ -172,8 +188,8 @@
 
 .panel {
     background: var(--analytics-surface);
-    border: 1px solid var(--analytics-border);
-    border-radius: 6px;
+    border: 1px solid var(--analytics-border-soft);
+    border-radius: var(--analytics-radius-lg);
     box-shadow: var(--analytics-shadow);
     padding: 20px;
 }
@@ -196,8 +212,8 @@
 .active-filter-bar {
     align-items: center;
     background: var(--analytics-accent-soft);
-    border: 1px solid #c7deed;
-    border-radius: 6px;
+    border: 1px solid #cbdde9;
+    border-radius: var(--analytics-radius-md);
     display: none;
     gap: 12px;
     justify-content: space-between;
@@ -217,14 +233,24 @@
 
 .clear-filter-button {
     background: var(--analytics-surface);
-    border: 1px solid #b7d1e3;
-    border-radius: 4px;
+    border: 1px solid #c3d6e3;
+    border-radius: 999px;
     color: var(--analytics-accent-strong);
     cursor: pointer;
     font-size: 13px;
     font-weight: 700;
     min-height: 34px;
-    padding: 6px 12px;
+    padding: 6px 14px;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.clear-filter-button:hover,
+.clear-filter-button:focus {
+    background: var(--analytics-accent-dark);
+    border-color: var(--analytics-accent-dark);
+    color: #ffffff;
+    box-shadow: 0 6px 14px rgba(24, 56, 79, 0.18);
+    outline: none;
 }
 
 .courses-toolbar {
@@ -251,7 +277,7 @@
 }
 
 .courses-table th {
-    background: #f1f4f8;
+    background: #f3f6fa;
     border-bottom: 1px solid var(--analytics-border);
     color: #384152;
     font-size: 12px;
@@ -263,7 +289,7 @@
 }
 
 .courses-table td {
-    border-bottom: 1px solid #e8edf3;
+    border-bottom: 1px solid var(--analytics-border-soft);
     color: var(--analytics-text);
     font-size: 14px;
     padding: 14px 12px;
@@ -274,14 +300,22 @@
     border-bottom: 0;
 }
 
+.courses-table tbody tr {
+    transition: background-color 0.16s ease;
+}
+
+.courses-table tbody tr:hover {
+    background: #f8fbfd;
+}
+
 .course-title {
     color: var(--analytics-accent-strong);
     font-weight: 700;
     text-decoration: none;
 }
 
-.course-title:hover,
-.course-link:hover {
+.course-title:hover {
+    color: var(--analytics-accent);
     text-decoration: underline;
 }
 
@@ -292,26 +326,39 @@
 }
 
 .filter-button {
-    background: transparent;
-    border: 0;
-    color: var(--analytics-accent);
+    background: var(--analytics-accent-soft-2);
+    border: 1px solid #d4e4ee;
+    border-radius: 999px;
+    color: var(--analytics-accent-strong);
     cursor: pointer;
     font: inherit;
+    font-size: 13px;
     font-weight: 700;
-    padding: 0;
+    padding: 5px 11px;
     text-align: left;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.filter-button:hover {
-    color: var(--analytics-accent-strong);
-    text-decoration: underline;
+.filter-button:hover,
+.filter-button:focus {
+    background: var(--analytics-accent-dark);
+    border-color: var(--analytics-accent-dark);
+    color: #ffffff;
+    box-shadow: 0 6px 14px rgba(24, 56, 79, 0.16);
+    outline: none;
+    text-decoration: none;
 }
 
 .course-link {
-    color: var(--analytics-accent);
+    color: var(--analytics-accent-strong);
     font-weight: 700;
     text-decoration: none;
     white-space: nowrap;
+}
+
+.course-link:hover {
+    color: var(--analytics-accent);
+    text-decoration: underline;
 }
 
 .empty-state {
@@ -519,20 +566,20 @@
     var courses = ${courses_json | n};
 
     var palette = [
-        "#1b5e8f",
-        "#2f7d5a",
-        "#8a5b15",
-        "#6f4aa8",
-        "#9a3f3f",
-        "#34758f",
-        "#4f6f52",
-        "#625f6f",
-        "#7a5872",
-        "#526a8a"
+        "#2f6f95",
+        "#3b8067",
+        "#9a7742",
+        "#6f5f96",
+        "#9a5b5b",
+        "#4b7f8f",
+        "#6f7f54",
+        "#6b7280",
+        "#8a6680",
+        "#5f7896"
     ];
 
     Chart.defaults.font.family = "'Inter', 'Segoe UI', Arial, sans-serif";
-    Chart.defaults.color = "#667085";
+    Chart.defaults.color = "#5f6f82";
     Chart.defaults.plugins.legend.display = false;
 
     function barChart(canvasId, labels, values, horizontal) {
@@ -556,8 +603,11 @@
                 indexAxis: horizontal ? "y" : "x",
                 plugins: {
                     tooltip: {
-                        backgroundColor: "#172033",
-                        padding: 10,
+                        backgroundColor: "#18384f",
+                        borderColor: "#2f6f95",
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 11,
                         titleFont: { weight: "700" },
                         callbacks: {
                             label: function (context) {
