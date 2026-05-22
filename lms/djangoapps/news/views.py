@@ -23,6 +23,10 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 
+
+from django.db.models.functions import ExtractYear
+from django.db.models import Count
+
 logger = logging.getLogger(__name__)
 
 def news_list(request):
@@ -100,7 +104,22 @@ def analyze(request):
         course for course in courses
         if course.start and course.start.year == current_year
     ]
+    #
+    courses_by_year_qs = (
+        CourseOverview.objects
+        .exclude(org__in=course_org_filter)
+        .exclude(start__isnull=True)
+        .annotate(year=ExtractYear("start"))
+        .values("year")
+        .annotate(total=Count("id"))
+        .order_by("year")
+    )
+    courses_by_year = [
+        {"year": row["year"], "total": row["total"]}
+        for row in courses_by_year_qs
+    ]
 
+    #
     faculty_counter = Counter(
         course.faculty for course in courses
         if course.faculty
@@ -109,11 +128,6 @@ def analyze(request):
     directions_counter = Counter(
         course.directions for course in courses
         if course.directions
-    )
-
-    year_counter = Counter(
-        course.start.year for course in courses
-        if course.start
     )
 
     language_counter = Counter(
@@ -129,11 +143,6 @@ def analyze(request):
     courses_by_directions = [
         {"directions": directions, "total": total}
         for directions, total in directions_counter.most_common(12)
-    ]
-
-    courses_by_year = [
-        {"year": year, "total": year_counter[year]}
-        for year in sorted(year_counter)
     ]
 
     courses_by_lang = [
