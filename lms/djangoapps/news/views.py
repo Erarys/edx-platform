@@ -4,13 +4,11 @@ from common.djangoapps.edxmako.shortcuts import render_to_response
 from .models import News
 from .forms import NewsForm
 from django.contrib.auth.decorators import user_passes_test
-from django.db.models import Count
 from common.djangoapps.student.models import UserProfile
 
-from django.db.models import Count
-from django.db.models.functions import ExtractYear
 import json
 from django.db.models import Count
+from django.db.models import Count, OuterRef, Subquery
 from django.utils import timezone
 from django.db.models.functions import ExtractYear
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
@@ -67,10 +65,24 @@ def analyze(request):
     today = timezone.now().date()
     current_year = today.year
 
-    courses_qs = (
+    base_courses_qs  = (
         CourseOverview.objects
         .exclude(org__in=course_org_filter)
         .exclude(start__gt=today)
+        .exclude(display_name__isnull=True)
+        .exclude(display_name="")
+    )
+
+    latest_course_ids = (
+        base_courses_qs
+        .filter(display_name=OuterRef("display_name"))
+        .order_by("-start", "-id")
+        .values("id")[:1]
+    )
+
+    courses_qs = (
+        base_courses_qs
+        .filter(id__in=Subquery(latest_course_ids))
     )
 
     current_year_courses_qs = (
@@ -85,7 +97,7 @@ def analyze(request):
         .exclude(faculty__isnull=True)
         .exclude(faculty="")
         .values("faculty")
-        .annotate(total=Count("display_name", distinct=True))
+        .annotate(total=Count("id"))
         .order_by("-total", "faculty")[:12]
     )
 
@@ -94,7 +106,7 @@ def analyze(request):
         .exclude(directions__isnull=True)
         .exclude(directions="")
         .values("directions")
-        .annotate(total=Count("display_name", distinct=True))
+        .annotate(total=Count("id"))
         .order_by("-total", "directions")[:12]
     )
 
