@@ -62,13 +62,29 @@ def news_create(request):
 
 def analyze(request):
     course_org_filter = ["Test_kaznu", "rty", "123"]
-    today = timezone.now().date()
+
+    now = timezone.now()
+    today = now.date()
     current_year = today.year
 
-    base_courses_qs  = (
+    max_valid_end = now + timedelta(days=366)
+
+    base_courses_qs = (
         CourseOverview.objects
         .exclude(org__in=course_org_filter)
-        .exclude(start__gt=today)
+
+        # курс уже должен быть запущен
+        .exclude(start__isnull=True)
+        .exclude(start__gt=now)
+
+        # курс еще не должен закончиться
+        .exclude(end__isnull=True)
+        .exclude(end__lt=now)
+
+        # скрываем слишком долгие/ошибочные курсы, например до 2028 года
+        .exclude(end__gt=max_valid_end)
+
+        # убираем пустые названия
         .exclude(display_name__isnull=True)
         .exclude(display_name="")
     )
