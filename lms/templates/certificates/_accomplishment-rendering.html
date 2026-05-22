@@ -29,13 +29,16 @@ qr_code_url = "https://open.kaznu.kz/certificates/" + certificate_id_number
   overflow: hidden;
   display: flex;
   justify-content: center;
-  }
+  align-items: flex-start;
+}}
 
   #certificate {
-    transform: scale(0.85);
-    transform-origin: top center;
-    margin-bottom: -90px;
-  }
+  width: 298mm;
+  height: 210mm;
+  transform: scale(0.8);
+  transform-origin: top center;
+  margin-bottom: -130px;
+}
 
   .mobile-warning {
     display: none;
@@ -95,8 +98,7 @@ qr_code_url = "https://open.kaznu.kz/certificates/" + certificate_id_number
 
   /* Исправления для iOS */
   .certificate {
-    -webkit-transform: translateZ(0); /* Аппаратное ускорение */
-    transform: translateZ(0);
+  -webkit-transform: translateZ(0);
   }
 </style>
 
@@ -114,7 +116,7 @@ qr_code_url = "https://open.kaznu.kz/certificates/" + certificate_id_number
 <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align:center; font-family: 'Times New Roman', Times, serif !important;">
   <div id="certificate-container">
     <div class="certificate" id="certificate" style="position: relative; background-color: #001A72; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); overflow: hidden; -webkit-print-color-adjust: exact;">
-      <div class="certificate-inner" style="position: absolute; top: 40px; left: 40px; right: 40px; bottom: 40px; background-color: white; z-index: 15;">
+        <div class="certificate-inner" style="position: absolute; top: 40px; left: 40px; right: 40px; bottom: 40px; background-color: white; z-index: 15;">
 
         <!-- ✅ QR код в левом верхнем углу -->
         <div style="position: absolute; top: 10px; left: 10px; z-index: 25;">
