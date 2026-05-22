@@ -8,7 +8,7 @@ from common.djangoapps.student.models import UserProfile
 
 import json
 from django.utils import timezone
-from collections import Counte
+from collections import Counter
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 # from ..commerce.api.v1.models import Course
 import logging
@@ -23,7 +23,6 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 
-r
 logger = logging.getLogger(__name__)
 
 def news_list(request):
