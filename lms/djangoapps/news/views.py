@@ -76,10 +76,6 @@ def analyze(request):
         CourseOverview.objects
         .exclude(org__in=course_org_filter)
 
-        # курс уже должен быть запущен
-        .exclude(start__isnull=True)
-        .exclude(start__gt=now)
-
         # курс еще не должен закончиться
         .exclude(end__isnull=True)
         .exclude(end__lt=now)
