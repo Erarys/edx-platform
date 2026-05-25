@@ -199,7 +199,6 @@ def analyze(request):
 
 PROCTORING_URL = "https://farabi-proctoring.kaznu.kz/integration/simple/kaznu_open/start/"
 
-
 def go_to_exam(request):
     SECRET_KEY = str(settings.PROCTORING_API_KEY)
     # ✅ 1. Берем данные из frontend
