@@ -4,15 +4,11 @@ from common.djangoapps.edxmako.shortcuts import render_to_response
 from .models import News
 from .forms import NewsForm
 from django.contrib.auth.decorators import user_passes_test
-from django.db.models import Count
 from common.djangoapps.student.models import UserProfile
 
-from django.db.models import Count
-from django.db.models.functions import ExtractYear
 import json
-from django.db.models import Count
 from django.utils import timezone
-from django.db.models.functions import ExtractYear
+from collections import Counter
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 # from ..commerce.api.v1.models import Course
 import logging
@@ -26,6 +22,11 @@ from django.http import HttpResponseRedirect
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
+
+
+from django.db.models.functions import ExtractYear
+from django.db.models import Count
+
 logger = logging.getLogger(__name__)
 
 def news_list(request):
@@ -64,59 +65,96 @@ def news_create(request):
 
 def analyze(request):
     course_org_filter = ["Test_kaznu", "rty", "123"]
-    today = timezone.now().date()
+
+    now = timezone.now()
+    today = now.date()
     current_year = today.year
 
-    courses_qs = (
+    max_valid_end = now + timedelta(days=366)
+
+    base_courses_qs = (
         CourseOverview.objects
         .exclude(org__in=course_org_filter)
-        .exclude(start__gt=today)
+
+        # курс еще не должен закончиться
+        .exclude(end__isnull=True)
+        .exclude(end__lt=now)
+
+        # скрываем слишком долгие/ошибочные курсы, например до 2028 года
+        .exclude(end__gt=max_valid_end)
+
+        # убираем пустые названия
+        .exclude(display_name__isnull=True)
+        .exclude(display_name="")
+        .order_by("display_name", "-start", "-id")
     )
 
-    current_year_courses_qs = (
-        courses_qs
+    unique_courses = {}
+    for course in base_courses_qs:
+        if course.display_name not in unique_courses:
+            unique_courses[course.display_name] = course
+
+    courses = list(unique_courses.values())
+
+    current_year_courses = [
+        course for course in courses
+        if course.start and course.start.year == current_year
+    ]
+    #
+    max_year = current_year + 1
+
+    courses_by_year_qs = (
+        CourseOverview.objects
+        .exclude(org__in=course_org_filter)
         .exclude(start__isnull=True)
-        .filter(start__year=current_year)
-        .order_by("-start", "display_name")
-    )
-
-    courses_by_faculty = (
-        courses_qs
-        .exclude(faculty__isnull=True)
-        .exclude(faculty="")
-        .values("faculty")
-        .annotate(total=Count("id"))
-        .order_by("-total", "faculty")[:12]
-    )
-
-    courses_by_directions = (
-        courses_qs
-        .exclude(directions__isnull=True)
-        .exclude(directions="")
-        .values("directions")
-        .annotate(total=Count("id"))
-        .order_by("-total", "directions")[:12]
-    )
-
-    courses_by_year = (
-        courses_qs
-        .exclude(start__isnull=True)
+        .filter(start__year__lte=max_year)
         .annotate(year=ExtractYear("start"))
         .values("year")
         .annotate(total=Count("id"))
         .order_by("year")
     )
+    courses_by_year = [
+        {"year": row["year"], "total": row["total"]}
+        for row in courses_by_year_qs
+    ]
 
-    courses_by_lang = (
-        courses_qs
-        .exclude(language__isnull=True)
-        .exclude(language="")
-        .values("language")
-        .annotate(total=Count("id"))
-        .order_by("-total", "language")
+    #
+    faculty_counter = Counter(
+        course.faculty for course in courses
+        if course.faculty
     )
 
-    top_courses = list(current_year_courses_qs[:50])
+    directions_counter = Counter(
+        course.directions for course in courses
+        if course.directions
+    )
+
+    language_counter = Counter(
+        course.language for course in courses
+        if course.language
+    )
+
+    courses_by_faculty = [
+        {"faculty": faculty, "total": total}
+        for faculty, total in faculty_counter.most_common(12)
+    ]
+
+    courses_by_directions = [
+        {"directions": directions, "total": total}
+        for directions, total in directions_counter.most_common(12)
+    ]
+
+    courses_by_lang = [
+        {"language": language, "total": total}
+        for language, total in language_counter.most_common()
+    ]
+
+    top_courses = sorted(
+        current_year_courses,
+        key=lambda course: course.start,
+        reverse=True
+    )[:50]
+
     courses_json = [
         {
             "id": str(course.id),
@@ -131,11 +169,11 @@ def analyze(request):
     ]
 
     context = {
-        "courses_count": courses_qs.count(),
+        "courses_count": len(courses),
         "current_year": current_year,
-        "current_year_courses_count": current_year_courses_qs.count(),
-        "faculty_count": courses_qs.exclude(faculty__isnull=True).exclude(faculty="").values("faculty").distinct().count(),
-        "directions_count": courses_qs.exclude(directions__isnull=True).exclude(directions="").values("directions").distinct().count(),
+        "current_year_courses_count": len(current_year_courses),
+        "faculty_count": len(set(course.faculty for course in courses if course.faculty)),
+        "directions_count": len(set(course.directions for course in courses if course.directions)),
         "generated_at": timezone.localtime().strftime("%d.%m.%Y %H:%M"),
 
         "language_summary": [
