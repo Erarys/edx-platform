@@ -90,7 +90,7 @@ FACULTY_TRANSLATIONS = {
         "kk": "ОАжЦИ",
         "en": "OADI",
     },
-    "Information Technology": { # Информационных технологий
+    "Информационных технологий": { #
         "kk": "Ақпараттық технологиялар",
         "en": "Information Technology",
     },
@@ -137,6 +137,41 @@ FACULTY_TRANSLATIONS = {
     "Медицины и здравоохранения": {
         "kk": "Медицина және денсаулық сақтау",
         "en": "Medicine and Healthcare",
+    },
+}
+
+DIRECTION_TRANSLATIONS = {
+    "Социальные науки, журналистика и информация": {
+        "kk": "Әлеуметтік ғылымдар, журналистика және ақпарат",
+        "en": "Social sciences, Journalism and Information",
+    },
+    "Естественные науки, математика и статистика": {
+        "kk": "Жаратылыстану ғылымдары, математика және статистика",
+        "en": "Natural Sciences, Mathematics and Statistics",
+    },
+    "Искусство и гуманитарные науки": {
+        "kk": "Өнер және гуманитарлық ғылымдар",
+        "en": "Arts and Humanities",
+    },
+    "Бизнес, управление и право": {
+        "kk": "Бизнес, басқару және құқық",
+        "en": "Business, Management and Law",
+    },
+    "Педагогические науки": {
+        "kk": "Педагогикалық ғылымдар",
+        "en": "Pedagogical sciences",
+    },
+    "Информационно-коммуникационные технологии": {
+        "kk": "Ақпараттық-коммуникациялық технологиялар",
+        "en": "Information and communication technologies",
+    },
+    "Инженерные, обрабатывающие и строительные отрасли": {
+        "kk": "Инженерлік, өңдеу және құрылыс салалары",
+        "en": "Engineering, manufacturing and construction branches",
+    },
+    "Здравоохранение": {
+        "kk": "Денсаулық сақтау",
+        "en": "Healthcare",
     },
 }
 
