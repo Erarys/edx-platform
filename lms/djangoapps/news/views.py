@@ -191,6 +191,18 @@ def translate_faculty(value):
         return value
 
     return FACULTY_TRANSLATIONS.get(value, {}).get(language, value)
+
+
+def translate_direction(value):
+    if not value:
+        return ""
+
+    language = normalize_language_code()
+
+    if language == "ru":
+        return value
+
+    return DIRECTION_TRANSLATIONS.get(value, {}).get(language, value)
 #
 def analyze(request):
     course_org_filter = ["Test_kaznu", "rty", "123"]
@@ -289,7 +301,7 @@ def analyze(request):
             "id": str(course.id),
             "display_name": course.display_name or str(course.id),
             "faculty": translate_faculty(course.faculty),
-            "directions": course.directions or "",
+            "directions": translate_direction(course.directions),
             "language": course.language or "",
             "start": course.start.strftime("%d.%m.%Y") if course.start else "",
             "url": "/courses/{}/about".format(course.id),
@@ -316,7 +328,10 @@ def analyze(request):
         ),
         "faculty_data": json.dumps([row["total"] for row in courses_by_faculty]),
 
-        "directions_labels": json.dumps([row["directions"] for row in courses_by_directions], ensure_ascii=False),
+        "directions_labels": json.dumps(
+            [translate_direction(row["directions"]) for row in courses_by_directions],
+            ensure_ascii=False
+        ),
         "directions_data": json.dumps([row["total"] for row in courses_by_directions]),
 
         "year_labels": json.dumps([row["year"] for row in courses_by_year]),
