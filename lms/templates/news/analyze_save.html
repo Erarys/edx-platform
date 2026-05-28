@@ -460,16 +460,16 @@
     <div class="analytics-shell">
         <header class="analytics-header">
             <div>
-                <div class="analytics-kicker">${_("Course analytics")}</div>
+                <div class="analytics-kicker">Course analytics</div>
                 <h1 class="analytics-title">${_("Course analysis")}</h1>
                 <p class="analytics-subtitle">
-                    ${_("Summary of published courses without test organizations. The current courses of the current year are shown below; schedules of faculties and directions filter the list.")}
+                    ${_("Summary of published courses without test organizations. The current courses of the current year are shown below; schedules of faculties and directions filter the list")}.
                 </p>
             </div>
             <div class="analytics-date">${_("Updated")}: ${generated_at}</div>
         </header>
 
-        <section class="analytics-summary" aria-label="${_('Short summary')}">
+        <section class="analytics-summary" aria-label="Краткая сводка">
             <div class="summary-card">
                 <div class="summary-label">${_("Total courses")}</div>
                 <div class="summary-value">${courses_count}</div>
@@ -478,36 +478,36 @@
             <div class="summary-card">
                 <div class="summary-label">${_("Current issues")} ${current_year}</div>
                 <div class="summary-value">${current_year_courses_count}</div>
-                <div class="summary-note">${_("Used in the list below")}</div>
+                <div class="summary-note">Используются в списке ниже</div>
             </div>
             <div class="summary-card">
-                <div class="summary-label">${_("Faculties")}</div>
+                <div class="summary-label">Факультетов</div>
                 <div class="summary-value">${faculty_count}</div>
-                <div class="summary-note">${_("With filled faculty field")}</div>
+                <div class="summary-note">С заполненным полем faculty</div>
             </div>
             <div class="summary-card">
-                <div class="summary-label">${_("Directions")}</div>
+                <div class="summary-label">Направлений</div>
                 <div class="summary-value">${directions_count}</div>
-                <div class="summary-note">${_("With filled directions field")}</div>
+                <div class="summary-note">С заполненным полем directions</div>
             </div>
         </section>
 
-        <section class="language-strip" aria-label="${_('Course languages')}">
-            <span class="language-strip__title">${_("Languages")}:</span>
+        <section class="language-strip" aria-label="Языки курсов">
+            <span class="language-strip__title">Языки:</span>
             % if language_summary:
                 % for language in language_summary:
                     <span class="language-chip">${language["label"]}: <strong>${language["total"]}</strong></span>
                 % endfor
             % else:
-                <span class="language-chip">${_("No data")}</span>
+                <span class="language-chip">Нет данных</span>
             % endif
         </section>
 
         <section class="analytics-section">
             <div class="section-heading">
                 <div>
-                    <h2>${_("Courses by year")}</h2>
-                    <p>${_("Course count dynamics by start date.")}</p>
+                    <h2>Курсы по годам</h2>
+                    <p>Динамика количества курсов по дате старта.</p>
                 </div>
             </div>
             <div class="panel chart-panel">
@@ -520,16 +520,16 @@
         <section class="analytics-section">
             <div class="section-heading">
                 <div>
-                    <h2>${_("Course structure")}</h2>
-                    <p>${_("Click a faculty or direction bar to filter the current courses below.")}</p>
+                    <h2>Структура курсов</h2>
+                    <p>Нажмите на столбец факультета или направления, чтобы отфильтровать актуальные курсы ниже.</p>
                 </div>
             </div>
             <div class="split-grid">
                 <div class="panel chart-panel">
                     <div class="section-heading">
                         <div>
-                            <h2>${_("Courses by faculty")}</h2>
-                            <p>${_("Top faculties by number of courses.")}</p>
+                            <h2>Курсы по факультетам</h2>
+                            <p>Топ факультетов по количеству курсов.</p>
                         </div>
                     </div>
                     <div class="chart-wrap">
@@ -539,8 +539,8 @@
                 <div class="panel chart-panel">
                     <div class="section-heading">
                         <div>
-                            <h2>${_("Courses by directions")}</h2>
-                            <p>${_("Top directions by number of courses.")}</p>
+                            <h2>Курсы по направлениям</h2>
+                            <p>Топ направлений по количеству курсов.</p>
                         </div>
                     </div>
                     <div class="chart-wrap">
@@ -553,15 +553,15 @@
         <section class="analytics-section">
             <div class="section-heading">
                 <div>
-                    <h2>${_("Top 50 courses")}</h2>
-                    <p>${_("Current courses with a start date in")} ${current_year} ${_("year")}.</p>
+                    <h2>Курсы топ 50</h2>
+                    <p>Актуальные курсы с датой старта в ${current_year} году.</p>
                 </div>
             </div>
 
             <div class="panel">
                 <div class="active-filter-bar" id="activeFilterBar">
                     <div class="active-filter-label" id="activeFilterLabel"></div>
-                    <button class="clear-filter-button" type="button" id="clearFilterButton">${_("Clear filter")}</button>
+                    <button class="clear-filter-button" type="button" id="clearFilterButton">Сбросить фильтр</button>
                 </div>
 
                 <div class="courses-toolbar">
@@ -572,18 +572,18 @@
                     <table class="courses-table">
                         <thead>
                             <tr>
-                                <th>${_("Course")}</th>
-                                <th>${_("Faculty")}</th>
-                                <th>${_("Direction")}</th>
-                                <th>${_("Language")}</th>
-                                <th>${_("Start")}</th>
+                                <th>Курс</th>
+                                <th>Факультет</th>
+                                <th>Направление</th>
+                                <th>Язык</th>
+                                <th>Старт</th>
                                 <th></th>
                             </tr>
                         </thead>
                         <tbody id="coursesTableBody"></tbody>
                     </table>
                 </div>
-                <div class="empty-state" id="emptyState">${_("There are no current courses for the selected filter in")} ${current_year} ${_("year")}.</div>
+                <div class="empty-state" id="emptyState">По выбранному фильтру нет актуальных курсов за ${current_year} год.</div>
             </div>
         </section>
     </div>
@@ -600,16 +600,6 @@
     var directionsLabels = ${directions_labels | n};
     var directionsData = ${directions_data | n};
     var courses = ${courses_json | n};
-
-    var translations = {
-        courses: "${_("Courses")}",
-        notSpecified: "${_("Not specified")}",
-        open: "${_("Open")}",
-        shown: "${_("Shown")}",
-        of: "${_("of")}",
-        faculty: "${_("Faculty")}",
-        direction: "${_("Direction")}"
-    };
 
     var palette = [
         "#2f6f95",
@@ -634,7 +624,7 @@
             data: {
                 labels: labels,
                 datasets: [{
-                    label: translations.courses,
+                    label: "Курсы",
                     data: values,
                     backgroundColor: labels.map(function (_, index) {
                         return palette[index % palette.length];
@@ -657,7 +647,7 @@
                         titleFont: { weight: "700" },
                         callbacks: {
                             label: function (context) {
-                                return translations.courses + ": " + context.parsed[horizontal ? "x" : "y"];
+                                return "Курсов: " + context.parsed[horizontal ? "x" : "y"];
                             }
                         }
                     }
@@ -707,7 +697,7 @@
 
     function filterButton(type, value) {
         if (!value) {
-            return '<span class="course-meta">' + translations.notSpecified + '</span>';
+            return '<span class="course-meta">Не указано</span>';
         }
         return '<button class="filter-button" type="button" data-filter-type="' + type + '" data-filter-value="' + escapeHtml(value) + '">' + escapeHtml(value) + '</button>';
     }
@@ -729,18 +719,18 @@
                     '<td>' + courseCell(course) + '</td>' +
                     '<td>' + filterButton("faculty", course.faculty) + '</td>' +
                     '<td>' + filterButton("directions", course.directions) + '</td>' +
-                    '<td>' + escapeHtml(course.language || translations.notSpecified) + '</td>' +
-                    '<td>' + escapeHtml(course.start || translations.notSpecified) + '</td>' +
-                    '<td><a class="course-link" href="' + escapeHtml(course.url) + '">' + translations.open + '</a></td>' +
+                    '<td>' + escapeHtml(course.language || "Не указан") + '</td>' +
+                    '<td>' + escapeHtml(course.start || "Не указано") + '</td>' +
+                    '<td><a class="course-link" href="' + escapeHtml(course.url) + '">Открыть</a></td>' +
                 '</tr>';
         }).join("");
 
-        coursesCount.textContent = translations.shown + ": " + visibleCourses.length + " " + translations.of + " " + courses.length;
+        coursesCount.textContent = "Показано: " + visibleCourses.length + " из " + courses.length;
         emptyState.classList.toggle("is-visible", visibleCourses.length === 0);
 
         if (activeFilter) {
             activeFilterBar.classList.add("is-visible");
-            activeFilterLabel.textContent = (activeFilter.type === "faculty" ? translations.faculty + ": " : translations.direction + ": ") + activeFilter.value;
+            activeFilterLabel.textContent = (activeFilter.type === "faculty" ? "Факультет: " : "Направление: ") + activeFilter.value;
         } else {
             activeFilterBar.classList.remove("is-visible");
             activeFilterLabel.textContent = "";
