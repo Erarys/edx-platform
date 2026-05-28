@@ -199,7 +199,7 @@
 }
 
 .chart-wrap {
-    height: 300px;
+    height: 360px;
     position: relative;
 }
 
@@ -627,12 +627,43 @@
     Chart.defaults.font.family = "'Inter', 'Segoe UI', Arial, sans-serif";
     Chart.defaults.color = "#5f6f82";
     Chart.defaults.plugins.legend.display = false;
+    function wrapLabel(label, maxLength) {
+        if (!label) {
+            return "";
+        }
 
+        var words = String(label).split(" ");
+        var lines = [];
+        var currentLine = "";
+
+        words.forEach(function (word) {
+            var testLine = currentLine ? currentLine + " " + word : word;
+
+            if (testLine.length > maxLength && currentLine) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+        });
+
+        if (currentLine) {
+            lines.push(currentLine);
+        }
+
+        return lines;
+    }
     function barChart(canvasId, labels, values, horizontal) {
+        var displayLabels = horizontal
+            ? labels.map(function (label) {
+                return wrapLabel(label, 24);
+            })
+            : labels;
+
         return new Chart(document.getElementById(canvasId), {
             type: "bar",
             data: {
-                labels: labels,
+                labels: displayLabels,
                 datasets: [{
                     label: translations.courses,
                     data: values,
@@ -640,13 +671,21 @@
                         return palette[index % palette.length];
                     }),
                     borderRadius: 4,
-                    maxBarThickness: horizontal ? 28 : 42
+                    maxBarThickness: horizontal ? 24 : 42
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 indexAxis: horizontal ? "y" : "x",
+                layout: {
+                    padding: {
+                        left: horizontal ? 8 : 0,
+                        right: 16,
+                        top: 4,
+                        bottom: 4
+                    }
+                },
                 plugins: {
                     tooltip: {
                         backgroundColor: "#18384f",
@@ -656,6 +695,9 @@
                         padding: 11,
                         titleFont: { weight: "700" },
                         callbacks: {
+                            title: function (context) {
+                                return labels[context[0].dataIndex];
+                            },
                             label: function (context) {
                                 return translations.courses + ": " + context.parsed[horizontal ? "x" : "y"];
                             }
@@ -671,7 +713,13 @@
                     y: {
                         beginAtZero: true,
                         grid: { color: horizontal ? "transparent" : "#edf1f6" },
-                        ticks: { precision: 0 }
+                        ticks: {
+                            precision: 0,
+                            autoSkip: false,
+                            font: {
+                                size: horizontal ? 11 : 12
+                            }
+                        }
                     }
                 }
             }
