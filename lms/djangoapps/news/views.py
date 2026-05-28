@@ -90,7 +90,7 @@ FACULTY_TRANSLATIONS = {
         "kk": "ОАжЦИ",
         "en": "OADI",
     },
-    "Информационных технологий": {
+    "Information Technology": { # Информационных технологий
         "kk": "Ақпараттық технологиялар",
         "en": "Information Technology",
     },
