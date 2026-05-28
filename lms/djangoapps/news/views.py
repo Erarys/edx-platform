@@ -62,7 +62,101 @@ def news_create(request):
     }
     return render_to_response('news/form.html', context, request=request)
 
+#
+from django.utils.translation import get_language
 
+FACULTY_TRANSLATIONS = {
+    "Биологии и биотехнологии": {
+        "kk": "Биология және биотехнология",
+        "en": "Biology and Biotechnology",
+    },
+    "Востоковедения": {
+        "kk": "Шығыстану",
+        "en": "Oriental Studies",
+    },
+    "Высшая школа экономики и бизнеса": {
+        "kk": "Экономика және бизнес Жоғары мектебі",
+        "en": "Higher School of Economics and Business",
+    },
+    "Довузовского образования": {
+        "kk": "Жоғары оқу орнына дейінгі білім беру",
+        "en": "Pre-university education",
+    },
+    "Журналистики": {
+        "kk": "Журналистика",
+        "en": "Journalism",
+    },
+    "ОАиЦИ": {
+        "kk": "ОАжЦИ",
+        "en": "OADI",
+    },
+    "Информационных технологий": {
+        "kk": "Ақпараттық технологиялар",
+        "en": "Information Technology",
+    },
+    "Истории": {
+        "kk": "Тарих",
+        "en": "History",
+    },
+    "Исторический": {
+        "kk": "Тарихи",
+        "en": "Historical",
+    },
+    "Кластер инжиниринга и наукоемких технологий": {
+        "kk": "Инжиниринг және жоғары технологиялар кластері",
+        "en": "Cluster of Engineering and High Technologies",
+    },
+    "Механико-математический": {
+        "kk": "Механика-математика",
+        "en": "Mechanics and Mathematics",
+    },
+    "Физико-технический": {
+        "kk": "Физика-техникалық",
+        "en": "Physics and Technology",
+    },
+    "Филологический": {
+        "kk": "Филология",
+        "en": "Philology",
+    },
+    "Философии и политологии": {
+        "kk": "Философия және саясаттану",
+        "en": "Philosophy and Political Science",
+    },
+    "Химии и химической технологии": {
+        "kk": "Химия және химиялық технологиялар",
+        "en": "Chemistry and Chemical Technology",
+    },
+    "Юридический": {
+        "kk": "Заң",
+        "en": "Law",
+    },
+    "Международных отношений": {
+        "kk": "Халықаралық қатынастар",
+        "en": "International Relations",
+    },
+    "Медицины и здравоохранения": {
+        "kk": "Медицина және денсаулық сақтау",
+        "en": "Medicine and Healthcare",
+    },
+}
+
+
+def normalize_language_code():
+    language = get_language() or "ru"
+    return language.split("-")[0].split("_")[0]
+
+
+def translate_faculty(value):
+    if not value:
+        return ""
+
+    language = normalize_language_code()
+
+    if language == "ru":
+        return value
+
+    return FACULTY_TRANSLATIONS.get(value, {}).get(language, value)
+#
 def analyze(request):
     course_org_filter = ["Test_kaznu", "rty", "123"]
 
@@ -159,7 +253,7 @@ def analyze(request):
         {
             "id": str(course.id),
             "display_name": course.display_name or str(course.id),
-            "faculty": course.faculty or "",
+            "faculty": translate_faculty(course.faculty),
             "directions": course.directions or "",
             "language": course.language or "",
             "start": course.start.strftime("%d.%m.%Y") if course.start else "",
@@ -181,7 +275,10 @@ def analyze(request):
             for row in courses_by_lang
         ],
 
-        "faculty_labels": json.dumps([row["faculty"] for row in courses_by_faculty], ensure_ascii=False),
+        "faculty_labels": json.dumps(
+            [translate_faculty(row["faculty"]) for row in courses_by_faculty],
+            ensure_ascii=False
+        ),
         "faculty_data": json.dumps([row["total"] for row in courses_by_faculty]),
 
         "directions_labels": json.dumps([row["directions"] for row in courses_by_directions], ensure_ascii=False),
