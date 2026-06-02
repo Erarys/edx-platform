@@ -130,6 +130,46 @@ def clone_instance(instance, field_values):
 
     return instance
 
+def copy_custom_course_overview_fields(source_course_key, destination_course_key):
+    """
+    Copy custom CourseOverview fields from source course to rerun course.
+    """
+    from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
+
+    try:
+        source_overview = CourseOverview.objects.get(id=source_course_key)
+
+        try:
+            destination_overview = CourseOverview.objects.get(id=destination_course_key)
+        except CourseOverview.DoesNotExist:
+            destination_overview = CourseOverview.get_from_id(destination_course_key)
+
+        destination_overview.faculty = source_overview.faculty
+        destination_overview.directions = source_overview.directions
+        destination_overview.complexity = source_overview.complexity
+
+        destination_overview.save(update_fields=[
+            "faculty",
+            "directions",
+            "complexity",
+        ])
+
+        LOGGER.info(
+            "my-log: copied custom overview fields during course rerun: %s -> %s, faculty=%s, directions=%s, complexity=%s",
+            source_course_key,
+            destination_course_key,
+            source_overview.faculty,
+            source_overview.directions,
+            source_overview.complexity,
+        )
+
+    except Exception:
+        LOGGER.exception(
+            "my-log: failed to copy custom overview fields during course rerun: %s -> %s",
+            source_course_key,
+            destination_course_key,
+        )
+
 
 @shared_task
 @set_code_owner_attribute
@@ -151,6 +191,8 @@ def rerun_course(source_course_key_string, destination_course_key_string, user_i
         store = modulestore()
         with store.default_store('split'):
             store.clone_course(source_course_key, destination_course_key, user_id, fields=fields)
+
+        copy_custom_course_overview_fields(source_course_key, destination_course_key)
 
         update_unit_discussion_state_from_discussion_blocks(destination_course_key, user_id)
 
