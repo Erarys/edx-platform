@@ -261,8 +261,8 @@
 
         <select id="orgFilter" onchange="filterCourses()">
           <option value="">${_('All organizations')}</option>
-          % for org in sorted(set([c.display_org_with_default for c in courses])):
-            <option value="${org}">${_(org)}</option>
+           % for faculty in sorted(set([c.faculty for c in courses if c.faculty])):
+            <option value="${faculty}">${_(faculty)}</option>
           % endfor
         </select>
       </div>
