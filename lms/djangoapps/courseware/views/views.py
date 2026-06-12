@@ -298,7 +298,7 @@ def courses(request):
     )
 
     return render_to_response(
-        "courseware/courses.html",
+        "courseware/courses_summer.html",
         {
             'courses': courses_list,
         }
