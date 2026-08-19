@@ -292,6 +292,17 @@ def analyze(request):
         reverse=True
     )[:50]
 
+    course_run_counts = dict(
+        CourseOverview.objects
+        .exclude(org__in=course_org_filter)
+        .exclude(display_name__isnull=True)
+        .exclude(display_name="")
+        .exclude(start__isnull=True)
+        .values("display_name")
+        .annotate(total=Count("id", distinct=True))
+        .values_list("display_name", "total")
+    )
+
     courses_json = [
         {
             "id": str(course.id),
@@ -300,6 +311,7 @@ def analyze(request):
             "directions": translate_direction(course.directions),
             "language": course.language or "",
             "start": course.start.strftime("%d.%m.%Y") if course.start else "",
+            "run_count": course_run_counts.get(course.display_name, 1),
             "url": "/courses/{}/about".format(course.id),
         }
         for course in top_courses
