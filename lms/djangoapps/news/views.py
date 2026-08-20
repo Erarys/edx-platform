@@ -201,7 +201,7 @@ def translate_direction(value):
     return DIRECTION_TRANSLATIONS.get(value, {}).get(language, value)
 #
 def analyze(request):
-    course_org_filter = ["Test_kaznu", "rty", "123"]
+    course_org_filter = ["Test_kaznu", "rty", "123", "AI Tools in Action: Boosting Productivity with Modern Workflows", "Demo"]
 
     now = timezone.now()
     today = now.date()
@@ -237,6 +237,8 @@ def analyze(request):
         course for course in courses
         if course.start and course.start.year == current_year
     ]
+    # Rewrite code to test it #
+    current_year_courses = courses
     #
     max_year = current_year + 1
 
@@ -244,7 +246,7 @@ def analyze(request):
         CourseOverview.objects
         .exclude(org__in=course_org_filter)
         .exclude(start__isnull=True)
-        .filter(start__year__lte=max_year)
+        # .filter(start__year__lte=max_year)
         .annotate(year=ExtractYear("start"))
         .values("year")
         .annotate(total=Count("id"))
