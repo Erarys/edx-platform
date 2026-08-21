@@ -214,7 +214,7 @@ def analyze(request):
         .exclude(org__in=course_org_filter)
 
         # курс еще не должен закончиться
-        # .exclude(end__isnull=True)
+        .exclude(end__isnull=True)
         # .exclude(end__lt=now)
 
         # скрываем слишком долгие/ошибочные курсы, например до 2028 года
