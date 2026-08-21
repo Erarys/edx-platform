@@ -314,17 +314,17 @@
 
 .courses-table th:nth-child(1),
 .courses-table td:nth-child(1) {
-    width: 32%;
+    width: 29%;
 }
 
 .courses-table th:nth-child(2),
 .courses-table td:nth-child(2) {
-    width: 16%;
+    width: 15%;
 }
 
 .courses-table th:nth-child(3),
 .courses-table td:nth-child(3) {
-    width: 22%;
+    width: 19%;
 }
 
 .courses-table th:nth-child(4),
@@ -334,12 +334,17 @@
 
 .courses-table th:nth-child(5),
 .courses-table td:nth-child(5) {
-    width: 11%;
+    width: 9%;
 }
 
 .courses-table th:nth-child(6),
 .courses-table td:nth-child(6) {
-    width: 10%;
+    width: 11%;
+
+
+.courses-table th:nth-child(7),
+.courses-table td:nth-child(7) {
+    width: 8%;
 }
 
 .courses-table tr:last-child td {
@@ -587,6 +592,7 @@
                                 <th>${_("Faculty")}</th>
                                 <th>${_("Direction")}</th>
                                 <th>${_("Language")}</th>
+                                <th>${_("Launches")}</th>
                                 <th>${_("Start")}</th>
                                 <th></th>
                             </tr>
@@ -755,6 +761,7 @@
                     '<td>' + filterButton("faculty", course.faculty) + '</td>' +
                     '<td>' + filterButton("directions", course.directions) + '</td>' +
                     '<td>' + escapeHtml(course.language || translations.notSpecified) + '</td>' +
+                    '<td>' + escapeHtml(course.run_count || 1) + '</td>' +
                     '<td>' + escapeHtml(course.start || translations.notSpecified) + '</td>' +
                     '<td><a class="course-link" href="' + escapeHtml(course.url) + '">' + translations.open + '</a></td>' +
                 '</tr>';
