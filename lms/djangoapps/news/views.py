@@ -247,7 +247,7 @@ def analyze(request):
         CourseOverview.objects
         .exclude(org__in=course_org_filter)
         .exclude(start__isnull=True)
-        # .filter(start__year__lte=max_year)
+        .filter(start__year__lte=max_year)
         .annotate(year=ExtractYear("start"))
         .values("year")
         .annotate(total=Count("id"))
