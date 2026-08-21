@@ -221,6 +221,7 @@ def analyze(request):
         .exclude(end__gt=max_valid_end)
 
         # убираем пустые названия
+        .filter(start__lte=now)
         .exclude(display_name__isnull=True)
         .exclude(display_name="")
         .order_by("display_name", "-start", "-id")
