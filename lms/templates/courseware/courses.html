@@ -259,14 +259,15 @@
           <option value="completed">${_('Completed')}</option>
         </select>
 
-        <select id="orgFilter" onchange="filterCourses()">
-          <option value="">${_('All organizations')}</option>
-           % for faculty in sorted(set([c.faculty for c in courses if c.faculty])):
+        <select id="facultyFilter" onchange="filterCourses()">
+          <option value="">${_('All faculties')}</option>
+          % for faculty in sorted(set([c.faculty for c in courses if c.faculty])):
             <option value="${faculty}">${_(faculty)}</option>
           % endfor
         </select>
       </div>
     </div>
+
 
     <div class="course-grid" id="courseList">
       % if courses:
@@ -281,7 +282,7 @@
                data-title="${course.display_name.lower()}"
                data-language="${course.language or ''}"
                data-status="${status}"
-               data-org="${course.display_org_with_default}">
+               data-faculty="${course.faculty or ''}">
             <div style="position: relative;">
               <img src="${course.course_image_url if hasattr(course, 'course_image_url') else '/static/images/default-course.jpg'}"
                    alt="${course.display_name}">
@@ -315,32 +316,32 @@
 
   <script>
     function filterCourses() {
-      const query = document.getElementById("searchInput").value.toLowerCase().trim();
-      const lang = document.getElementById("languageFilter").value;
-      const status = document.getElementById("statusFilter").value;
-      const org = document.getElementById("orgFilter").value;
+    const query = document.getElementById("searchInput").value.toLowerCase().trim();
+    const lang = document.getElementById("languageFilter").value;
+    const status = document.getElementById("statusFilter").value;
+    const faculty = document.getElementById("facultyFilter").value;
 
-      const cards = document.querySelectorAll("#courseList .course");
-      let visible = 0;
+    const cards = document.querySelectorAll("#courseList .course");
+    let visible = 0;
 
-      cards.forEach(card => {
+    cards.forEach(card => {
         const title = card.getAttribute("data-title");
         const cardLang = card.getAttribute("data-language");
         const cardStatus = card.getAttribute("data-status");
-        const cardOrg = card.getAttribute("data-org");
+        const cardFaculty = card.getAttribute("data-faculty");
 
-        const matches =
-          (!query || title.includes(query)) &&
-          (!lang || cardLang === lang) &&
-          (!status || cardStatus === status) &&
-          (!org || cardOrg === org);
+    const matches =
+      (!query || title.includes(query)) &&
+      (!lang || cardLang === lang) &&
+      (!status || cardStatus === status) &&
+      (!faculty || cardFaculty === faculty);
 
-        card.style.display = matches ? "flex" : "none";
+    card.style.display = matches ? "flex" : "none";
         if (matches) visible++;
-      });
+    });
 
-      const emptyState = document.querySelector(".no-results");
-      if (!visible && !emptyState) {
+    const emptyState = document.querySelector(".no-results");
+    if (!visible && !emptyState) {
         const div = document.createElement("div");
         div.className = "no-results";
         div.innerHTML = `<span>🔍</span><h3>${_('No courses found')}</h3>`;
