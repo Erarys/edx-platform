@@ -293,7 +293,7 @@ def analyze(request):
         current_year_courses,
         key=lambda course: course.start,
         reverse=True
-    )[:50]
+    )
 
     course_run_counts = dict(
         CourseOverview.objects
@@ -351,7 +351,7 @@ def analyze(request):
         "courses_json": json.dumps(courses_json, ensure_ascii=False),
     }
 
-    return render_to_response("news/analyze_save.html", context, request=request)
+    return render_to_response("news/analyze.html", context, request=request)
 
 
 
