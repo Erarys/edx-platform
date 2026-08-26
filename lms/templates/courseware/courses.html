@@ -266,42 +266,12 @@
       transition: box-shadow var(--courses-transition), transform var(--courses-transition);
     }
 
-    /* Только обычная прокрутка: карточки раскрывает IntersectionObserver. */
-    .course-grid.courses-animate .course:not(.is-visible) {
-      opacity: 0;
-      transform: translateY(34px);
-    }
-
-    .course-grid.courses-animate .course {
-      transition:
-        opacity 0.55s ease,
-        transform 0.55s cubic-bezier(.2, .8, .2, 1),
-        box-shadow var(--courses-transition);
-    }
-
     .course:hover {
       box-shadow: var(--courses-shadow-hover);
       transform: translateY(-7px);
     }
 
     .course[hidden] {
-      display: none !important;
-    }
-
-    /* После первого поиска/фильтра все анимации карточек отключены. */
-    .course-grid.animations-disabled .course {
-      animation: none !important;
-      opacity: 1 !important;
-      transform: none !important;
-      transition: box-shadow 0.18s ease !important;
-      visibility: visible !important;
-    }
-
-    .course-grid.animations-disabled .course:hover {
-      transform: none !important;
-    }
-
-    .course-grid.animations-disabled .course[hidden] {
       display: none !important;
     }
 
@@ -327,7 +297,7 @@
       width: 100%;
     }
 
-    .course-grid:not(.animations-disabled) .course:hover img {
+    .course:hover img {
       transform: scale(1.045);
     }
 
@@ -502,10 +472,6 @@
         transition-duration: 0.01ms !important;
       }
 
-      .course-grid.courses-animate .course {
-        opacity: 1 !important;
-        transform: none !important;
-      }
     }
   </style>
 </%block>
@@ -629,9 +595,6 @@
       var resultsCount = document.getElementById("resultsCount");
       var courseList = document.getElementById("courseList");
       var cards = Array.prototype.slice.call(courseList.querySelectorAll(".course"));
-      var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      var courseObserver = null;
-      var animationsDisabled = false;
       var emptyMessage = "${_('No courses found')}";
       var shownMessage = "${_('Shown')}";
 
@@ -641,29 +604,6 @@
           .replace(/ё/g, "е")
           .replace(/\s+/g, " ")
           .trim();
-      }
-
-      function disableAnimations() {
-        if (animationsDisabled) {
-          return;
-        }
-
-        animationsDisabled = true;
-        courseList.classList.remove("courses-animate");
-        courseList.classList.add("animations-disabled");
-
-        if (courseObserver) {
-          courseObserver.disconnect();
-          courseObserver = null;
-        }
-
-        cards.forEach(function (card) {
-          card.classList.add("is-visible");
-          card.style.removeProperty("display");
-          card.style.removeProperty("opacity");
-          card.style.removeProperty("visibility");
-          card.style.removeProperty("transform");
-        });
       }
 
       function updateEmptyState(visible) {
@@ -687,12 +627,7 @@
         var language = languageFilter.value;
         var status = statusFilter.value;
         var faculty = facultyFilter.value;
-        var filterIsActive = Boolean(query || language || status || faculty);
         var visible = 0;
-
-        if (filterIsActive) {
-          disableAnimations();
-        }
 
         cards.forEach(function (card) {
           var title = normalizeText(card.dataset.title);
@@ -709,7 +644,6 @@
           card.hidden = !matches;
 
           if (matches) {
-            card.classList.add("is-visible");
             visible += 1;
           }
         });
@@ -733,30 +667,6 @@
       });
 
       resultsCount.textContent = shownMessage + ": " + cards.length + " / " + cards.length;
-
-      if ("IntersectionObserver" in window && !reduceMotion && cards.length) {
-        courseList.classList.add("courses-animate");
-
-        courseObserver = new IntersectionObserver(function (entries, observer) {
-          entries.forEach(function (entry) {
-            if (entry.isIntersecting) {
-              entry.target.classList.add("is-visible");
-              observer.unobserve(entry.target);
-            }
-          });
-        }, {
-          rootMargin: "0px 0px -6% 0px",
-          threshold: 0.06
-        });
-
-        cards.forEach(function (card) {
-          courseObserver.observe(card);
-        });
-      } else {
-        cards.forEach(function (card) {
-          card.classList.add("is-visible");
-        });
-      }
     })();
   </script>
 </%block>
