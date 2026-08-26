@@ -1,356 +1,491 @@
 <%page expression_filter="h"/>
 <%!
-  from django.utils.translation import gettext as _
+from django.utils.translation import gettext as _
 %>
 <%inherit file="../main.html" />
 
 <%block name="pagetitle">${_("Courses")}</%block>
 
 <%block name="headextra">
-  <style>
+<style>
     :root {
-      --bg-color: #f9fafc;
-      --card-bg: #fff;
-      --primary: #1a263c;
-      --accent: #1e40af;
-      --text-dark: #1f2937;
-      --text-muted: #6b7280;
-      --radius: 12px;
-      --shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
-      --transition: 0.3s ease;
+        --bg-color: #f9fafc;
+        --card-bg: #fff;
+        --primary: #1a263c;
+        --accent: #1e40af;
+        --text-dark: #1f2937;
+        --text-muted: #6b7280;
+        --radius: 12px;
+        --shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+        --transition: 0.3s ease;
     }
 
     body {
-      background: var(--bg-color);
-      font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+        background: var(--bg-color);
+        font-family: "Inter", "Segoe UI", system-ui, sans-serif;
     }
 
     /* Hero Section */
     .hero {
-      background: linear-gradient(135deg, var(--primary), var(--accent));
-      color: #fff;
-      padding: 80px 20px;
-      text-align: center;
-      box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.15);
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        color: #fff;
+        padding: 80px 20px;
+        text-align: center;
+        box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.15);
     }
 
     .hero h1 {
-      font-size: 2.75rem;
-      font-weight: 700;
-      margin-bottom: 12px;
+        font-size: 2.75rem;
+        font-weight: 700;
+        margin-bottom: 12px;
     }
 
     .hero p {
-      font-size: 1.15rem;
-      opacity: 0.9;
+        font-size: 1.15rem;
+        opacity: 0.9;
     }
 
     /* Main container */
     .courses {
-      max-width: 1250px;
-      margin: 0 auto;
-      padding: 50px 20px;
+        max-width: 1250px;
+        margin: 0 auto;
+        padding: 50px 20px;
     }
 
     /* Filter bar */
     .filter-box {
-      background: var(--card-bg);
-      border-radius: var(--radius);
-      padding: 25px;
-      box-shadow: var(--shadow);
-      margin-bottom: 40px;
+        background: var(--card-bg);
+        border-radius: var(--radius);
+        padding: 25px;
+        box-shadow: var(--shadow);
+        margin-bottom: 40px;
     }
 
     .filter-box h2 {
-      font-size: 1.4rem;
-      color: var(--text-dark);
-      font-weight: 600;
-      margin-bottom: 20px;
+        font-size: 1.4rem;
+        color: var(--text-dark);
+        font-weight: 600;
+        margin-bottom: 20px;
     }
 
     .filters {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 15px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 15px;
     }
 
     .filters input,
     .filters select {
-      padding: 12px 16px;
-      border: 1.5px solid #e5e7eb;
-      border-radius: var(--radius);
-      font-size: 15px;
-      transition: border var(--transition), box-shadow var(--transition);
-      outline: none;
-      background: #fff;
+        padding: 12px 16px;
+        border: 1.5px solid #e5e7eb;
+        border-radius: var(--radius);
+        font-size: 15px;
+        transition: border var(--transition), box-shadow var(--transition);
+        outline: none;
+        background: #fff;
     }
 
     .filters input:focus,
     .filters select:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
     }
 
     /* Grid */
     .course-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-      gap: 25px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+        gap: 25px;
     }
 
     /* Course card */
     .course {
-      background: var(--card-bg);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      transition: transform var(--transition), box-shadow var(--transition);
+        background: var(--card-bg);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: transform var(--transition), box-shadow var(--transition);
     }
 
     .course:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        transform: translateY(-6px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
     }
 
     .course img {
-      width: 100%;
-      height: 180px;
-      object-fit: cover;
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+    }
+
+    .course[hidden] {
+        display: none !important;
     }
 
     .status {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      padding: 6px 12px;
-      background: var(--primary);
-      color: white;
-      font-size: 0.8rem;
-      font-weight: 600;
-      border-radius: 9999px;
-      text-transform: uppercase;
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        padding: 6px 12px;
+        background: var(--primary);
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: 9999px;
+        text-transform: uppercase;
     }
 
     .status.completed {
-      background: #6b7280;
+        background: #6b7280;
     }
 
     .course-content {
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      flex-grow: 1;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
     }
 
     .course h3 {
-      font-size: 1.2rem;
-      font-weight: 600;
-      color: var(--text-dark);
-      margin-bottom: 8px;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 8px;
     }
 
     .course h3 a {
-      text-decoration: none;
-      color: inherit;
-      transition: color var(--transition);
+        text-decoration: none;
+        color: inherit;
+        transition: color var(--transition);
     }
 
     .course h3 a:hover {
-      color: var(--primary);
+        color: var(--primary);
     }
 
     .meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
     }
 
     .tag {
-      background: #eff6ff;
-      color: var(--accent);
-      font-weight: 600;
-      font-size: 0.8rem;
-      padding: 4px 10px;
-      border-radius: 6px;
+        background: #eff6ff;
+        color: var(--accent);
+        font-weight: 600;
+        font-size: 0.8rem;
+        padding: 4px 10px;
+        border-radius: 6px;
     }
 
     .details {
-      flex-grow: 1;
-      color: var(--text-muted);
-      font-size: 0.9rem;
-      margin-bottom: 15px;
+        flex-grow: 1;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin-bottom: 15px;
     }
 
     .details span {
-      display: block;
-      margin-bottom: 4px;
+        display: block;
+        margin-bottom: 4px;
     }
 
     .course a.btn {
-      background: var(--primary);
-      color: #fff;
-      text-align: center;
-      padding: 12px;
-      border-radius: var(--radius);
-      font-weight: 600;
-      transition: background var(--transition);
-      text-decoration: none;
+        background: var(--primary);
+        color: #fff;
+        text-align: center;
+        padding: 12px;
+        border-radius: var(--radius);
+        font-weight: 600;
+        transition: background var(--transition);
+        text-decoration: none;
     }
 
     .course a.btn:hover {
-      background: var(--accent);
+        background: var(--accent);
     }
 
     /* Empty state */
     .no-results {
-      text-align: center;
-      padding: 80px 20px;
-      color: var(--text-muted);
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--text-muted);
     }
 
     .no-results span {
-      font-size: 3rem;
-      display: block;
-      margin-bottom: 15px;
+        font-size: 3rem;
+        display: block;
+        margin-bottom: 15px;
     }
 
     @media (max-width: 600px) {
-      .hero h1 {
-        font-size: 2rem;
-      }
+        .hero h1 {
+            font-size: 2rem;
+        }
 
-      .hero p {
-        font-size: 1rem;
-      }
+        .hero p {
+            font-size: 1rem;
+        }
     }
-  </style>
+</style>
 </%block>
 
 <%block name="content">
-  <div class="hero">
+<div class="hero">
     <h1 style="color: white !important;">${_("Courses")}</h1>
     <p>${_("Explore our collection of educational programs and start learning today")}</p>
-  </div>
+</div>
 
-  <div class="courses">
+<div class="courses">
     <div class="filter-box">
-      <h2>${_("Filter Courses")}</h2>
-      <div class="filters">
-        <input
-          type="text"
-          id="searchInput"
-          placeholder="${_('Search by course name...')}"
-          onkeyup="filterCourses()"
-        />
+        <h2>${_("Filter Courses")}</h2>
+        <div class="filters">
+            <input
+                type="text"
+                id="searchInput"
+                placeholder="${_('Search by course name...')}"
+                onkeyup="filterCourses()"
+            />
 
-        <select id="languageFilter" onchange="filterCourses()">
-          <option value="">${_('All languages')}</option>
-          % for lang in sorted(set([c.language for c in courses if c.language])):
-            <option value="${lang}">${_(lang)}</option>
-          % endfor
-        </select>
+            <select id="languageFilter" onchange="filterCourses()">
+                <option value="">${_('All languages')}</option>
+                % for lang in sorted(set([c.language for c in courses if c.language])):
+                <option value="${lang}">${_(lang)}</option>
+                % endfor
+            </select>
 
-        <select id="statusFilter" onchange="filterCourses()">
-          <option value="">${_('All statuses')}</option>
-          <option value="ongoing">${_('Ongoing')}</option>
-          <option value="completed">${_('Completed')}</option>
-        </select>
+            <select id="statusFilter" onchange="filterCourses()">
+                <option value="">${_('All statuses')}</option>
+                <option value="ongoing">${_('Ongoing')}</option>
+                <option value="completed">${_('Completed')}</option>
+            </select>
 
-        <select id="facultyFilter" onchange="filterCourses()">
-          <option value="">${_('All faculties')}</option>
-          % for faculty in sorted(set([c.faculty for c in courses if c.faculty])):
-            <option value="${faculty}">${_(faculty)}</option>
-          % endfor
-        </select>
-      </div>
+            <select id="facultyFilter" onchange="filterCourses()">
+                <option value="">${_('All faculties')}</option>
+                % for faculty in sorted(set([c.faculty for c in courses if c.faculty])):
+                <option value="${faculty}">${_(faculty)}</option>
+                % endfor
+            </select>
+        </div>
     </div>
 
 
     <div class="course-grid" id="courseList">
-      % if courses:
+        % if courses:
         % for course in courses:
-          <%
-            from django.utils import timezone
-            now = timezone.now()
-            status = "completed" if course.end and course.end < now else "ongoing"
-            status_text = _('Completed') if status == "completed" else _('Ongoing')
-          %>
-          <div class="course"
-               data-title="${course.display_name.lower()}"
-               data-language="${course.language or ''}"
-               data-status="${status}"
-               data-faculty="${course.faculty or ''}">
+        <%
+        from django.utils import timezone
+        now = timezone.now()
+        status = "completed" if course.end and course.end < now else "ongoing"
+        status_text = _('Completed') if status == "completed" else _('Ongoing')
+        %>
+        <div class="course"
+             data-title="${course.display_name.lower()}"
+             data-language="${course.language or ''}"
+             data-status="${status}"
+             data-faculty="${course.faculty or ''}">
             <div style="position: relative;">
-              <img src="${course.course_image_url if hasattr(course, 'course_image_url') else '/static/images/default-course.jpg'}"
-                   alt="${course.display_name}">
-              <div class="status ${status}">${status_text}</div>
+                <img
+                    src="${course.course_image_url if hasattr(course, 'course_image_url') else '/static/images/default-course.jpg'}"
+                    alt="${course.display_name}">
+                <div class="status ${status}">${status_text}</div>
             </div>
             <div class="course-content">
-              <h3><a href="/courses/${course.id}/about">${course.display_name}</a></h3>
-              <div class="meta">
-                <span class="tag">${course.display_org_with_default}</span>
-                % if course.language:
-                  <span class="tag">${course.language}</span>
-                % endif
-              </div>
-              <div class="details">
-                <span>${_('Start')}: ${course.start.strftime('%Y-%m-%d') if course.start else _('Not specified')}</span>
-                <span>${_('End')}: ${course.end.strftime('%Y-%m-%d') if course.end else _('Not specified')}</span>
-              </div>
-              <a href="/courses/${course.id}/about" class="btn">${_('Go to course')}</a>
+                <h3><a href="/courses/${course.id}/about">${course.display_name}</a></h3>
+                <div class="meta">
+                    <span class="tag">${course.display_org_with_default}</span>
+                    % if course.language:
+                    <span class="tag">${course.language}</span>
+                    % endif
+                </div>
+                <div class="details">
+                    <span>${_('Start')}
+                        : ${course.start.strftime('%Y-%m-%d') if course.start else _('Not specified')}</span>
+                    <span>${_('End')}: ${course.end.strftime('%Y-%m-%d') if course.end else _('Not specified')}</span>
+                </div>
+                <a href="/courses/${course.id}/about" class="btn">${_('Go to course')}</a>
             </div>
-          </div>
-        % endfor
-      % else:
-        <div class="no-results">
-          <span>📚</span>
-          <h3>${_('No courses found')}</h3>
-          <p>${_('There are currently no available courses')}</p>
         </div>
-      % endif
+        % endfor
+        % else:
+        <div class="no-results">
+            <span>📚</span>
+            <h3>${_('No courses found')}</h3>
+            <p>${_('There are currently no available courses')}</p>
+        </div>
+        % endif
     </div>
-  </div>
+</div>
 
-  <script>
-    function filterCourses() {
-    const query = document.getElementById("searchInput").value.toLowerCase().trim();
-    const lang = document.getElementById("languageFilter").value;
-    const status = document.getElementById("statusFilter").value;
-    const faculty = document.getElementById("facultyFilter").value;
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
 
-    const cards = document.querySelectorAll("#courseList .course");
-    let visible = 0;
+<script>
+    const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+    ).matches;
 
-    cards.forEach(card => {
-        const title = card.getAttribute("data-title");
-        const cardLang = card.getAttribute("data-language");
-        const cardStatus = card.getAttribute("data-status");
-        const cardFaculty = card.getAttribute("data-faculty");
-
-    const matches =
-      (!query || title.includes(query)) &&
-      (!lang || cardLang === lang) &&
-      (!status || cardStatus === status) &&
-      (!faculty || cardFaculty === faculty);
-
-    card.style.display = matches ? "flex" : "none";
-        if (matches) visible++;
-    });
-
-    const emptyState = document.querySelector(".no-results");
-    if (!visible && !emptyState) {
-        const div = document.createElement("div");
-        div.className = "no-results";
-        div.innerHTML = `<span>🔍</span><h3>${_('No courses found')}</h3>`;
-        document.getElementById("courseList").appendChild(div);
-      } else if (visible && emptyState) {
-        emptyState.remove();
-      }
+    function clearCourseAnimation(card) {
+        if (window.gsap) {
+            gsap.set(card, {
+                clearProps: "opacity,visibility,transform"
+            });
+        } else {
+            card.style.removeProperty("opacity");
+            card.style.removeProperty("visibility");
+            card.style.removeProperty("transform");
+        }
     }
-  </script>
+
+    function showCourse(card, animate) {
+        card.hidden = false;
+        card.style.removeProperty("display");
+
+        if (!window.gsap) {
+            clearCourseAnimation(card);
+            return;
+        }
+
+        /*
+         * Останавливаем старую scroll-анимацию, которая могла
+         * оставить карточку с opacity: 0.
+         */
+        gsap.killTweensOf(card);
+        clearCourseAnimation(card);
+
+        if (animate && !reduceMotion) {
+            gsap.fromTo(
+                card,
+                {
+                    autoAlpha: 0,
+                    y: 14
+                },
+                {
+                    autoAlpha: 1,
+                    duration: 0.35,
+                    ease: "power2.out",
+                    overwrite: true,
+                    y: 0,
+                    onComplete: function () {
+                        clearCourseAnimation(card);
+                    }
+                }
+            );
+        }
+    }
+
+    function hideCourse(card) {
+        if (window.gsap) {
+            gsap.killTweensOf(card);
+        }
+
+        card.hidden = true;
+        card.style.removeProperty("display");
+    }
+
+    function filterCourses() {
+        const searchInput = document.getElementById("searchInput");
+        const languageFilter = document.getElementById("languageFilter");
+        const statusFilter = document.getElementById("statusFilter");
+        const facultyFilter = document.getElementById("facultyFilter");
+        const courseList = document.getElementById("courseList");
+
+        const query = searchInput.value.toLowerCase().trim();
+        const language = languageFilter.value;
+        const status = statusFilter.value;
+        const faculty = facultyFilter.value;
+
+        const cards = courseList.querySelectorAll(".course");
+        let visible = 0;
+
+        cards.forEach(function (card) {
+            const wasHidden = card.hidden;
+
+            const title = (card.dataset.title || "").toLowerCase();
+            const cardLanguage = card.dataset.language || "";
+            const cardStatus = card.dataset.status || "";
+            const cardFaculty = card.dataset.faculty || "";
+
+            const matches =
+                (!query || title.includes(query)) &&
+                (!language || cardLanguage === language) &&
+                (!status || cardStatus === status) &&
+                (!faculty || cardFaculty === faculty);
+
+            if (matches) {
+                /*
+                 * Если карточка до этого была скрыта фильтром,
+                 * показываем её с короткой анимацией.
+                 *
+                 * Если она просто не успела раскрыться при прокрутке,
+                 * принудительно убираем opacity: 0.
+                 */
+                showCourse(card, wasHidden);
+                visible += 1;
+            } else {
+                hideCourse(card);
+            }
+        });
+
+        let emptyState = courseList.querySelector(
+            '.no-results[data-filter-empty="true"]'
+        );
+
+        if (visible === 0 && cards.length > 0 && !emptyState) {
+            emptyState = document.createElement("div");
+            emptyState.className = "no-results";
+            emptyState.dataset.filterEmpty = "true";
+
+            emptyState.innerHTML =
+                '<span aria-hidden="true">&#128269;</span>' +
+                '<h3>${_("No courses found")}</h3>';
+
+            courseList.appendChild(emptyState);
+        } else if (visible > 0 && emptyState) {
+            emptyState.remove();
+        }
+
+        window.requestAnimationFrame(function () {
+            if (window.ScrollTrigger) {
+                ScrollTrigger.refresh(true);
+            }
+        });
+    }
+
+    /*
+     * Первоначальная анимация карточек при прокрутке.
+     * Она создаётся один раз, а не внутри showCourse().
+     */
+    if (
+        window.gsap &&
+        window.ScrollTrigger &&
+        !reduceMotion
+    ) {
+        gsap.registerPlugin(ScrollTrigger);
+
+        document.querySelectorAll("#courseList .course").forEach(
+            function (card) {
+                gsap.from(card, {
+                    autoAlpha: 0,
+                    duration: 0.65,
+                    ease: "power3.out",
+                    y: 42,
+                    scrollTrigger: {
+                        trigger: card,
+                        start: "top 92%",
+                        once: true
+                    },
+                    onComplete: function () {
+                        clearCourseAnimation(card);
+                    }
+                });
+            }
+        );
+    }
+</script>
 </%block>
 
 
