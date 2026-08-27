@@ -211,6 +211,12 @@
       grid-template-columns: minmax(240px, 1.25fr) repeat(3, minmax(190px, 1fr));
     }
 
+    .filters input {
+        box-sizing: border-box;
+        min-width: 40px;
+        max-width: 100%;
+        width: 100%;
+    }
     .filters input,
     .filters select {
       appearance: none;
@@ -222,7 +228,7 @@
       font-size: 14px;
       min-height: 46px;
       outline: none;
-      padding: 11px 45px;
+      padding: 11px 15px;
       transition: border var(--courses-transition), box-shadow var(--courses-transition);
       width: 100%;
     }
@@ -472,6 +478,13 @@
         transition-duration: 0.01ms !important;
       }
 
+    }
+    #searchInput {
+      box-sizing: border-box !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      margin: 0 !important;
     }
   </style>
 </%block>
