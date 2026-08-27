@@ -431,10 +431,10 @@
     }
 
     @media (max-width: 650px) {
-      .courses-hero {
-        min-height: 320px;
-        padding: 68px 18px 105px;
-      }
+        .filters {
+            grid-template-columns: 1fr;
+        }
+    }
 
       .courses-hero__orb--one { left: -70px; }
       .courses-hero__orb--two { right: -35px; }
@@ -476,21 +476,41 @@
       }
 
     }
-    .filter-box,
-    .filters {
+    .courses-container {
       box-sizing: border-box;
-      min-width: 0;
-      max-width: 100%;
       width: 100%;
     }
 
-    #searchInput {
-      grid-column: 1 / -1;
+    .filter-box {
       box-sizing: border-box !important;
-      display: block;
       min-width: 0 !important;
       max-width: 100% !important;
       width: 100% !important;
+      overflow-x: hidden;
+    }
+
+    .filters {
+      box-sizing: border-box !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      width: 100% !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    #searchInput {
+      box-sizing: border-box !important;
+      grid-column: 1 / -1;
+      display: block !important;
+      float: none !important;
+      position: static !important;
+
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+
+      margin: 0 !important;
+      left: auto !important;
+      right: auto !important;
     }
   </style>
 </%block>
