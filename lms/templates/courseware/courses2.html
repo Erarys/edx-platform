@@ -338,7 +338,6 @@
       outline: none;
       padding: 12px 16px;
       transition: border var(--catalog-transition), box-shadow var(--catalog-transition), transform var(--catalog-transition);
-      width: 100%;
     }
 
     .catalog-filters select {
@@ -864,6 +863,18 @@
       }
 
       function filterCourses() {
+          courseList.querySelectorAll("img").forEach(function (image) {
+              image.loading = "eager";
+          });
+
+          // Останавливаем незавершённые анимации карточек
+          if (window.gsap) {
+              gsap.killTweensOf(cards);
+
+              gsap.set(cards, {
+                  clearProps: "opacity,transform,visibility"
+              });
+          }
         var query = searchInput.value.toLowerCase().trim();
         var language = languageFilter.value;
         var status = statusFilter.value;

@@ -319,9 +319,6 @@ def analyze(request):
         }
         for course in top_courses
     ]
-# One Two Threeesdfsdfsd
-
-    nzt123 = 1
     context = {
         "courses_count": len(courses),
         "current_year": current_year,
