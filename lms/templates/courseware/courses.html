@@ -206,13 +206,17 @@
     }
 
     .filters {
-      display: grid;
-      gap: 14px;
-      grid-template-columns: minmax(240px, 1.25fr) repeat(3, minmax(190px, 1fr));
+        display: grid;
+        gap: 14px;
+        grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 1fr));
     }
 
     .filters input,
     .filters select {
+      box-sizing: border-box;
+      min-width: 0;
+      max-width: 100%;
+      width: 100%;
       appearance: none;
       background-color: #fff;
       border: 2px solid #e1e7f0;
@@ -224,7 +228,6 @@
       outline: none;
       padding: 11px 15px;
       transition: border var(--courses-transition), box-shadow var(--courses-transition);
-      width: 100%;
     }
 
     .filters select {
