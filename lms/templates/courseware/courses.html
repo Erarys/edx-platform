@@ -42,7 +42,7 @@
       background: linear-gradient(125deg, var(--courses-navy), var(--courses-blue), var(--courses-blue-bright));
       color: #fff;
       isolation: isolate;
-      min-height: 250px;
+      min-height: 350px;
       overflow: hidden;
       padding: 82px 24px 115px;
       position: relative;
@@ -206,17 +206,13 @@
     }
 
     .filters {
-        display: grid;
-        gap: 14px;
-        grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 1fr));
+      display: grid;
+      gap: 14px;
+      grid-template-columns: minmax(240px, 1.25fr) repeat(3, minmax(190px, 1fr));
     }
 
     .filters input,
     .filters select {
-      box-sizing: border-box;
-      min-width: 0;
-      max-width: 100%;
-      width: 100%;
       appearance: none;
       background-color: #fff;
       border: 2px solid #e1e7f0;
@@ -228,6 +224,7 @@
       outline: none;
       padding: 11px 15px;
       transition: border var(--courses-transition), box-shadow var(--courses-transition);
+      width: 100%;
     }
 
     .filters select {
@@ -431,10 +428,10 @@
     }
 
     @media (max-width: 650px) {
-        .filters {
-            grid-template-columns: 1fr;
-        }
-    }
+      .courses-hero {
+        min-height: 320px;
+        padding: 68px 18px 105px;
+      }
 
       .courses-hero__orb--one { left: -70px; }
       .courses-hero__orb--two { right: -35px; }
@@ -475,42 +472,6 @@
         transition-duration: 0.01ms !important;
       }
 
-    }
-    .courses-container {
-      box-sizing: border-box;
-      width: 100%;
-    }
-
-    .filter-box {
-      box-sizing: border-box !important;
-      min-width: 0 !important;
-      max-width: 100% !important;
-      width: 100% !important;
-      overflow-x: hidden;
-    }
-
-    .filters {
-      box-sizing: border-box !important;
-      min-width: 0 !important;
-      max-width: 100% !important;
-      width: 100% !important;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    #searchInput {
-      box-sizing: border-box !important;
-      grid-column: 1 / -1;
-      display: block !important;
-      float: none !important;
-      position: static !important;
-
-      width: 100% !important;
-      min-width: 0 !important;
-      max-width: 100% !important;
-
-      margin: 0 !important;
-      left: auto !important;
-      right: auto !important;
     }
   </style>
 </%block>
