@@ -321,23 +321,35 @@
 
     .catalog-filters {
         display: grid;
-        grid-template-columns: 280px repeat(3, minmax(180px, 1fr));
+        grid-template-columns:
+        repeat(auto-fit, minmax(min(100%, 210px), 1fr));
         gap: 14px;
+
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
     }
 
     .catalog-filters input,
     .catalog-filters select {
-      appearance: none;
-      background-color: #fff;
-      border: 2px solid #e2e8f0;
-      border-radius: 14px;
-      color: var(--catalog-text);
-      font: inherit;
-      font-size: 15px;
-      min-height: 48px;
-      outline: none;
-      padding: 12px 16px;
-      transition: border var(--catalog-transition), box-shadow var(--catalog-transition), transform var(--catalog-transition);
+        appearance: none;
+        box-sizing: border-box !important;
+
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+
+        background-color: #fff;
+        border: 2px solid #e2e8f0;
+        border-radius: 14px;
+        color: var(--catalog-text);
+        font: inherit;
+        font-size: 15px;
+        min-height: 48px;
+        outline: none;
+        padding: 12px 16px;
     }
 
     .catalog-filters select {
@@ -580,9 +592,9 @@
     .catalog-empty p {
       margin: 0;
     }
-    #searchInput {
-        max-width: 250px;
-    }
+    /*#searchInput {*/
+    /*    max-width: 250px;*/
+    /*}*/
 
     @keyframes catalogGradient {
       0% { background-position: 0% 50%; }
@@ -609,9 +621,9 @@
                 grid-template-columns: 1fr;
             }
 
-        #searchInput {
-            max-width: 340px;
-        }
+        /*#searchInput {*/
+        /*    max-width: 340px;*/
+        /*}*/
       .catalog-hero {
         min-height: 360px;
         padding: 72px 18px 108px;
@@ -626,9 +638,17 @@
         padding-right: 14px;
       }
 
-      .catalog-filter {
-        padding: 25px 18px 20px;
-      }
+    #searchInput {
+      box-sizing: border-box !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+    }
+    .catalog-filter {
+        box-sizing: border-box;
+        min-width: 0;
+        max-width: 100%;
+    }
 
       .catalog-filter__header {
         align-items: flex-start;
