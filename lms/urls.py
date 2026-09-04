@@ -99,6 +99,7 @@ urlpatterns = [
     path('news/<int:news_id>/', news_views.news_detail, name='news_detail'),
     path('news/create/', news_views.news_create, name='news_create'),
     path('analyze/', news_views.analyze, name='analyze'),
+    path('analyze/course_details/<path:course_id>/', news_views.course_details, name='course_details'),
     path('go-to-exam/', news_views.go_to_exam, name='exam'),
     path('finish-exam/', news_views.finish_exam, name='finish_exam'),
     path('api/univertest/', univer_views.UniverTestView.as_view(), name='univer_test'),

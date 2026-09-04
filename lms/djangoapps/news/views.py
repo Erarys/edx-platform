@@ -4,7 +4,12 @@ from common.djangoapps.edxmako.shortcuts import render_to_response
 from .models import News
 from .forms import NewsForm
 from django.contrib.auth.decorators import user_passes_test
-from common.djangoapps.student.models import UserProfile
+from common.djangoapps.student.models import CourseEnrollment, UserProfile
+from lms.djangoapps.certificates.data import CertificateStatuses
+from lms.djangoapps.certificates.models import GeneratedCertificate
+from lms.djangoapps.grades.models import PersistentCourseGrade
+from opaque_keys import InvalidKeyError
+from opaque_keys.edx.keys import CourseKey
 
 import json
 from django.utils import timezone
@@ -19,13 +24,13 @@ from datetime import datetime, timedelta
 
 from django.http import HttpResponseRedirect
 
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 
 
-from django.db.models.functions import ExtractYear
-from django.db.models import Count
+from django.db.models.functions import ExtractYear, TruncMonth
+from django.db.models import Avg, Count, Q
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +220,12 @@ def analyze(request):
         .exclude(org__in=course_org_filter)
         .exclude(display_name__in=course_name_filter)
     )
+    # Count each nonempty title once, even across different course codes and runs.
+    unique_course_names = {
+        name.strip()
+        for name in all_courses_qs.values_list("display_name", flat=True)
+        if name and name.strip()
+    }
 
     # Include every run starting this year, regardless of its end date or title.
     current_year_courses = list(all_courses_qs.filter(
@@ -289,12 +300,12 @@ def analyze(request):
             "language": course.language or "",
             "start": course.start.strftime("%d.%m.%Y") if course.start else "",
             "run_count": course_run_counts.get((course.id.org, course.id.course), 1),
-            "url": "/courses/{}/about".format(course.id),
+            "url": reverse("course_details", kwargs={"course_id": str(course.id)}),
         }
         for course in top_courses
     ]
     context = {
-        "courses_count": all_courses_qs.count(),
+        "courses_count": len(unique_course_names),
         "current_year": current_year,
         "current_year_courses_count": len(current_year_courses),
         "faculty_count": len(faculty_counter),
@@ -325,6 +336,86 @@ def analyze(request):
     }
 
     return render_to_response("news/analyze.html", context, request=request)
+
+
+def course_details(request, course_id):
+    """Aggregate analytics for one course run, without exposing learner identities."""
+    try:
+        course_key = CourseKey.from_string(course_id)
+    except InvalidKeyError as exc:
+        raise Http404("Invalid course ID") from exc
+
+    course = get_object_or_404(CourseOverview, id=course_key)
+    now = timezone.now()
+    enrollments = CourseEnrollment.objects.filter(course_id=course_key).order_by()
+    enrollment_stats = enrollments.aggregate(
+        total=Count("user_id", distinct=True),
+        active=Count("user_id", filter=Q(is_active=True), distinct=True),
+        recent=Count("user_id", filter=Q(created__gte=now - timedelta(days=30), created__lte=now), distinct=True),
+    )
+    # Use the same enrollment population for outcomes and their denominators.
+    enrolled_user_ids = enrollments.values("user_id")
+    certificate_count = GeneratedCertificate.objects.filter(
+        course_id=course_key,
+        user_id__in=enrolled_user_ids,
+        status=CertificateStatuses.downloadable,
+    ).values("user_id").distinct().count()
+    grade_stats = PersistentCourseGrade.objects.filter(
+        course_id=course_key,
+        user_id__in=enrolled_user_ids,
+    ).aggregate(
+        recorded=Count("user_id", distinct=True),
+        passed=Count("user_id", filter=Q(passed_timestamp__isnull=False), distinct=True),
+        average=Avg("percent_grade"),
+    )
+    total = enrollment_stats["total"]
+    stats = {
+        **enrollment_stats,
+        "inactive": total - enrollment_stats["active"],
+        "certificates": certificate_count,
+        "certificate_rate": round(certificate_count * 100 / total, 1) if total else 0,
+        "grades_recorded": grade_stats["recorded"],
+        "passed": grade_stats["passed"],
+        "average_grade": round(grade_stats["average"] * 100, 1) if grade_stats["average"] is not None else None,
+    }
+
+    # Twelve calendar months, including empty months and the current partial month.
+    month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    months = [month]
+    for _ in range(11):
+        month = (month - timedelta(days=1)).replace(day=1)
+        months.append(month)
+    months.reverse()
+    monthly_counts = {
+        (row["month"].year, row["month"].month): row["total"]
+        for row in enrollments.filter(created__gte=months[0], created__lte=now)
+        .annotate(month=TruncMonth("created", tzinfo=now.tzinfo))
+        .values("month")
+        .annotate(total=Count("user_id", distinct=True))
+        .order_by("month")
+    }
+    peak = max(monthly_counts.values(), default=0)
+    enrollment_history = []
+    for month in months:
+        count = monthly_counts.get((month.year, month.month), 0)
+        enrollment_history.append({
+            "label": month.strftime("%m.%Y"),
+            "total": count,
+            "height": round(count * 100 / peak, 1) if peak else 0,
+        })
+
+    context = {
+        "course": course,
+        "stats": stats,
+        "faculty": translate_faculty(course.faculty),
+        "directions": translate_direction(course.directions),
+        "enrollment_history": enrollment_history,
+        "history_total": sum(row["total"] for row in enrollment_history),
+        "analysis_url": reverse("analyze"),
+        "course_url": reverse("about_course", kwargs={"course_id": str(course.id)}),
+        "generated_at": timezone.localtime(now).strftime("%d.%m.%Y %H:%M"),
+    }
+    return render_to_response("news/course_details.html", context, request=request)
 
 
 
