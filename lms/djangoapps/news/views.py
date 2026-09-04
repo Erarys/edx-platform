@@ -207,9 +207,14 @@ def analyze(request):
     today = now.date()
     current_year = today.year
 
+    year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    next_year_start = year_start.replace(year=current_year + 1)
+    all_courses_qs = CourseOverview.objects.exclude(org__in=course_org_filter)
+
     max_valid_end = now + timedelta(days=366)
 
     base_courses_qs = (
+        all_courses_qs,
         CourseOverview.objects
         .exclude(org__in=course_org_filter)
 
@@ -234,10 +239,10 @@ def analyze(request):
 
     courses = list(unique_courses.values())
 
-    current_year_courses = [
-        course for course in courses
-        if course.start and course.start.year == current_year
-    ]
+    current_year_courses = list(all_courses_qs.filter(
+        start__gte=year_start,
+        start__lt=next_year_start,
+    ))
     # Rewrite code to test it #
     current_year_courses = courses
     #
@@ -320,7 +325,7 @@ def analyze(request):
         for course in top_courses
     ]
     context = {
-        "courses_count": len(courses),
+        "courses_count": all_courses_qs.count(),
         "current_year": current_year,
         "current_year_courses_count": len(current_year_courses),
         "faculty_count": len(set(course.faculty for course in courses if course.faculty)),
