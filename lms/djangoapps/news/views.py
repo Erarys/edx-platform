@@ -201,7 +201,8 @@ def translate_direction(value):
     return DIRECTION_TRANSLATIONS.get(value, {}).get(language, value)
 #
 def analyze(request):
-    course_org_filter = ["Test_kaznu", "rty", "123", "AI Tools in Action: Boosting Productivity with Modern Workflows", "Demo"]
+    course_org_filter = ["Test_kaznu", "rty", "123", "Demo"]
+    course_name_filter = ["AI Tools in Action: Boosting Productivity with Modern Workflows"]
 
     now = timezone.now()
     today = now.date()
@@ -209,48 +210,21 @@ def analyze(request):
 
     year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
     next_year_start = year_start.replace(year=current_year + 1)
-    all_courses_qs = CourseOverview.objects.exclude(org__in=course_org_filter)
-
-    max_valid_end = now + timedelta(days=366)
-
-    base_courses_qs = (
-        all_courses_qs,
+    all_courses_qs = (
         CourseOverview.objects
         .exclude(org__in=course_org_filter)
-
-        # курс еще не должен закончиться
-        .exclude(end__isnull=True)
-        # .exclude(end__lt=now)
-
-        # скрываем слишком долгие/ошибочные курсы, например до 2028 года
-        .exclude(end__gt=max_valid_end)
-
-        # убираем пустые названия
-        .filter(start__lte=now)
-        .exclude(display_name__isnull=True)
-        .exclude(display_name="")
-        .order_by("display_name", "-start", "-id")
+        .exclude(display_name__in=course_name_filter)
     )
 
-    unique_courses = {}
-    for course in base_courses_qs:
-        if course.display_name not in unique_courses:
-            unique_courses[course.display_name] = course
-
-    courses = list(unique_courses.values())
-
+    # Include every run starting this year, regardless of its end date or title.
     current_year_courses = list(all_courses_qs.filter(
         start__gte=year_start,
         start__lt=next_year_start,
     ))
-    # Rewrite code to test it #
-    current_year_courses = courses
-    #
     max_year = current_year + 1
 
     courses_by_year_qs = (
-        CourseOverview.objects
-        .exclude(org__in=course_org_filter)
+        all_courses_qs
         .exclude(start__isnull=True)
         .filter(start__year__lte=max_year)
         .annotate(year=ExtractYear("start"))
@@ -265,17 +239,17 @@ def analyze(request):
 
     #
     faculty_counter = Counter(
-        course.faculty for course in courses
+        course.faculty for course in current_year_courses
         if course.faculty
     )
 
     directions_counter = Counter(
-        course.directions for course in courses
+        course.directions for course in current_year_courses
         if course.directions
     )
 
     language_counter = Counter(
-        course.language for course in courses
+        course.language for course in current_year_courses
         if course.language
     )
 
@@ -300,15 +274,10 @@ def analyze(request):
         reverse=True
     )
 
-    course_run_counts = dict(
-        CourseOverview.objects
-        .exclude(org__in=course_org_filter)
-        .exclude(display_name__isnull=True)
-        .exclude(display_name="")
-        .exclude(start__isnull=True)
-        .values("display_name")
-        .annotate(total=Count("id", distinct=True))
-        .values_list("display_name", "total")
+    # Group runs across years by course identity, not by their editable titles.
+    course_run_counts = Counter(
+        (course_key.org, course_key.course)
+        for course_key in all_courses_qs.exclude(start__isnull=True).values_list("id", flat=True)
     )
 
     courses_json = [
@@ -319,7 +288,7 @@ def analyze(request):
             "directions": translate_direction(course.directions),
             "language": course.language or "",
             "start": course.start.strftime("%d.%m.%Y") if course.start else "",
-            "run_count": course_run_counts.get(course.display_name, 1),
+            "run_count": course_run_counts.get((course.id.org, course.id.course), 1),
             "url": "/courses/{}/about".format(course.id),
         }
         for course in top_courses
@@ -328,8 +297,8 @@ def analyze(request):
         "courses_count": all_courses_qs.count(),
         "current_year": current_year,
         "current_year_courses_count": len(current_year_courses),
-        "faculty_count": len(set(course.faculty for course in courses if course.faculty)),
-        "directions_count": len(set(course.directions for course in courses if course.directions)),
+        "faculty_count": len(faculty_counter),
+        "directions_count": len(directions_counter),
         "generated_at": timezone.localtime().strftime("%d.%m.%Y %H:%M"),
 
         "language_summary": [
