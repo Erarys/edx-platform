@@ -296,7 +296,7 @@ def courses(request):
         request.user,
         filter_={"catalog_visibility": CATALOG_VISIBILITY_CATALOG_AND_ABOUT},
     )
-
+    # Do not change courses2 to courses
     return render_to_response(
         "courseware/courses2.html",
         {
