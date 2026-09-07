@@ -205,6 +205,7 @@ def translate_direction(value):
 
     return DIRECTION_TRANSLATIONS.get(value, {}).get(language, value)
 #
+@user_passes_test(lambda u: u.is_staff)
 def analyze(request):
     course_org_filter = ["Test_kaznu", "rty", "123", "Demo"]
     course_name_filter = ["AI Tools in Action: Boosting Productivity with Modern Workflows"]
@@ -338,6 +339,7 @@ def analyze(request):
     return render_to_response("news/analyze.html", context, request=request)
 
 
+@user_passes_test(lambda u: u.is_staff)
 def course_details(request, course_id):
     """Aggregate analytics for one course run, without exposing learner identities."""
     try:
