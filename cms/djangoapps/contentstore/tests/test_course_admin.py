@@ -68,6 +68,30 @@ class CourseAdminSettingsTests(SimpleTestCase):
 class CourseAdminRunTests(SimpleTestCase):
     """Automatic run numbers work with numeric C suffixes and legacy sources."""
 
+    def test_rerun_is_sent_to_cms_worker_without_importing_the_cms_task(self):
+        settings = {
+            'start': datetime(2027, 1, 1, tzinfo=timezone.utc),
+            'end': datetime(2027, 5, 31, tzinfo=timezone.utc),
+        }
+        fields = {'display_name': 'Biology'}
+
+        with patch.object(course_admin, 'current_app') as celery_app:
+            course_admin._send_rerun_task(SOURCE, SOURCE, 7, fields, settings)
+
+        celery_app.send_task.assert_called_once_with(
+            course_admin.RERUN_COURSE_TASK_NAME,
+            args=(str(SOURCE), str(SOURCE), 7, '{"display_name": "Biology"}'),
+            kwargs={
+                'admin_settings': {
+                    'start': '2027-01-01T00:00:00+00:00',
+                    'end': '2027-05-31T00:00:00+00:00',
+                },
+            },
+            queue=course_admin.CMS_CELERY_QUEUE,
+            exchange=course_admin.CMS_CELERY_EXCHANGE,
+            routing_key=course_admin.CMS_CELERY_QUEUE,
+        )
+
     def test_next_run_uses_highest_numeric_suffix_for_year_and_family(self):
         known = {
             CourseLocator(org='FBB', course='BNJjTSOB', run='2027_C2'),

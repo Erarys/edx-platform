@@ -1,4 +1,4 @@
-"""Services for the private Studio course administration page.
+"""Services for the private course administration page.
 
 Reruns use Studio's existing cloning task. SQL stores only the reservation,
 enrollment modes and certificate configuration; learner records are never copied.
@@ -10,6 +10,7 @@ import re
 from copy import deepcopy
 from datetime import datetime, timezone
 
+from celery import current_app
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils.dateparse import parse_datetime
@@ -27,6 +28,11 @@ from openedx.core.djangoapps.content.course_overviews.models import CourseOvervi
 from xmodule.modulestore import EdxJSONEncoder, ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
+
+
+RERUN_COURSE_TASK_NAME = 'cms.djangoapps.contentstore.tasks.rerun_course'
+CMS_CELERY_QUEUE = 'edx.cms.core.default'
+CMS_CELERY_EXCHANGE = 'edx.cms.core'
 
 LOGGER = logging.getLogger(__name__)
 RUN_PATTERN = re.compile(r"^(\d{4})_C([1-9]\d*)$", re.IGNORECASE)
@@ -263,10 +269,27 @@ competing worker's reservation. Each collision gets a separate savepoint.
     raise ValidationError('Не удалось зарезервировать запуск. Повторите запрос.')
 
 
+def _send_rerun_task(source, destination, user_id, fields, settings):
+    """Send the CMS-only cloning task without importing CMS Django apps in LMS."""
+    current_app.send_task(
+        RERUN_COURSE_TASK_NAME,
+        args=(
+            str(source),
+            str(destination),
+            user_id,
+            json.dumps(fields, cls=EdxJSONEncoder),
+        ),
+        kwargs={
+            'admin_settings': json.loads(json.dumps(settings, cls=EdxJSONEncoder)),
+        },
+        queue=CMS_CELERY_QUEUE,
+        exchange=CMS_CELERY_EXCHANGE,
+        routing_key=CMS_CELERY_QUEUE,
+    )
+
+
 def queue_course_reruns(user, course_keys, settings, expected_course_ids=None):
     """Reserve distinct destinations and dispatch one existing Studio task per course."""
-    from cms.djangoapps.contentstore.tasks import rerun_course  # pylint: disable=import-outside-toplevel
-
     _require_admin(user)
     settings = validate_settings(settings, require_dates=True)
     if expected_course_ids is not None:
@@ -309,11 +332,7 @@ def queue_course_reruns(user, course_keys, settings, expected_course_ids=None):
 
             def dispatch(state=reservation, source=course.id, overrides=fields, row=result):
                 try:
-                    rerun_course.delay(
-                        str(source), str(state.course_key), user.id,
-                        json.dumps(overrides, cls=EdxJSONEncoder),
-                        admin_settings=json.loads(json.dumps(settings, cls=EdxJSONEncoder)),
-                    )
+                    _send_rerun_task(source, state.course_key, user.id, overrides, settings)
                 except Exception:  # pylint: disable=broad-except
                     LOGGER.exception('Could not enqueue admin rerun for %s', state.course_key)
                     CourseRerunState.objects.failed(course_key=state.course_key)
