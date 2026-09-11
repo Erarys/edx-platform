@@ -96,7 +96,7 @@ notification_prefs_urls = [
 
 
 urlpatterns = [
-    path('course-admin/', course_admin_views.course_admin, name='course_admin'),
+    re_path(r'^course-admin/?$', course_admin_views.course_admin, name='course_admin'),
     path('news/', news_views.news_list, name='news_list'),
     path('news/<int:news_id>/', news_views.news_detail, name='news_detail'),
     path('news/create/', news_views.news_create, name='news_create'),
