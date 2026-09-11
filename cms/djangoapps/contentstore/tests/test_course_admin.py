@@ -24,11 +24,13 @@ class CourseAdminSettingsTests(SimpleTestCase):
             'end': '2027-05-31T09:00:00+05:00',
             'self_paced': True,
             'catalog_visibility': 'about',
+            'hide_source': True,
         }, require_dates=True)
 
         self.assertEqual(result['start'], datetime(2027, 1, 1, 4, tzinfo=timezone.utc))
         self.assertEqual(result['end'], datetime(2027, 5, 31, 4, tzinfo=timezone.utc))
         self.assertTrue(result['self_paced'])
+        self.assertTrue(result['hide_source'])
 
     def test_rejects_unknown_settings_invalid_choices_and_non_boolean_values(self):
         invalid_payloads = (
@@ -37,6 +39,7 @@ class CourseAdminSettingsTests(SimpleTestCase):
             {'mode': 'verified'},
             {'certificate_mode': 'yes'},
             {'self_paced': 'true'},
+            {'hide_source': 'true'},
         )
         for payload in invalid_payloads:
             with self.subTest(payload=payload), self.assertRaises(ValidationError):

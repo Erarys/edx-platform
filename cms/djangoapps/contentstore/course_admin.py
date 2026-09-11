@@ -39,7 +39,8 @@ RUN_PATTERN = re.compile(r"^(\d{4})_C([1-9]\d*)$", re.IGNORECASE)
 DATE_FIELDS = frozenset(('start', 'end', 'enrollment_start', 'enrollment_end', 'certificate_available_date'))
 BOOLEAN_FIELDS = frozenset(('self_paced', 'invitation_only'))
 COURSE_FIELDS = DATE_FIELDS | BOOLEAN_FIELDS | {'catalog_visibility'}
-SETTINGS_FIELDS = COURSE_FIELDS | {'mode', 'certificate_mode', 'shift_content_dates'}
+WORKFLOW_BOOLEAN_FIELDS = frozenset(('shift_content_dates', 'hide_source'))
+SETTINGS_FIELDS = COURSE_FIELDS | {'mode', 'certificate_mode'} | WORKFLOW_BOOLEAN_FIELDS
 
 
 def _require_admin(user):
@@ -77,7 +78,7 @@ def validate_settings(payload, require_dates=False):
     for name in ('start', 'end'):
         if (require_dates or name in result) and result.get(name) is None:
             raise ValidationError(f'Укажите дату {name}.')
-    for name in (BOOLEAN_FIELDS | {'shift_content_dates'}) & result.keys():
+    for name in (BOOLEAN_FIELDS | WORKFLOW_BOOLEAN_FIELDS) & result.keys():
         if not isinstance(result[name], bool):
             raise ValidationError(f'{name}: требуется true или false.')
     choices = {
@@ -401,6 +402,25 @@ must be provisioned separately for a new course run.
     else:
         _ensure_mode(destination_key, policy)
     create_course_certificate_generation_settings(destination_key, generation_values)
+
+
+def hide_source_course(source_key, user_id):
+    """Hide a successfully replaced source run from course discovery."""
+    course = _source_course(source_key)
+    if course.catalog_visibility == 'none':
+        return
+    previous_visibility = course.catalog_visibility
+    try:
+        course.catalog_visibility = 'none'
+        modulestore().update_item(course, user_id)
+        CourseOverview.load_from_module_store(course.id)
+    except Exception:
+        LOGGER.exception('Could not hide source course %s; restoring its visibility', source_key)
+        restored = _source_course(source_key)
+        restored.catalog_visibility = previous_visibility
+        modulestore().update_item(restored, user_id)
+        CourseOverview.load_from_module_store(restored.id)
+        raise
 
 
 def shift_rerun_content_dates(source_key, destination_key, user_id, settings):

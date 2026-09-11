@@ -2,6 +2,12 @@
 <%page expression_filter="h"/>
 <%!
 from urllib.parse import urlencode
+
+def selected(values, name, value):
+    return 'selected' if values.get(name, '') == value else ''
+
+def checked(values, name):
+    return 'checked' if values.get(name) == '1' else ''
 %>
 <%
     pagination_filters = {key: value for key, value in course_filters.items() if value not in ('', None, False)}
@@ -22,6 +28,7 @@ from urllib.parse import urlencode
     h1 { margin: 0 0 6px; font-size: 30px; }
     h2 { margin: 0 0 16px; font-size: 20px; }
     .muted { color: #607086; }
+    .help { margin-top: 5px; color: #607086; font-size: 13px; font-weight: normal; }
     .panel { margin-top: 18px; padding: 20px; border: 1px solid #d7dee7; border-radius: 8px; background: white; }
     .grid { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 14px; }
     label.field { display: flex; flex-direction: column; gap: 5px; font-weight: 600; }
@@ -34,6 +41,7 @@ from urllib.parse import urlencode
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
     th, td { padding: 10px; border-bottom: 1px solid #e1e6ed; text-align: left; vertical-align: top; }
     th { background: #f6f8fa; }
+    tbody tr:has(input[name=course_ids]:checked) { background: #f0f7ff; }
     code { display: block; margin-top: 4px; color: #5d6876; overflow-wrap: anywhere; }
     .notice { margin-top: 16px; padding: 12px 14px; border-radius: 4px; background: #edf4fc; }
     .error { color: #8f2020; background: #ffeded; }
@@ -42,6 +50,9 @@ from urllib.parse import urlencode
     legend { margin-bottom: 12px; font-weight: bold; }
     .pagination { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 15px; }
     .status { white-space: nowrap; font-weight: bold; }
+    .actions { position: sticky; bottom: 10px; z-index: 2; padding: 12px; border: 1px solid #c8d8e8; border-radius: 6px; background: #f7fbff; box-shadow: 0 4px 14px #2030471f; }
+    .selection-count { padding: 5px 9px; border-radius: 12px; background: #e4eef8; color: #174f7c; font-weight: bold; }
+    input:focus, select:focus, button:focus { outline: 3px solid #87b9e2; outline-offset: 1px; }
     @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } main { padding: 18px 10px 40px; } }
   </style>
@@ -86,10 +97,13 @@ from urllib.parse import urlencode
 
     <section class="panel">
       <h2>1. Выберите курсы</h2>
-      <label><input type="checkbox" name="all_matching" value="1"> Применить команду ко всем найденным курсам (${total})</label>
+      <div class="toolbar">
+        <label><input type="checkbox" name="all_matching" value="1"> Применить команду ко всем найденным курсам (${total})</label>
+        <span class="selection-count">Выбрано на странице: <span id="selected-count">0</span></span>
+      </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Выбор</th><th>Курс</th><th>Организация / запуск</th><th>Период курса, UTC</th><th>Режим / сертификаты</th><th>Видимость</th></tr></thead>
+          <thead><tr><th><label><input type="checkbox" id="select-page"> Все</label></th><th>Курс</th><th>Организация / запуск</th><th>Период курса, UTC</th><th>Режим / сертификаты</th><th>Видимость</th></tr></thead>
           <tbody>
           % for course in courses:
             <tr>
@@ -122,30 +136,32 @@ from urllib.parse import urlencode
 
     <section class="panel">
       <h2>2. Общие настройки</h2>
+      <p class="muted">После отправки формы значения сохраняются в вашей администраторской сессии и останутся после обновления страницы.</p>
       <fieldset>
         <legend>Расписание, UTC</legend>
         <div class="grid">
-          <label class="field">Начало курса<input type="datetime-local" name="start" step="60"></label>
-          <label class="field">Конец курса<input type="datetime-local" name="end" step="60"></label>
-          <label class="field">Начало записи<input type="datetime-local" name="enrollment_start" step="60"><span><input type="checkbox" name="clear_enrollment_start" value="1"> Очистить</span></label>
-          <label class="field">Конец записи<input type="datetime-local" name="enrollment_end" step="60"><span><input type="checkbox" name="clear_enrollment_end" value="1"> Очистить</span></label>
+          <label class="field">Начало курса<input type="datetime-local" name="start" step="60" value="${form_values.get('start', '')}"></label>
+          <label class="field">Конец курса<input type="datetime-local" name="end" step="60" value="${form_values.get('end', '')}"></label>
+          <label class="field">Начало записи<input type="datetime-local" name="enrollment_start" step="60" value="${form_values.get('enrollment_start', '')}"><span><input type="checkbox" name="clear_enrollment_start" value="1" ${checked(form_values, 'clear_enrollment_start')}> Очистить</span></label>
+          <label class="field">Конец записи<input type="datetime-local" name="enrollment_end" step="60" value="${form_values.get('enrollment_end', '')}"><span><input type="checkbox" name="clear_enrollment_end" value="1" ${checked(form_values, 'clear_enrollment_end')}> Очистить</span></label>
         </div>
       </fieldset>
       <fieldset>
         <legend>Доступ и сертификаты</legend>
         <div class="grid">
-          <label class="field">Видимость<select name="catalog_visibility"><option value="">Без изменений</option><option value="both">Каталог и страница</option><option value="about">Только страница</option><option value="none">Скрыт</option></select></label>
-          <label class="field">Режим<select name="mode"><option value="">Копировать / без изменений</option><option value="honor">Honor</option><option value="audit">Audit</option></select></label>
-          <label class="field">Генерация сертификатов<select name="certificate_mode"><option value="">Копировать / без изменений</option><option value="enabled">Включить</option><option value="disabled">Выключить</option></select></label>
-          <label class="field">Темп обучения<select name="self_paced"><option value="">Без изменений</option><option value="true">В своём темпе</option><option value="false">По расписанию</option></select></label>
-          <label class="field">Запись<select name="invitation_only"><option value="">Без изменений</option><option value="true">Только по приглашению</option><option value="false">Открытая</option></select></label>
-          <label class="field">Доступность сертификатов<input type="datetime-local" name="certificate_available_date" step="60"><span><input type="checkbox" name="clear_certificate_available_date" value="1"> Очистить</span></label>
+          <label class="field">Видимость<select name="catalog_visibility"><option value="" ${selected(form_values, 'catalog_visibility', '')}>Без изменений</option><option value="both" ${selected(form_values, 'catalog_visibility', 'both')}>Каталог и страница</option><option value="about" ${selected(form_values, 'catalog_visibility', 'about')}>Только страница</option><option value="none" ${selected(form_values, 'catalog_visibility', 'none')}>Скрыт</option></select></label>
+          <label class="field">Режим<select name="mode"><option value="copy" ${selected(form_values, 'mode', 'copy')}>Копировать режимы каждого курса</option><option value="honor" ${selected(form_values, 'mode', 'honor')}>Добавить Honor</option><option value="audit" ${selected(form_values, 'mode', 'audit')}>Добавить Audit</option></select><span class="help">При копировании audit/honor и их параметры берутся отдельно из каждого исходного курса.</span></label>
+          <label class="field">Генерация сертификатов<select name="certificate_mode"><option value="copy" ${selected(form_values, 'certificate_mode', 'copy')}>Копировать из каждого курса</option><option value="enabled" ${selected(form_values, 'certificate_mode', 'enabled')}>Включить</option><option value="disabled" ${selected(form_values, 'certificate_mode', 'disabled')}>Выключить</option></select></label>
+          <label class="field">Темп обучения<select name="self_paced"><option value="" ${selected(form_values, 'self_paced', '')}>Без изменений</option><option value="true" ${selected(form_values, 'self_paced', 'true')}>В своём темпе</option><option value="false" ${selected(form_values, 'self_paced', 'false')}>По расписанию</option></select></label>
+          <label class="field">Запись<select name="invitation_only"><option value="" ${selected(form_values, 'invitation_only', '')}>Без изменений</option><option value="true" ${selected(form_values, 'invitation_only', 'true')}>Только по приглашению</option><option value="false" ${selected(form_values, 'invitation_only', 'false')}>Открытая</option></select></label>
+          <label class="field">Доступность сертификатов<input type="datetime-local" name="certificate_available_date" step="60" value="${form_values.get('certificate_available_date', '')}"><span><input type="checkbox" name="clear_certificate_available_date" value="1" ${checked(form_values, 'clear_certificate_available_date')}> Очистить</span></label>
         </div>
       </fieldset>
       <div class="toolbar">
-        <label><input type="checkbox" name="shift_content_dates" value="1" checked> Сдвинуть даты разделов и заданий</label>
+        <label><input type="checkbox" name="shift_content_dates" value="1" ${checked(form_values, 'shift_content_dates')}> Сдвинуть даты разделов и заданий</label>
+        <label><input type="checkbox" name="hide_source" value="1" ${checked(form_values, 'hide_source')}> После успешного создания скрыть исходные запуски из каталога</label>
       </div>
-      <div class="toolbar">
+      <div class="toolbar actions">
         <button class="primary" type="submit" name="action" value="rerun">Создать новые запуски</button>
         <button type="submit" name="action" value="save">Сохранить настройки выбранных курсов</button>
       </div>
@@ -167,14 +183,40 @@ from urllib.parse import urlencode
   % if recent_results:
     <section class="panel">
       <h2>Последние перезапуски</h2>
-      <p class="muted">Обновите страницу, чтобы получить текущее состояние фоновой задачи.</p>
+      <p class="muted">Открывайте новый курс после состояния «succeeded»: к этому моменту его LMS-оглавление уже построено.</p>
+      <a class="page-link" href="?${urlencode(pagination_filters)}">Обновить состояния</a>
       <div class="table-wrap"><table><thead><tr><th>Исходный курс</th><th>Новый курс</th><th>Состояние</th><th>Сообщение</th></tr></thead><tbody>
       % for result in recent_results:
-        <tr><td><code>${result['source_course_id']}</code></td><td><code>${result['course_id']}</code></td><td class="status">${result['state']}</td><td>${result['message']}</td></tr>
+        <tr><td><code>${result['source_course_id']}</code></td><td>
+          % if result['state'] == 'succeeded':
+            <a href="/courses/${result['course_id']}/about" target="_blank" rel="noopener"><code>${result['course_id']}</code></a>
+          % else:
+            <code>${result['course_id']}</code>
+          % endif
+        </td><td class="status">${result['state']}</td><td>${result['message']}</td></tr>
       % endfor
       </tbody></table></div>
     </section>
   % endif
 </main>
+<script>
+  (function () {
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('input[name="course_ids"]'));
+    var selectPage = document.getElementById('select-page');
+    var count = document.getElementById('selected-count');
+    function updateCount() {
+      var selectedCount = boxes.filter(function (box) { return box.checked; }).length;
+      count.textContent = selectedCount;
+      selectPage.checked = boxes.length > 0 && selectedCount === boxes.length;
+      selectPage.indeterminate = selectedCount > 0 && selectedCount < boxes.length;
+    }
+    selectPage.addEventListener('change', function () {
+      boxes.forEach(function (box) { box.checked = selectPage.checked; });
+      updateCount();
+    });
+    boxes.forEach(function (box) { box.addEventListener('change', updateCount); });
+    updateCount();
+  }());
+</script>
 </body>
 </html>

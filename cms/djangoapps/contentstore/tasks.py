@@ -257,13 +257,15 @@ def _rerun_course(source_course_key_string, destination_course_key_string, user_
             org_data = ensure_organization(source_course_key.org)
             add_organization_course(org_data, destination_course_key)
             if admin_settings is not None:
-                from cms.djangoapps.contentstore.course_admin import configure_rerun
+                from cms.djangoapps.contentstore.course_admin import configure_rerun, hide_source_course
                 configure_rerun(source_course_key, destination_course_key, admin_settings)
                 # Split Mongo cloning deliberately skips automatic publishing. Build
                 # the SQL outline before reporting success so the Learning MFE can
                 # open the copied course immediately.
                 if key_supports_outlines(destination_course_key):
                     update_outline_from_modulestore(destination_course_key)
+                if admin_settings.get('hide_source'):
+                    hide_source_course(source_course_key, user_id)
             CourseRerunState.objects.succeeded(course_key=destination_course_key)
         return "succeeded"
 
