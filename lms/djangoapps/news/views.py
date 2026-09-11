@@ -24,13 +24,13 @@ from datetime import datetime, timedelta
 
 from django.http import HttpResponseRedirect
 
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponseBadRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 
 
 from django.db.models.functions import ExtractYear, TruncMonth
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, Exists, Min, OuterRef, Q
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ def news_create(request):
     return render_to_response('news/form.html', context, request=request)
 
 #
-from django.utils.translation import get_language
+from django.utils.translation import get_language, gettext as _
 
 FACULTY_TRANSLATIONS = {
     "Биология и биотехнология": {
@@ -289,7 +289,7 @@ def analyze(request):
     # Group runs across years by course identity, not by their editable titles.
     course_run_counts = Counter(
         (course_key.org, course_key.course)
-        for course_key in all_courses_qs.exclude(start__isnull=True).values_list("id", flat=True)
+        for course_key in all_courses_qs.values_list("id", flat=True)
     )
 
     courses_json = [
@@ -341,59 +341,86 @@ def analyze(request):
 
 @user_passes_test(lambda u: u.is_staff)
 def course_details(request, course_id):
-    """Aggregate analytics for one course run, without exposing learner identities."""
+    """Aggregate selected runs of the same course, deduplicating learner totals."""
     try:
         course_key = CourseKey.from_string(course_id)
     except InvalidKeyError as exc:
         raise Http404("Invalid course ID") from exc
 
     course = get_object_or_404(CourseOverview, id=course_key)
+    # The run component and editable display name are not part of course identity.
+    available_runs = [
+        run for run in CourseOverview.objects.filter(org=course_key.org).order_by("-start", "id")
+        if (run.id.org, run.id.course) == (course_key.org, course_key.course)
+    ]
+    available_ids = {str(run.id) for run in available_runs}
+    if request.GET.get("scope") == "all":
+        selected_ids = available_ids
+    elif "selection" in request.GET or "run" in request.GET:
+        selected_ids = set(request.GET.getlist("run"))
+        if not selected_ids or not selected_ids.issubset(available_ids):
+            return HttpResponseBadRequest(_("Select at least one valid run of this course."))
+    else:
+        selected_ids = {str(course_key)}
+    selected_runs = [run for run in available_runs if str(run.id) in selected_ids]
+    selected_keys = [run.id for run in selected_runs]
+    # A single selection displays that run's metadata and course link.
+    if len(selected_runs) == 1:
+        course = selected_runs[0]
     now = timezone.now()
-    enrollments = CourseEnrollment.objects.filter(course_id=course_key).order_by()
+    enrollments = CourseEnrollment.objects.filter(course_id__in=selected_keys).order_by()
     enrollment_stats = enrollments.aggregate(
         total=Count("user_id", distinct=True),
+        enrollment_records=Count("id"),
+        first_enrollment=Min("created"),
         active=Count("user_id", filter=Q(is_active=True), distinct=True),
         recent=Count("user_id", filter=Q(created__gte=now - timedelta(days=30), created__lte=now), distinct=True),
     )
     # Use the same enrollment population for outcomes and their denominators.
-    enrolled_user_ids = enrollments.values("user_id")
-    certificate_count = GeneratedCertificate.objects.filter(
-        course_id=course_key,
-        user_id__in=enrolled_user_ids,
+    # Match BOTH the learner and run, not just enrollment in any selected run.
+    matching_enrollment = CourseEnrollment.objects.filter(
+        course_id=OuterRef("course_id"), user_id=OuterRef("user_id"),
+    )
+    certificate_stats = GeneratedCertificate.objects.filter(
+        Exists(matching_enrollment),
+        course_id__in=selected_keys,
         status=CertificateStatuses.downloadable,
-    ).values("user_id").distinct().count()
+    ).aggregate(recipients=Count("user_id", distinct=True), issued=Count("id"))
+    certificate_count = certificate_stats["recipients"]
     grade_stats = PersistentCourseGrade.objects.filter(
-        course_id=course_key,
-        user_id__in=enrolled_user_ids,
+        Exists(matching_enrollment),
+        course_id__in=selected_keys,
     ).aggregate(
         recorded=Count("user_id", distinct=True),
         passed=Count("user_id", filter=Q(passed_timestamp__isnull=False), distinct=True),
         average=Avg("percent_grade"),
     )
+    first_enrollment = enrollment_stats.pop("first_enrollment")
     total = enrollment_stats["total"]
     stats = {
         **enrollment_stats,
         "inactive": total - enrollment_stats["active"],
         "certificates": certificate_count,
+        "issued_certificates": certificate_stats["issued"],
         "certificate_rate": round(certificate_count * 100 / total, 1) if total else 0,
         "grades_recorded": grade_stats["recorded"],
         "passed": grade_stats["passed"],
         "average_grade": round(grade_stats["average"] * 100, 1) if grade_stats["average"] is not None else None,
     }
 
-    # Twelve calendar months, including empty months and the current partial month.
-    month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    months = [month]
-    for _ in range(11):
-        month = (month - timedelta(days=1)).replace(day=1)
+    # Include the complete enrollment history, with empty calendar months filled in.
+    current_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month = min(first_enrollment or now, now).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    months = []
+    while month <= current_month:
         months.append(month)
-    months.reverse()
+        month = (month + timedelta(days=32)).replace(day=1)
     monthly_counts = {
         (row["month"].year, row["month"].month): row["total"]
         for row in enrollments.filter(created__gte=months[0], created__lte=now)
         .annotate(month=TruncMonth("created", tzinfo=now.tzinfo))
         .values("month")
-        .annotate(total=Count("user_id", distinct=True))
+        .annotate(total=Count("id"))
         .order_by("month")
     }
     peak = max(monthly_counts.values(), default=0)
@@ -408,6 +435,10 @@ def course_details(request, course_id):
 
     context = {
         "course": course,
+        "available_runs": available_runs,
+        "selected_ids": selected_ids,
+        "selected_runs": selected_runs,
+        "selection_url": reverse("course_details", kwargs={"course_id": str(course_key)}),
         "stats": stats,
         "faculty": translate_faculty(course.faculty),
         "directions": translate_direction(course.directions),

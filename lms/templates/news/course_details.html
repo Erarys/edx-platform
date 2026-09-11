@@ -29,7 +29,7 @@
     .course-analytics h2 { color: #172033; font-size: 19px; font-weight: 700; margin: 0 0 8px; }
     .course-analytics .details-panel > .details-muted { margin: 0 0 24px; }
     .course-analytics .details-chart-scroll { overflow-x: auto; }
-    .course-analytics .details-chart { display: grid; grid-template-columns: repeat(12, minmax(35px, 1fr)); gap: 10px; min-width: 530px; margin: 0; padding: 0; list-style: none; }
+    .course-analytics .details-chart { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(50px, 1fr); gap: 10px; margin: 0; padding: 0; list-style: none; }
     .course-analytics .details-chart li { min-width: 0; text-align: center; }
     .course-analytics .details-chart-number { font-size: 12px; font-weight: 700; margin-bottom: 8px; }
     .course-analytics .details-chart-track { height: 150px; background: #f5f8fb; display: flex; align-items: flex-end; border-bottom: 1px solid #cdd8e3; }
@@ -48,6 +48,16 @@
     .course-analytics .details-outcome p { margin: 0; }
     .course-analytics .details-empty { padding: 18px; background: #f5f8fb; border-radius: 6px; color: #667085; margin-bottom: 16px; }
     .course-analytics a:focus-visible { outline: 3px solid #62a9d5; outline-offset: 4px; }
+    .course-analytics .details-runs { margin-bottom: 22px; }
+    .course-analytics .details-runs summary { cursor: pointer; font-weight: 700; padding: 8px 0; }
+    .course-analytics .details-run-list { max-height: 320px; overflow-y: auto; padding: 0; border: 0; margin: 16px 0; }
+    .course-analytics .details-run { display: flex; align-items: baseline; gap: 14px; padding: 12px 0; border-bottom: 1px solid #edf1f6; }
+    .course-analytics .details-run label { flex: 1; overflow-wrap: anywhere; cursor: pointer; }
+    .course-analytics .details-run input { margin-right: 8px; }
+    .course-analytics .details-run a { flex-shrink: 0; }
+    .course-analytics .details-run-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .course-analytics .details-run-actions button { background: #244b66; color: #fff; padding: 10px 16px; border: 0; border-radius: 6px; text-shadow: none; box-shadow: none; }
+    .course-analytics .details-run-actions button:disabled { opacity: .5; cursor: not-allowed; }
     @media (max-width: 900px) {
         .course-analytics .details-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .course-analytics .details-columns { grid-template-columns: 1fr; }
@@ -75,21 +85,51 @@
             <h1>${course.display_name or course.id}</h1>
             <p class="details-course-id">${course.id}</p>
             <div class="details-hero-bottom">
-                <p>${_("Statistics for this course run only.")}</p>
+                <p>${_("Selected runs")}: ${len(selected_runs)} / ${len(available_runs)} · ${_("Entire period")}</p>
                 <a class="details-open" href="${course_url}">${_("Go to course")} →</a>
             </div>
         </header>
+
+        <section class="details-panel details-runs">
+            <details>
+                <summary>${_("Choose course runs")}</summary>
+                <p class="details-muted">${_("Select one or more runs, or view all runs for the entire lifetime of the course.")}</p>
+                <form method="get" action="${selection_url}" id="runSelectionForm">
+                    <input type="hidden" name="selection" value="1" />
+                    <fieldset class="details-run-list">
+                        <legend>${_("Course runs")}</legend>
+                        % for run in available_runs:
+                            <div class="details-run">
+                                <label>
+                                    <input type="checkbox" name="run" value="${run.id}" ${'checked' if str(run.id) in selected_ids else ''} />
+                                    <strong>${run.id.run}</strong> — ${run.display_name or run.id}
+                                    <span class="details-muted">(${run.start.strftime('%d.%m.%Y') if run.start else _('Start date not specified')} — ${run.end.strftime('%d.%m.%Y') if run.end else _('End date not specified')})</span>
+                                </label>
+                                <a href="${selection_url}?run=${str(run.id) | u}">${_("Only this run")}</a>
+                            </div>
+                        % endfor
+                    </fieldset>
+                    <div class="details-run-actions">
+                        <button type="submit" id="applyRuns">${_("Apply selection")}</button>
+                        <button type="submit" name="scope" value="all">${_("All runs for the entire period")}</button>
+                    </div>
+                </form>
+            </details>
+            <p class="details-muted">${_("Selected runs")}:
+                ${', '.join(str(run.id.run) for run in selected_runs)}
+            </p>
+        </section>
 
         <section class="details-summary" aria-label="${_('Course summary')}">
             <article class="details-card">
                 <div class="details-card-label">${_("Total enrolled users")}</div>
                 <div class="details-card-value">${stats['total']}</div>
-                <p class="details-muted">${_("All existing enrollment records, including inactive ones.")}</p>
+                <p class="details-muted">${_("Unique users across selected runs, including inactive enrollments.")}</p>
             </article>
             <article class="details-card">
                 <div class="details-card-label">${_("Active enrollments")}</div>
                 <div class="details-card-value">${stats['active']}</div>
-                <p class="details-muted">${_("Currently enrolled; does not measure learning activity.")}</p>
+                <p class="details-muted">${_("Users currently enrolled in at least one selected run; does not measure learning activity.")}</p>
             </article>
             <article class="details-card">
                 <div class="details-card-label">${_("Certificate recipients")}</div>
@@ -106,7 +146,7 @@
         <div class="details-columns">
             <section class="details-panel">
                 <h2>${_("Enrollment history")}</h2>
-                <p class="details-muted">${_("New enrollment records over the last 12 calendar months. The current month is incomplete.")}</p>
+                <p class="details-muted">${_("Enrollment records across selected runs for the entire period. A user enrolled in two runs is counted twice. The current month is incomplete.")}</p>
                 % if not history_total:
                     <div class="details-empty">${_("No new enrollments in this period.")}</div>
                 % endif
@@ -127,12 +167,12 @@
 
             <section class="details-panel">
                 <h2>${_("Enrollment status")}</h2>
-                <p class="details-muted">${_("One user is counted once within this course run.")}</p>
+                <p class="details-muted">${_("Each user is counted once across selected runs. Inactive means no active enrollment in any selected run.")}</p>
                 <dl class="details-facts">
                     <div class="details-fact"><dt>${_("Active")}</dt><dd>${stats['active']}</dd></div>
                     <div class="details-fact"><dt>${_("Inactive")}</dt><dd>${stats['inactive']}</dd></div>
                     <div class="details-fact"><dt>${_("New in the last 30 days")}</dt><dd>${stats['recent']}</dd></div>
-                    <div class="details-fact"><dt>${_("New in the displayed period")}</dt><dd>${history_total}</dd></div>
+                    <div class="details-fact"><dt>${_("Total enrollment records")}</dt><dd>${stats['enrollment_records']}</dd></div>
                 </dl>
             </section>
         </div>
@@ -151,15 +191,18 @@
                         <strong>${str(stats['average_grade']) + '%' if stats['average_grade'] is not None else '—'}</strong>
                     </div>
                     <p class="details-muted">${_("Users with a saved grade")}: ${stats['grades_recorded']}. ${_("Missing grades are not counted as zero.")}</p>
+                    <p class="details-muted">${_("The average includes each saved grade in each selected run.")}</p>
                 </div>
                 <div class="details-outcome">
                     <div class="details-outcome-row"><span>${_("Certificate recipients")}</span><strong>${stats['certificates']}</strong></div>
+                    <p class="details-muted">${_("Issued certificates across selected runs")}: ${stats['issued_certificates']}</p>
                     <p class="details-muted">${_("Only issued, available certificates are counted. Revoked certificates and generation errors are excluded. This is not a download count.")}</p>
                 </div>
             </section>
 
             <section class="details-panel">
                 <h2>${_("Course information")}</h2>
+                <p class="details-muted">${_("Information for the displayed run")}: ${course.id.run}</p>
                 <dl class="details-facts">
                     <div class="details-fact"><dt>${_("Organization")}</dt><dd>${course.org or '—'}</dd></div>
                     <div class="details-fact"><dt>${_("Faculty")}</dt><dd>${faculty or '—'}</dd></div>
@@ -172,3 +215,17 @@
         </div>
     </div>
 </main>
+
+<%block name="extrajs">
+<script>
+    (function () {
+        var form = document.getElementById("runSelectionForm");
+        var applyButton = document.getElementById("applyRuns");
+        function updateSelection() {
+            applyButton.disabled = !form.querySelector('input[name="run"]:checked');
+        }
+        form.addEventListener("change", updateSelection);
+        updateSelection();
+    })();
+</script>
+</%block>

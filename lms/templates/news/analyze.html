@@ -7,6 +7,9 @@
 <%block name="extrahead">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
+    .analytics-page .course-search { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .analytics-page .course-search input { box-sizing: border-box; width: 100%; max-width: 480px; min-width: 0; padding: 12px 16px; background: #fff; color: #172033; border: 1px solid #d7e0ea; border-radius: 6px; box-shadow: none; }
+    .analytics-page .course-search input:focus { outline: 2px solid #2f6f95; outline-offset: 2px; }
     :root {
         --analytics-bg: #f6f8fb;
         --analytics-surface: #ffffff;
@@ -572,7 +575,11 @@
                 </div>
 
                 <div class="courses-toolbar">
-                    <div class="courses-count" id="coursesCount"></div>
+                    <div class="courses-count" id="coursesCount" role="status" aria-live="polite"></div>
+                </div>
+                <div class="course-search">
+                    <label for="courseSearch">${_("Search by course name")}</label>
+                    <input type="search" id="courseSearch" placeholder="${_('Search by course name...')}" />
                 </div>
 
                 <div class="courses-table-wrap">
@@ -635,11 +642,14 @@
             "#5f7896"
         ];
 
-        Chart.defaults.font.family = "'Inter', 'Segoe UI', Arial, sans-serif";
-        Chart.defaults.color = "#5f6f82";
-        Chart.defaults.plugins.legend.display = false;
+        if (window.Chart) {
+            Chart.defaults.font.family = "'Inter', 'Segoe UI', Arial, sans-serif";
+            Chart.defaults.color = "#5f6f82";
+            Chart.defaults.plugins.legend.display = false;
+        }
 
         function barChart(canvasId, labels, values, horizontal) {
+            if (!window.Chart) { return null; }
             return new Chart(document.getElementById(canvasId), {
                 type: "bar",
                 data: {
@@ -714,6 +724,7 @@
         var activeFilterLabel = document.getElementById("activeFilterLabel");
         var emptyState = document.getElementById("emptyState");
         var clearFilterButton = document.getElementById("clearFilterButton");
+        var searchInput = document.getElementById("courseSearch");
 
         function escapeHtml(value) {
             return String(value || "")
@@ -738,11 +749,10 @@
         }
 
         function filteredCourses() {
-            if (!activeFilter) {
-                return courses;
-            }
+            var query = searchInput.value.toLowerCase().trim();
             return courses.filter(function (course) {
-                return course[activeFilter.type] === activeFilter.value;
+                return (!activeFilter || course[activeFilter.type] === activeFilter.value) &&
+                    (course.display_name || "").toLowerCase().indexOf(query) !== -1;
             });
         }
 
@@ -798,6 +808,7 @@
         }
 
         document.getElementById("byFaculty").onclick = function (event) {
+            if (!byFaculty) { return; }
             var point = byFaculty.getElementsAtEventForMode(event, "nearest", {intersect: true}, true)[0];
             if (point) {
                 setFilter("faculty", facultyLabels[point.index]);
@@ -805,6 +816,7 @@
         };
 
         document.getElementById("byDirections").onclick = function (event) {
+            if (!byDirections) { return; }
             var point = byDirections.getElementsAtEventForMode(event, "nearest", {intersect: true}, true)[0];
             if (point) {
                 setFilter("directions", directionsLabels[point.index]);
@@ -822,6 +834,7 @@
             activeFilter = null;
             renderCourses();
         });
+        searchInput.addEventListener("input", renderCourses);
 
         renderCourses();
     })();
