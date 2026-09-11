@@ -189,6 +189,25 @@ class RerunCourseTaskTestCase(CourseTestCase):  # lint-amnesty, pylint: disable=
             country=restricted_country
         )
 
+    @mock.patch('cms.djangoapps.contentstore.course_admin.shift_rerun_content_dates')
+    @mock.patch('cms.djangoapps.contentstore.course_admin.configure_rerun')
+    @mock.patch('cms.djangoapps.contentstore.tasks.update_outline_from_modulestore')
+    def test_admin_rerun_builds_learning_outline(self, update_outline, _configure, _shift_dates):
+        """An admin rerun is usable in the Learning MFE as soon as it succeeds."""
+        old_course_key = self.course.id
+        new_course_key = CourseLocator(org=old_course_key.org, course=old_course_key.course, run='admin-rerun')
+        CourseRerunState.objects.initiated(old_course_key, new_course_key, self.user, 'Admin Re-run')
+
+        result = rerun_course(
+            str(old_course_key),
+            str(new_course_key),
+            self.user.id,
+            admin_settings={},
+        )
+
+        self.assertEqual(result, 'succeeded')
+        update_outline.assert_called_once_with(new_course_key)
+
 
 @override_settings(CONTENTSTORE=TEST_DATA_CONTENTSTORE)
 class RegisterExamsTaskTestCase(CourseTestCase):  # pylint: disable=missing-class-docstring
