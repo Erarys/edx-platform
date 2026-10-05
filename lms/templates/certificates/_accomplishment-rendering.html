@@ -71,8 +71,10 @@ if signatories and len(re.findall(r'[А-ЯЁA-Z]\.[А-ЯЁA-Z]\.', signatories[0
   #certificate .certificate-score-missing { color: #69717c; font-size: 15px; }
   #certificate .certificate-signatures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 36px; padding-top: 17px; }
   #certificate .certificate-signature { min-width: 0; }
-  #certificate .certificate-signature-image { height: 47px; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 5px; }
-  #certificate .certificate-signature-image img { max-width: 138px; max-height: 47px; width: auto; height: auto; object-fit: contain; }
+  #certificate .certificate-signature-image { height: 64px; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 5px; }
+  #certificate .certificate-signature-slot { position: relative; display: flex; align-items: center; justify-content: center; flex: 0 1 200px; min-width: 0; height: 64px; overflow: hidden; }
+  #certificate .certificate-signature-slot img { max-width: 100%; max-height: 64px; width: auto; height: auto; object-fit: contain; }
+  #certificate .certificate-signature-slot--fitted img { position: absolute; max-width: none; max-height: none; }
   #certificate .certificate-signature-name { color: ${frame}; border-top: 1px solid ${ornament}; padding-top: 8px; font-size: 15px; font-weight: bold; line-height: 1.4; overflow-wrap: anywhere; }
   #certificate .certificate-signature-role { color: #69717c; font-size: 12px; line-height: 1.5; margin-top: 4px; }
   #certificate .certificate-meta { display: flex; justify-content: space-between; gap: 20px; border-top: 1px solid #e1e1da; margin-top: 17px; padding-top: 12px; color: #69717c; font: 11px Arial, sans-serif; text-align: left; }
@@ -130,12 +132,12 @@ if signatories and len(re.findall(r'[А-ЯЁA-Z]\.[А-ЯЁA-Z]\.', signatories[0
         <footer>
           <div class="certificate-signatures">
             <div class="certificate-signature">
-              <div class="certificate-signature-image"><img src="https://open.kaznu.kz/static/images/sign1.png" alt="${_('Signature')}" crossorigin="anonymous" /></div>
+              <div class="certificate-signature-image"><span class="certificate-signature-slot"><img src="https://open.kaznu.kz/static/images/sign1.png" alt="${_('Signature')}" crossorigin="anonymous" /></span></div>
               <div class="certificate-signature-name">Галеева А.К.</div>
               <div class="certificate-signature-role">${_('Board Member - Vice-Rector for')}<br />${_('Academic Affairs')}</div>
             </div>
             <div class="certificate-signature">
-              <div class="certificate-signature-image"><img src="https://open.kaznu.kz/static/images/sign2.jpg" alt="${_('Signature')}" crossorigin="anonymous" /></div>
+              <div class="certificate-signature-image"><span class="certificate-signature-slot"><img src="https://open.kaznu.kz/static/images/sign2.jpg" alt="${_('Signature')}" crossorigin="anonymous" /></span></div>
               <div class="certificate-signature-name">Круговых И.И.</div>
               <div class="certificate-signature-role">${_('Head of the Office of')}<br />${_('academic and digital innovation')}</div>
             </div>
@@ -144,7 +146,7 @@ if signatories and len(re.findall(r'[А-ЯЁA-Z]\.[А-ЯЁA-Z]\.', signatories[0
                 <div class="certificate-signature-image">
                   % for signatory in signatories:
                     % if signatory.get('signature_image_path'):
-                      <img src="${static.url(signatory['signature_image_path'])}" alt="${signatory.get('name', '')}" crossorigin="anonymous" />
+                      <span class="certificate-signature-slot"><img src="${static.url(signatory['signature_image_path'])}" alt="${signatory.get('name', '')}" crossorigin="anonymous" /></span>
                     % endif
                   % endfor
                 </div>
@@ -170,10 +172,66 @@ if signatories and len(re.findall(r'[А-ЯЁA-Z]\.[А-ЯЁA-Z]\.', signatories[0
 </div>
 
 <script>
-(function () {
+const certificateSignaturesReady = (function () {
   const certificate = document.getElementById('certificate');
   const stage = document.getElementById('certificate-stage');
   const container = document.getElementById('certificate-container');
+  function fitSignature(image) {
+    if (!image.naturalWidth || !image.naturalHeight) { return; }
+    try {
+      // Inspect a bounded-size copy, but display the original image without changing its pixels.
+      const sampleScale = Math.min(1, 1024 / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * sampleScale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * sampleScale));
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      let left = canvas.width, top = canvas.height, right = -1, bottom = -1;
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          const i = (y * canvas.width + x) * 4;
+          // Ignore transparent pixels, white margins and faint JPEG background noise.
+          const contrast = (255 - Math.min(pixels[i], pixels[i + 1], pixels[i + 2])) * pixels[i + 3] / 255;
+          if (contrast > 24) {
+            left = Math.min(left, x); top = Math.min(top, y);
+            right = Math.max(right, x); bottom = Math.max(bottom, y);
+          }
+        }
+      }
+      if (right < left || bottom < top) { return; }
+      const padding = Math.max(2, Math.ceil(Math.max(right - left + 1, bottom - top + 1) * .04));
+      left = Math.max(0, left - padding); top = Math.max(0, top - padding);
+      right = Math.min(canvas.width - 1, right + padding);
+      bottom = Math.min(canvas.height - 1, bottom + padding);
+      const slot = image.parentElement;
+      const scale = Math.min(slot.clientWidth / (right - left + 1), slot.clientHeight / (bottom - top + 1));
+      if (!(scale > 0)) { return; }
+      slot.classList.add('certificate-signature-slot--fitted');
+      image.style.width = canvas.width * scale + 'px';
+      image.style.height = canvas.height * scale + 'px';
+      image.style.left = ((slot.clientWidth - (right - left + 1) * scale) / 2 - left * scale) + 'px';
+      image.style.top = ((slot.clientHeight - (bottom - top + 1) * scale) / 2 - top * scale) + 'px';
+    } catch (error) {
+      // If CORS prevents pixel inspection, keep the ordinary contained image.
+      console.warn('Signature auto-fit unavailable:', error);
+    }
+  }
+  function prepareSignature(image) {
+    return new Promise(function (resolve) {
+      if (image.complete) { fitSignature(image); resolve(); return; }
+      const timer = setTimeout(finish, 15000);
+      function finish() {
+        clearTimeout(timer);
+        image.removeEventListener('load', finish);
+        image.removeEventListener('error', finish);
+        fitSignature(image);
+        resolve();
+      }
+      image.addEventListener('load', finish, {once: true});
+      image.addEventListener('error', finish, {once: true});
+    });
+  }
   function fitCertificate() {
     // The exported diploma always retains its A4 size; only the on-screen preview scales.
     const scale = Math.min(1, Math.max(0, container.clientWidth - 24) / certificate.offsetWidth);
@@ -194,6 +252,7 @@ if signatories and len(re.findall(r'[А-ЯЁA-Z]\.[А-ЯЁA-Z]\.', signatories[0
   fitText();
   window.addEventListener('resize', fitCertificate);
   if (document.fonts) { document.fonts.ready.then(fitText); }
+  return Promise.all(Array.from(certificate.querySelectorAll('.certificate-signature-slot img')).map(prepareSignature));
 })();
 
 async function downloadCertificate() {
@@ -204,6 +263,7 @@ async function downloadCertificate() {
   try {
     if (!window.html2canvas || !window.jspdf) { throw new Error('PDF libraries unavailable'); }
     if (document.fonts) { await document.fonts.ready; }
+    await certificateSignaturesReady;
     const element = document.getElementById('certificate');
     await Promise.all(Array.from(element.querySelectorAll('img')).map(function (image) {
       return new Promise(function (resolve, reject) {
