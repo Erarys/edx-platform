@@ -6,6 +6,7 @@ Certificate HTML webview.
 import logging
 import urllib
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from uuid import uuid4
 
 import pytz
@@ -62,6 +63,17 @@ _ = translation.gettext
 INVALID_CERTIFICATE_TEMPLATE_PATH = 'certificates/invalid.html'
 
 
+def _certificate_grade_percent(grade):
+    """Convert the certificate's saved 0–1 grade to a validated percentage."""
+    try:
+        value = Decimal(str(grade))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    if not value.is_finite() or not Decimal('0') <= value <= Decimal('1'):
+        return None
+    return value * 100
+
+
 def get_certificate_description(mode, certificate_type, platform_name, course_key):
     """
     :return certificate_type_description on the basis of current mode
@@ -106,6 +118,8 @@ def _update_certificate_context(context, course, course_overview, user_certifica
 
     # Override the defaults with any mode-specific static values
     context['certificate_id_number'] = user_certificate.verify_uuid
+    # Use the issuance snapshot, so regrading does not silently restyle a diploma.
+    context['certificate_grade_percent'] = _certificate_grade_percent(user_certificate.grade)
     context['certificate_verify_url'] = "{prefix}{uuid}{suffix}".format(
         prefix=context.get('certificate_verify_url_prefix'),
         uuid=user_certificate.verify_uuid,
