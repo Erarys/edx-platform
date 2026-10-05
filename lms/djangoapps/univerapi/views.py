@@ -1,6 +1,9 @@
 import jwt
 import requests
 from django.contrib.auth import login, authenticate, get_user_model
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
@@ -27,17 +30,39 @@ class UniverTestView(APIView):
             uname = decoded.get('uname')
             upwd = decoded.get('upwd')
 
-            if not uname or not upwd:
+            if not isinstance(uname, str) or not uname or not upwd:
                 return Response({'error': 'Invalid token payload'}, status=status.HTTP_400_BAD_REQUEST)
 
-            username = uname
+            username = uname.lstrip('.')
+            if not username:
+                return Response({'error': 'Invalid Univer username'}, status=status.HTTP_400_BAD_REQUEST)
             email_value = f"{username}@open.edu.kz"
+            try:
+                validate_email(email_value)
+            except ValidationError:
+                return Response({'error': 'Invalid email generated from Univer username'},
+                                status=status.HTTP_400_BAD_REQUEST)
 
             # Получаем данные профиля из Univer API
             surname, name, gender, stage, birth_year = decode_token_and_fetch_profile(auth_token)
 
-            # Проверка пользователя
-            user = User.objects.filter(username=username).first()
+            # Use one local username for Bob, .Bob, ..Bob, etc.
+            with transaction.atomic():
+                user = User.objects.select_for_update().filter(username=username).first()
+                if user is None:
+                    # Rename a single legacy dotted account, retaining its ID and enrollments.
+                    legacy_users = [
+                        candidate for candidate in User.objects.select_for_update().filter(
+                            username__startswith='.', username__endswith=username,
+                        ) if candidate.username.lstrip('.') == username
+                    ]
+                    if len(legacy_users) > 1:
+                        return Response({'error': 'Multiple existing accounts match this Univer username'},
+                                        status=status.HTTP_409_CONFLICT)
+                    if legacy_users:
+                        user = legacy_users[0]
+                        user.username = username
+                        user.save(update_fields=['username'])
 
             if not user:
                 # Создание нового пользователя
@@ -56,6 +81,10 @@ class UniverTestView(APIView):
                     goals='Цель обучаться на платформе ОпенКазну'
                 )
             else:
+                # Repair previously generated addresses using the normalized username.
+                if user.email.startswith('.') and user.email.lstrip('.').casefold() == email_value.casefold():
+                    user.email = email_value
+                    user.save(update_fields=['email'])
                 # Обновляем пароль при изменении
                 if not user.check_password(upwd):
                     user.set_password(upwd)
