@@ -1,4 +1,4 @@
-"""Plain HTML course-run administration for global LMS staff."""
+"""Course-run and student administration for global LMS staff."""
 
 import logging
 import re
@@ -25,8 +25,8 @@ from common.djangoapps.course_modes.models import CourseMode
 from common.djangoapps.edxmako.shortcuts import render_to_response
 from common.djangoapps.student.roles import GlobalStaff
 from lms.djangoapps.certificates.api import get_self_generation_enabled_for_courses
+from lms.djangoapps.course_admin import students
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
-
 
 LOG = logging.getLogger(__name__)
 RUN_PATTERN = re.compile(r'^(\d{4})_C([1-9]\d*)$', re.IGNORECASE)
@@ -40,6 +40,7 @@ FORM_CHECKBOX_FIELDS = (
 )
 FORM_SESSION_KEY = 'course_admin.form.v1'
 FEEDBACK_SESSION_KEY = 'course_admin.feedback.v1'
+STUDENT_FORM_SESSION_KEY = 'course_admin.students.v1'
 FORM_DEFAULTS = {'mode': 'copy', 'certificate_mode': 'copy', 'shift_content_dates': '1'}
 
 
@@ -215,7 +216,7 @@ def _form_values(request):
     saved = request.session.get(FORM_SESSION_KEY, {})
     if isinstance(saved, dict):
         values.update({key: value for key, value in saved.items() if isinstance(value, str)})
-    if request.method == 'POST':
+    if request.method == 'POST' and request.POST.get('action') not in students.ACTIONS:
         for field in FORM_VALUE_FIELDS:
             value = request.POST.get(field, '')
             values[field] = value[:255] if isinstance(value, str) else ''
@@ -225,12 +226,26 @@ def _form_values(request):
     return values
 
 
-def _redirect_after_post(filters, page):
+def _student_form_values(request):
+    saved = request.session.get(STUDENT_FORM_SESSION_KEY, {})
+    values = {'student_course_id': '', 'student_list': ''}
+    if isinstance(saved, dict):
+        values.update({key: saved[key] for key in values if isinstance(saved.get(key), str)})
+    if request.method == 'POST' and request.POST.get('action') in students.ACTIONS:
+        for field, limit in (('student_course_id', 255), ('student_list', students.MAX_INPUT_LENGTH)):
+            raw = request.POST.get(field, '')
+            values[field] = raw[:limit] if isinstance(raw, str) else ''
+        request.session[STUDENT_FORM_SESSION_KEY] = values
+    return values
+
+
+def _redirect_after_post(filters, page, anchor=''):
     query = {key: value for key, value in filters.items() if value not in ('', None, False)}
     query['latest'] = '1' if filters.get('latest') else '0'
     if page:
         query['page'] = page
-    return HttpResponseRedirect(f"{reverse('course_admin')}?{urlencode(query)}")
+    suffix = f'#{anchor}' if anchor else ''
+    return HttpResponseRedirect(f"{reverse('course_admin')}?{urlencode(query)}{suffix}")
 
 
 def _state_result(state):
@@ -255,14 +270,33 @@ def course_admin(request):
     """Render and process the complete admin form on one LMS URL."""
     source = request.POST if request.method == 'POST' else request.GET
     form_values = _form_values(request)
+    student_form = _student_form_values(request)
     feedback = request.session.pop(FEEDBACK_SESSION_KEY, {}) if request.method == 'GET' else {}
     results = feedback.get('results', []) if isinstance(feedback, dict) else []
     error = feedback.get('error', '') if isinstance(feedback, dict) else ''
+    student_results = feedback.get('student_results', []) if isinstance(feedback, dict) else []
     try:
         filters = parse_filters(source)
     except ValueError as exc:
         filters = parse_filters({})
         error = error or str(exc)
+
+    if request.method == 'POST' and request.POST.get('action') in students.ACTIONS:
+        if not error:
+            try:
+                student_results = students.process_students(
+                    request.user, request.POST.get('student_list', ''),
+                    request.POST.get('student_course_id', ''), request.POST['action'],
+                )
+            except (ValueError, ValidationError) as exc:
+                error = '; '.join(exc.messages) if isinstance(exc, ValidationError) else str(exc)
+            except Exception:  # pylint: disable=broad-except
+                LOG.exception('Unexpected LMS student administration failure')
+                error = 'Операция не выполнена. Подробности записаны в журнал LMS.'
+        request.session[FEEDBACK_SESSION_KEY] = {
+            'student_results': student_results, 'error': error, 'student_error': error,
+        }
+        return _redirect_after_post(filters, request.POST.get('page'), anchor='students')
 
     all_courses = _courses()
     if request.method == 'POST':
@@ -304,6 +338,12 @@ def course_admin(request):
         'results': results,
         'recent_results': [_state_result(state) for state in recent],
         'form_values': form_values,
+        'student_form': student_form,
+        'student_error': feedback.get('student_error', '') if isinstance(feedback, dict) else '',
+        'student_results': student_results,
+        'student_success_count': sum(row['state'] == 'succeeded' for row in student_results),
+        'student_failure_count': sum(row['state'] != 'succeeded' for row in student_results),
+        'student_batch_limit': getattr(settings, 'COURSE_ADMIN_MAX_STUDENT_BATCH_SIZE', 200),
         'error': error,
         'csrf_token': get_token(request),
     }, request=request)

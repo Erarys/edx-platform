@@ -934,6 +934,39 @@ class GradebookViewTest(GradebookViewTestBase):
                 assert actual_data['filtered_users_count'] == 2
 
     @ddt.data(
+        ('OTHER_STU', True),
+        ('LIKE_LEARN', True),
+        ('Әлих', True),
+        ('Сапар', True),
+        ('GivenOnly', True),
+        ('FamilyOnly', True),
+        ('  Ержанұлы\u00a0\u00a0Әлих\t', True),
+        ('Сапар EXAMPLE.COM', True),
+        ('LIKE_LEARN other_student', True),
+        ('Әлих missing_fragment', False),
+        ('student@example.com Әлих', False),
+    )
+    @ddt.unpack
+    def test_gradebook_search_identity_fragments(self, search_text, matches):
+        """Search partial names and mixed identity fields without requiring word order."""
+        self.other_student.first_name = 'GivenOnly'
+        self.other_student.last_name = 'FamilyOnly'
+        self.other_student.save()
+        self.other_student.profile.name = 'Әлихан Ержанұлы Сапаров'
+        self.other_student.profile.save()
+        self.login_staff()
+
+        with patch('lms.djangoapps.grades.course_grade_factory.CourseGradeFactory.read') as mock_grade:
+            mock_grade.return_value = self.mock_course_grade(self.other_student, passed=True, percent=0.85)
+            with override_waffle_flag(self.waffle_flag, active=True):
+                response = self.client.get(self.get_url(), {'user_contains': search_text})
+
+        assert response.status_code == status.HTTP_200_OK
+        expected_ids = [self.other_student.id] if matches else []
+        assert [entry['user_id'] for entry in response.data['results']] == expected_ids
+        assert response.data['filtered_users_count'] == len(expected_ids)
+
+    @ddt.data(
         'login_staff',
         'login_course_admin',
         'login_course_staff',

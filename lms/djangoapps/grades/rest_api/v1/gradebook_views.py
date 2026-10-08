@@ -360,7 +360,8 @@ class GradebookView(GradeViewMixin, PaginatedAPIView):
         A GET request may include the following query parameters.
         * username:  (optional) A string representation of a user's username.
         * user_contains: (optional) A substring against which a case-insensitive substring filter will be performed
-          on the USER_MODEL.username, or the USER_MODEL.email, or the PROGRAM_ENROLLMENT.external_user_key fields.
+          on username, email, profile name, first/last name, or external student key. Whitespace-separated
+          fragments may match different fields, in any order; all fragments must match the same learner.
         * username_contains: (optional) A substring against which a case-insensitive substring filter will be performed
           on the USER_MODEL.username field.
         * cohort_id: (optional) The id of a cohort in this course.  If present, will return grades
@@ -529,6 +530,21 @@ class GradebookView(GradeViewMixin, PaginatedAPIView):
 
         return user_entry
 
+    @staticmethod
+    def _user_search_filter(search_text):
+        """Match every search fragment against any learner identity field."""
+        query = Q()
+        for term in search_text.split():
+            query &= (
+                Q(user__username__icontains=term) |
+                Q(user__email__icontains=term) |
+                Q(user__profile__name__icontains=term) |
+                Q(user__first_name__icontains=term) |
+                Q(user__last_name__icontains=term) |
+                Q(programcourseenrollment__program_enrollment__external_user_key__icontains=term)
+            )
+        return query
+
     @verify_course_exists("Requested grade for unknown course {course}")
     @verify_writable_gradebook_enabled
     @course_author_access_required
@@ -564,12 +580,12 @@ class GradebookView(GradeViewMixin, PaginatedAPIView):
             q_objects = []
             annotations = {}
             if request.GET.get('user_contains'):
-                search_term = request.GET.get('user_contains')
-                q_objects.append(
-                    Q(user__username__icontains=search_term) |
-                    Q(programcourseenrollment__program_enrollment__external_user_key__icontains=search_term) |
-                    Q(user__email__icontains=search_term)
+                matching_enrollments = CourseEnrollment.objects.filter(
+                    self._user_search_filter(request.GET['user_contains']),
+                    course_id=course_key,
                 )
+                # An enrollment can have multiple program keys; keep one result per learner.
+                q_objects.append(Q(pk__in=matching_enrollments.values('pk')))
             if request.GET.get('username_contains'):
                 q_objects.append(Q(user__username__icontains=request.GET.get('username_contains')))
             if request.GET.get('cohort_id'):

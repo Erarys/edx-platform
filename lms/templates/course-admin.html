@@ -20,7 +20,7 @@ def checked(values, name):
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>Управление курсами</title>
+  <title>Управление курсами и студентами</title>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; background: #f3f5f8; color: #203047; font: 15px/1.45 Arial, sans-serif; }
@@ -32,7 +32,17 @@ def checked(values, name):
     .panel { margin-top: 18px; padding: 20px; border: 1px solid #d7dee7; border-radius: 8px; background: white; }
     .grid { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 14px; }
     label.field { display: flex; flex-direction: column; gap: 5px; font-weight: 600; }
-    input:not([type=checkbox]), select { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #aebaca; border-radius: 4px; background: white; font: inherit; }
+    input:not([type=checkbox]), select, textarea { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #aebaca; border-radius: 4px; background: white; font: inherit; }
+    textarea { min-height: 220px; resize: vertical; }
+    .student-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
+    .student-guide { padding: 16px; background: #f6f8fa; border-radius: 6px; }
+    .student-guide p:first-child { margin-top: 0; }
+    .student-guide p:last-child { margin-bottom: 0; }
+    .student-summary { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+    .student-summary span { padding: 8px 12px; border-radius: 4px; }
+    .student-status-ok { color: #17613a; }
+    .student-status-error { color: #8f2020; }
+    .use-student-course { margin-top: 8px; padding: 4px 8px; min-height: 30px; font-size: 12px; }
     input[type=checkbox] { width: 18px; height: 18px; vertical-align: middle; }
     button, .page-link { min-height: 40px; padding: 8px 15px; border: 1px solid #28689d; border-radius: 4px; background: white; color: #174f7c; font: inherit; font-weight: bold; cursor: pointer; text-decoration: none; }
     button.primary { background: #185f96; color: white; }
@@ -52,24 +62,91 @@ def checked(values, name):
     .status { white-space: nowrap; font-weight: bold; }
     .actions { position: sticky; bottom: 10px; z-index: 2; padding: 12px; border: 1px solid #c8d8e8; border-radius: 6px; background: #f7fbff; box-shadow: 0 4px 14px #2030471f; }
     .selection-count { padding: 5px 9px; border-radius: 12px; background: #e4eef8; color: #174f7c; font-weight: bold; }
-    input:focus, select:focus, button:focus { outline: 3px solid #87b9e2; outline-offset: 1px; }
-    @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    input:focus, select:focus, textarea:focus, button:focus { outline: 3px solid #87b9e2; outline-offset: 1px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .student-grid { grid-template-columns: 1fr; } }
     @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } main { padding: 18px 10px 40px; } }
   </style>
 </head>
 <body>
 <main>
-  <h1>Управление курсами</h1>
-  <p class="muted">Закрытая LMS-страница для массового перезапуска и настройки курсов.</p>
+  <h1>Управление курсами и студентами</h1>
+  <p class="muted">Создание учёток, запись студентов, настройка и перезапуск курсов.</p>
+  <nav class="toolbar" aria-label="Инструменты администратора">
+    <a class="page-link" href="#students">Студенты и учётки</a>
+    <a class="page-link" href="#course-filter">Управление курсами</a>
+  </nav>
 
-  % if error:
+  % if error and not student_error:
     <div class="notice error">${error}</div>
   % endif
   % if results:
     <div class="notice success">Команда обработана. Результаты показаны ниже.</div>
   % endif
 
-  <section class="panel">
+  <section class="panel" id="students" aria-labelledby="students-heading">
+    <h2 id="students-heading">Студенты и учётки</h2>
+    % if student_error:
+      <div class="notice error" role="alert">${student_error}</div>
+    % endif
+    <form method="post" id="student-form">
+      <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}">
+      % for name in ('q', 'org', 'run', 'year'):
+        <input type="hidden" name="${name}" value="${course_filters.get(name, '')}">
+      % endfor
+      <input type="hidden" name="latest" value="${'1' if course_filters.get('latest') else '0'}">
+      <input type="hidden" name="page" value="${page}">
+      <div class="student-grid">
+        <div>
+          <label class="field">ID курса
+            <input id="student-course-id" name="student_course_id" maxlength="255" value="${student_form.get('student_course_id', '')}" placeholder="course-v1:kaznu+C1+2026_C1">
+            <span class="help">Нужен для записи. Для создания учёток без записи можно оставить пустым.</span>
+          </label>
+          <label class="field" style="margin-top: 16px;">Список студентов
+            <textarea id="student-list" name="student_list" required maxlength="100000" placeholder="zaid_bin_shabir@open.edu.kz&#10;md_arshad_alam@open.edu.kz&#10;snigdkha">${student_form.get('student_list', '')}</textarea>
+            <span class="help">Email или логин, по одному на строку. Можно вставить нумерованный список адресов. До ${student_batch_limit} студентов за одну операцию.</span>
+          </label>
+        </div>
+        <div class="student-guide">
+          <p><strong>Записать существующих</strong><br>Находит учётки и записывает их на курс. Отсутствующие учётки попадут в список ошибок.</p>
+          <p><strong>Создать отсутствующие</strong><br>Создаёт учётки и профили. Регистрации на курсы не меняются.</p>
+          <p><strong>Создать и записать</strong><br>Создаёт отсутствующие учётки, а существующие использует повторно. Все найденные студенты записываются на указанный курс.</p>
+          <p class="help">Для логина без email используется адрес логин@open.edu.kz. Начальные точки игнорируются. При подготовке учёток одна старая учётка с точкой переименуется с сохранением прогресса. Для Univer укажите логин из его системы; новые учётки готовы для первого входа через Univer.</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button type="submit" name="action" value="enroll_students">Записать существующих</button>
+        <button type="submit" name="action" value="create_students" formnovalidate>Создать отсутствующие</button>
+        <button class="primary" type="submit" name="action" value="create_and_enroll_students">Создать и записать</button>
+      </div>
+      <p class="help">Неактивная регистрация на курс будет восстановлена. При повторной отправке списка новые дубли не создаются. Результат показывается отдельно для каждого студента.</p>
+    </form>
+    % if student_results:
+      <div class="student-summary" role="status">
+        <span class="success">Успешно: ${student_success_count}</span>
+        <span class="error">Не выполнено: ${student_failure_count}</span>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Строка списка</th><th>Учётка / email</th><th>Курс</th><th>Статус</th><th>Результат</th></tr></thead>
+        <tbody>
+        % for result in student_results:
+          <tr>
+            <td>${result['input']}</td>
+            <td>${result['username'] or '—'}<br>${result['email'] or '—'}
+              % if result.get('user_id'):
+                <span class="help">ID: ${result['user_id']}</span>
+              % endif
+            </td>
+            <td><code>${result['course_id'] or 'Без записи на курс'}</code></td>
+            <td class="status ${'student-status-ok' if result['state'] == 'succeeded' else 'student-status-error'}">${'Успешно' if result['state'] == 'succeeded' else 'Не выполнено'}</td>
+            <td>${result['message']}</td>
+          </tr>
+        % endfor
+        </tbody>
+      </table></div>
+    % endif
+  </section>
+
+  <section class="panel" id="course-filter">
     <h2>Фильтр курсов</h2>
     <form method="get">
       <div class="grid">
@@ -108,7 +185,7 @@ def checked(values, name):
           % for course in courses:
             <tr>
               <td><input type="checkbox" name="course_ids" value="${course['id']}"></td>
-              <td><a href="${course['about_url']}" target="_blank" rel="noopener">${course['name']}</a><code>${course['id']}</code></td>
+              <td><a href="${course['about_url']}" target="_blank" rel="noopener">${course['name']}</a><code>${course['id']}</code><button type="button" class="use-student-course" data-course-id="${course['id']}">Записать студентов сюда</button></td>
               <td>${course['org']}<br>${course['run']}</td>
               <td>${course['start'] or '—'}<br>${course['end'] or '—'}</td>
               <td>${course['mode_labels']}<br>Генерация: ${course['certificate_generation']}</td>
@@ -216,6 +293,25 @@ def checked(values, name):
     });
     boxes.forEach(function (box) { box.addEventListener('change', updateCount); });
     updateCount();
+    document.querySelectorAll('.use-student-course').forEach(function (button) {
+      button.addEventListener('click', function () {
+        document.getElementById('student-course-id').value = button.dataset.courseId;
+        document.getElementById('student-course-id').setCustomValidity('');
+        document.getElementById('students').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('student-list').focus({ preventScroll: true });
+      });
+    });
+    document.getElementById('student-form').addEventListener('submit', function (event) {
+      if (event.submitter && event.submitter.value !== 'create_students' && !document.getElementById('student-course-id').value.trim()) {
+        event.preventDefault();
+        document.getElementById('student-course-id').focus();
+        document.getElementById('student-course-id').setCustomValidity('Укажите ID курса для записи студентов.');
+        document.getElementById('student-course-id').reportValidity();
+      }
+    });
+    document.getElementById('student-course-id').addEventListener('input', function () {
+      this.setCustomValidity('');
+    });
   }());
 </script>
 </body>
