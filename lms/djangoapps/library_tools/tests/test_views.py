@@ -11,7 +11,7 @@ from django.http import Http404, HttpResponse
 from django.test import RequestFactory, SimpleTestCase
 from opaque_keys.edx.locator import LibraryLocator
 
-from lms.djangoapps.library_tools import questions, views
+from lms.djangoapps.library_tools import excel, questions, views
 
 
 class LibraryToolsTests(SimpleTestCase):
@@ -131,7 +131,7 @@ class LibraryToolsTests(SimpleTestCase):
         request = self.request(data={'library': str(self.key), 'action': 'export'})
         response, _ = self.run_view(request)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(questions.parse_csv(response.content)[0].question, self.question.question)
+        self.assertEqual(excel.parse_xlsx(response.content).questions[0].question, self.question.question)
         self.store.create_child.assert_not_called()
         self.store.get_item.assert_called_once_with(key)
 
@@ -147,4 +147,31 @@ class LibraryToolsTests(SimpleTestCase):
         self.store.get_item.return_value = SimpleNamespace(data='<problem><numericalresponse/></problem>', display_name='Complex')
         supported, unsupported = views._inventory(self.store, self.library)
         self.assertEqual(supported, [])
-        self.assertEqual(unsupported[0]['title'], 'Complex')
+        self.assertIn('Complex', unsupported[0]['title'])
+
+    def test_excel_upload_only_stages_new_questions(self):
+        file = SimpleUploadedFile('bank.xlsx', excel.xlsx_bytes([(self.question, 'old-id')]))
+        request = self.request('post', {'library': str(self.key), 'action': 'preview', 'questions_file': file})
+        self.run_view(request)
+        self.assertEqual(request.session[views.PREVIEW_KEY]['questions'][0]['question'], self.question.question)
+        self.store.create_child.assert_not_called()
+
+    def test_bad_excel_rows_are_reported_and_nothing_is_staged(self):
+        invalid = questions.Question('Bad', 'Broken', 'dropdown', ['One', 'Two'], ['A', 'B'])
+        file = SimpleUploadedFile('bank.xlsx', excel.xlsx_bytes([(self.question, ''), (invalid, '')]))
+        request = self.request('post', {'library': str(self.key), 'action': 'preview', 'questions_file': file})
+        self.run_view(request)
+        self.assertNotIn(views.PREVIEW_KEY, request.session)
+        self.assertEqual(request.session[views.FEEDBACK_KEY]['validation_errors'][0]['row'], 3)
+        self.store.create_child.assert_not_called()
+
+    def test_zero_supported_questions_still_downloads_excel_with_reasons(self):
+        self.library.children = [self.key.make_usage_key('problem', 'unsupported')]
+        self.store.get_item.return_value = SimpleNamespace(data='<problem><numericalresponse/></problem>', display_name='Numerical')
+        response, _ = self.run_view(self.request(data={'library': str(self.key), 'action': 'export'}))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('.xlsx', response['Content-Disposition'])
+        from zipfile import ZipFile  # pylint: disable=import-outside-toplevel
+        import io  # pylint: disable=import-outside-toplevel
+        with ZipFile(io.BytesIO(response.content)) as archive:
+            self.assertIn('xl/worksheets/sheet2.xml', archive.namelist())

@@ -22,7 +22,7 @@ from common.djangoapps.student.auth import has_studio_read_access, has_studio_wr
 from common.djangoapps.student.roles import GlobalStaff
 from xmodule.modulestore.django import modulestore
 
-from . import questions
+from . import excel, questions
 
 LOG = logging.getLogger(__name__)
 PREVIEW_KEY = 'library_tools.preview.v1'
@@ -64,8 +64,10 @@ def _inventory(store, library):
                 continue
             block = store.get_item(key)
             try:
-                question = questions.extract_question(block)
-                supported.append((question, str(key)))
+                extracted, issues = questions.extract_questions(block)
+                supported.extend((question, str(key)) for question in extracted)
+                unsupported.extend({'title': f'{block.display_name or str(key)} — вопрос {issue["number"]}',
+                                    'id': str(key), 'reason': issue['reason']} for issue in issues)
             except ValueError as error:
                 unsupported.append({'title': block.display_name or str(key), 'id': str(key), 'reason': str(error)})
     return supported, unsupported
@@ -95,7 +97,7 @@ def _import(store, library, user, preview):
                     result.update(status='created', detail='Создан новый вопрос.')
                     present.add(block_id)
                 except Exception:  # pylint: disable=broad-except
-                    LOG.exception('Library CSV import failed: library=%s row=%s', library.location.library_key, question.row)
+                    LOG.exception('Library question import failed: library=%s row=%s', library.location.library_key, question.row)
                     result.update(status='failed', detail='Не удалось сохранить вопрос. Проверьте журнал LMS.')
             results.append(result)
     return results
@@ -106,7 +108,7 @@ def _import(store, library, user, preview):
 @csrf_protect
 @require_http_methods(['GET', 'POST'])
 def library_tools(request):
-    """Library list, CSV export, full-file validation, and confirmed append-only import."""
+    """Library list, Excel export, full-file validation, and confirmed append-only import."""
     store = modulestore()
     selected_id = request.POST.get('library', '') if request.method == 'POST' else request.GET.get('library', '')
     library = _library(store, request.user, selected_id, write=request.method == 'POST') if selected_id else None
@@ -122,12 +124,25 @@ def library_tools(request):
             try:
                 upload = request.FILES.get('questions_file')
                 if upload is None:
-                    raise ValueError('Выберите файл CSV UTF-8.')
-                if upload.size > questions.MAX_UPLOAD_BYTES:
-                    raise ValueError('Файл превышает 2 МБ.')
-                parsed = questions.parse_csv(upload.read(questions.MAX_UPLOAD_BYTES + 1))
-                request.session[PREVIEW_KEY] = {'library': selected_id, 'token': str(uuid.uuid4()),
-                                                'questions': [question.to_dict() for question in parsed]}
+                    raise ValueError('Выберите файл Excel .xlsx.')
+                if upload.size > excel.MAX_UPLOAD_BYTES:
+                    raise ValueError('Файл превышает 5 МБ.')
+                content = upload.read(excel.MAX_UPLOAD_BYTES + 1)
+                if upload.name.lower().endswith('.xlsx'):
+                    parsed = excel.parse_xlsx(content)
+                elif upload.name.lower().endswith('.csv'):
+                    parsed = excel.Upload(questions=questions.parse_csv(content))
+                else:
+                    raise ValueError('Поддерживается Excel .xlsx или прежний CSV UTF-8. Формат .xls не поддерживается.')
+                if parsed.errors:
+                    request.session[FEEDBACK_KEY] = {
+                        'error': 'В файле есть ошибки. Исправьте указанные строки и загрузите файл заново. Вопросы не добавлены.',
+                        'validation_errors': parsed.errors, 'warnings': parsed.warnings,
+                    }
+                else:
+                    request.session[PREVIEW_KEY] = {'library': selected_id, 'token': str(uuid.uuid4()),
+                                                    'questions': [question.to_dict() for question in parsed.questions],
+                                                    'warnings': parsed.warnings}
             except ValueError as error:
                 request.session[FEEDBACK_KEY] = {'error': str(error)}
         elif action == 'import':
@@ -137,14 +152,14 @@ def library_tools(request):
             else:
                 try:
                     results = _import(store, library, request.user, preview)
-                    LOG.info('Library CSV import user=%s library=%s created=%s failed=%s',
+                    LOG.info('Library question import user=%s library=%s created=%s failed=%s',
                              request.user.id, selected_id, sum(row['status'] == 'created' for row in results),
                              sum(row['status'] == 'failed' for row in results))
                     request.session[FEEDBACK_KEY] = {'results': results}
                     if not any(result['status'] == 'failed' for result in results):
                         request.session.pop(PREVIEW_KEY, None)
                 except Exception:  # pylint: disable=broad-except
-                    LOG.exception('Could not finish library CSV import: %s', selected_id)
+                    LOG.exception('Could not finish library question import: %s', selected_id)
                     request.session[FEEDBACK_KEY] = {'error': 'Не удалось завершить загрузку. Часть вопросов могла сохраниться. Повторите добавление из этой проверки файла.'}
         elif action == 'cancel':
             request.session.pop(PREVIEW_KEY, None)
@@ -155,13 +170,19 @@ def library_tools(request):
     action = request.GET.get('action', '')
     if action == 'template':
         example = questions.Question('Пример вопроса', 'Сколько будет 2 + 2?', 'single', ['3', '4', '5'], ['B'])
-        return _csv_response(questions.csv_bytes([(example, '')]), 'questions-template.csv')
+        examples = [(example, ''), (questions.Question('Выберите простые числа', 'Выберите простые числа.', 'multi',
+                                                     ['2', '4', '5', '6'], ['A', 'C']), ''),
+                    (questions.Question('Пример списка', 'Выберите столицу Казахстана.', 'dropdown',
+                                        ['Астана', 'Алматы', 'Шымкент'], ['A']), ''),
+                    (questions.Question('Пример текста', 'Введите столицу Казахстана.', 'text', [], ['Астана']), ''),
+                    (questions.Question('Пример числа', 'Сколько будет 2 + 2?', 'numeric', [], ['4']), '')]
+        return _xlsx_response(excel.xlsx_bytes(examples), 'questions-template.xlsx')
     supported, unsupported = _inventory(store, library) if library else ([], [])
     if action == 'export':
         if library is None:
             raise Http404('Выберите библиотеку.')
-        filename = f'{library.location.library_key.org}_{library.location.library_key.library}_questions.csv'
-        return _csv_response(questions.csv_bytes(supported), filename)
+        filename = f'{library.location.library_key.org}_{library.location.library_key.library}_questions'
+        return _xlsx_response(excel.xlsx_bytes(supported, unsupported), filename + '.xlsx')
 
     search = request.GET.get('q', '').strip()[:255]
     libraries = []
@@ -188,8 +209,8 @@ def library_tools(request):
     }, request=request)
 
 
-def _csv_response(content, filename):
-    response = HttpResponse(content, content_type='text/csv; charset=utf-8')
+def _xlsx_response(content, filename):
+    response = HttpResponse(content, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     # Library identifiers do not contain line breaks, and quotes are escaped for the header.
     filename = filename.replace('"', '').replace('\r', '').replace('\n', '')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'

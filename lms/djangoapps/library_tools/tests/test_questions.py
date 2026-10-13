@@ -2,6 +2,8 @@
 
 from types import SimpleNamespace
 from unittest import TestCase
+from pathlib import Path
+from textwrap import dedent
 import xml.etree.ElementTree as ET
 
 from lms.djangoapps.library_tools import questions
@@ -55,12 +57,18 @@ class QuestionCSVTests(TestCase):
             with self.subTest(text=text), self.assertRaises(ValueError):
                 questions.parse_csv(('question,answer_a,answer_b,correct_answers\n'+text).encode())
 
-    def test_single_type_rejects_multiple_answers(self):
+    def test_dropdown_type_rejects_multiple_answers(self):
         with self.assertRaises(ValueError):
-            questions.parse_csv(self.csv(type='single'))
+            questions.parse_csv(self.csv(type='dropdown'))
+
+    def test_single_type_allows_alternative_correct_choices(self):
+        parsed = questions.parse_csv(self.csv(type='single'))[0]
+        result = questions.extract_question(SimpleNamespace(data=questions.question_xml(parsed), display_name=parsed.title))
+        self.assertEqual(result.correct_answers, ['A', 'C'])
+        self.assertEqual(result.type, 'single')
 
     def test_limits_and_control_characters(self):
-        content = b'question,answer_a,answer_b,correct_answers\n' + b'Q,one,two,A\n' * 501
+        content = b'question,answer_a,answer_b,correct_answers\n' + b'Q,one,two,A\n' * (questions.MAX_QUESTIONS + 1)
         for value in [content, b'x'*(questions.MAX_UPLOAD_BYTES+1), self.csv(question='bad\x00text')]:
             with self.subTest(size=len(value)), self.assertRaises(ValueError):
                 questions.parse_csv(value)
@@ -74,7 +82,8 @@ class QuestionCSVTests(TestCase):
         self.assertEqual(root.find('.//label').text, item.question)
 
     def test_single_and_multi_xml_round_trip(self):
-        for item in [self.example(), self.example(type='single', correct_answers=['B'])]:
+        for item in [self.example(), self.example(type='single', correct_answers=['B']),
+                     self.example(type='dropdown', correct_answers=['B'])]:
             with self.subTest(type=item.type):
                 block = SimpleNamespace(data=questions.question_xml(item), display_name=item.title)
                 exported = questions.extract_question(block)
@@ -87,12 +96,42 @@ class QuestionCSVTests(TestCase):
     def test_complex_content_is_not_silently_flattened(self):
         xml = questions.question_xml(self.example())
         for content in [xml.replace('<label>', '<label><img src="a"/>'),
-                        xml.replace('<checkboxgroup>', '<checkboxgroup shuffle="true">'),
                         xml.replace('</problem>', '<script>print(1)</script></problem>'),
-                        xml.replace('correct="true"', 'correct="partial"'),
-                        xml.replace('</choice>', '<choicehint>Hint</choicehint></choice>')]:
+                        xml.replace('correct="true"', 'correct="partial"')]:
             with self.subTest(content=content), self.assertRaises(ValueError):
                 questions.extract_question(SimpleNamespace(data=content, display_name='Complex'))
+
+    def test_standard_studio_templates_including_hints(self):
+        directory = Path(__file__).resolve().parents[4] / 'xmodule/templates/problem'
+        for filename, kind in [('multiplechoice.yaml', 'single'), ('multiplechoice_hint.yaml', 'single'),
+                               ('checkboxes_response.yaml', 'multi'), ('checkboxes_response_hint.yaml', 'multi'),
+                               ('optionresponse.yaml', 'dropdown'), ('optionresponse_hint.yaml', 'dropdown')]:
+            source = (directory / filename).read_text(encoding='utf-8')
+            xml = dedent(source.split('\ndata:', 1)[1].split('\n', 1)[1])
+            with self.subTest(filename=filename):
+                result = questions.extract_question(SimpleNamespace(data=xml, display_name='Template'))
+                self.assertEqual(result.type, kind)
+                self.assertEqual(len(result.answers), 4 if kind == 'multi' else 3)
+                self.assertNotIn('feedback', '\n'.join(result.answers))
+
+    def test_styled_html_entities_and_shuffle_are_plain_text(self):
+        xml = '<problem><div class="wrapper"><p style="color:red"><strong>Вопрос&nbsp;?</strong></p><multiplechoiceresponse><choicegroup type="MultipleChoice" shuffle="true"><choice correct="true"><span style="font-size:12px">Да</span><choicehint>Скрытая подсказка</choicehint></choice><choice correct="false">Нет</choice></choicegroup></multiplechoiceresponse></div><solution>Решение</solution></problem>'
+        result = questions.extract_question(SimpleNamespace(data=xml, display_name='Styled'))
+        self.assertEqual(result.question, 'Вопрос ?')
+        self.assertEqual(result.answers, ['Да', 'Нет'])
+
+    def test_multiple_questions_are_separate_rows_and_errors_are_individual(self):
+        xml = questions.question_xml(self.example(type='single', correct_answers=['A']))
+        response = xml[len('<problem>'):-len('</problem>')]
+        items, errors = questions.extract_questions(SimpleNamespace(
+            data=f'<problem>{response}<numericalresponse answer="3"/>{response}</problem>', display_name='Bank'))
+        self.assertEqual(len(items), 2)
+        self.assertEqual(errors[0]['number'], 2)
+        self.assertTrue(items[1].title.endswith('3'))
+
+    def test_numeric_default_tolerance_matches_capa(self):
+        block = SimpleNamespace(display_name='Numeric', data='<problem><p>Сколько?</p><numericalresponse answer="4"><textline/></numericalresponse></problem>')
+        self.assertEqual(questions.extract_question(block).correct_answers, ['4 ± 0.001%'])
 
     def test_xml_entities_and_invalid_xml_are_rejected(self):
         for content in ['<!DOCTYPE problem [<!ENTITY x "xx">]><problem>&x;</problem>', '<problem>']:

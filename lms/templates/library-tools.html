@@ -1,4 +1,10 @@
 <%page expression_filter="h"/>
+<%!
+def answer_display(item):
+    if item['type'] in ('single', 'multi', 'dropdown'):
+        return ','.join(str('ABCDEFGHIJ'.index(letter) + 1) for letter in item['correct_answers'])
+    return ' || '.join(item['correct_answers'])
+%>
 <!doctype html>
 <html lang="ru">
 <head>
@@ -43,10 +49,23 @@
     <a href="${tools_url}">Все библиотеки</a>
   </nav>
   <h1 style="margin-top: 22px;">Библиотеки и вопросы</h1>
-  <p class="muted">Библиотеки V1. Выгрузка текстовых тестов и добавление новых вопросов из CSV.</p>
+  <p class="muted">Библиотеки V1. Выгрузка тестов в Excel и добавление новых вопросов из файла.</p>
 
   % if feedback.get('error'):
     <div class="notice error" role="alert">${feedback['error']}</div>
+  % endif
+  % if feedback.get('validation_errors'):
+    <section class="panel" aria-labelledby="validation-heading">
+      <h2 id="validation-heading">Ошибки файла (${len(feedback['validation_errors'])})</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>Строка Excel</th><th>Что исправить</th></tr></thead>
+        <tbody>
+        % for error in feedback['validation_errors']:
+          <tr><td>${error['row']}</td><td>${error['detail']}</td></tr>
+        % endfor
+        </tbody>
+      </table></div>
+    </section>
   % endif
   % if feedback.get('results'):
     <section class="panel" aria-labelledby="results-heading">
@@ -58,7 +77,7 @@
       <details>
         <summary>Статус каждой строки</summary>
         <div class="scroll"><table>
-          <thead><tr><th>Строка CSV</th><th>Название</th><th>Результат</th></tr></thead>
+          <thead><tr><th>Строка файла</th><th>Название</th><th>Результат</th></tr></thead>
           <tbody>
           % for row in feedback['results']:
             <tr><td>${row['row']}</td><td>${row['title']}</td><td class="status-${row['status']}">${row['detail']}</td></tr>
@@ -73,21 +92,20 @@
     <section class="panel" aria-labelledby="selected-heading">
       <h2 id="selected-heading">${selected_library.display_name or selected_id}</h2>
       <p class="muted key">${selected_id}</p>
-      <p>Вопросов для CSV: <strong>${supported_count}</strong>. Сложных вопросов: <strong>${len(unsupported)}</strong>.</p>
+      <p>Вопросов для Excel: <strong>${supported_count}</strong>. Не удалось выгрузить: <strong>${len(unsupported)}</strong>.</p>
       <div class="toolbar">
-        % if supported_count:
-          <a class="button" href="${export_url}">Скачать вопросы CSV (${supported_count})</a>
-        % endif
-        <a class="button secondary" href="${template_url}">Скачать шаблон CSV</a>
+        <a class="button" href="${export_url}">Скачать Excel (${supported_count})</a>
+        <a class="button secondary" href="${template_url}">Скачать шаблон Excel</a>
       </div>
-      <p class="muted">CSV содержит правильные ответы. Excel: «Сохранить как → CSV UTF-8».
-        При выгрузке базовое форматирование текста преобразуется в обычный текст.</p>
+      <p class="muted">Excel содержит текст вопросов, варианты, правильные ответы и тип задания.
+        Оформление, подсказки, решения и настройки оценивания в файл не переносятся.</p>
       % if unsupported:
         <div class="notice">
-          Сложные вопросы не входят в CSV. Для полного сохранения их разметки и настроек используйте Tools → Export в Studio.
+          Вопросы, которые не удалось разобрать, перечислены на листе «Не выгружены» в Excel с причиной.
+          Для полного сохранения разметки и настроек используйте Tools → Export в Studio.
         </div>
         <details>
-          <summary>Какие вопросы не вошли в CSV (${len(unsupported)})</summary>
+          <summary>Какие вопросы не вошли в таблицу (${len(unsupported)})</summary>
           <div class="scroll"><table>
             <thead><tr><th>Вопрос</th><th>Причина</th></tr></thead>
             <tbody>
@@ -100,16 +118,24 @@
       % endif
 
       <h3>Добавить новые вопросы</h3>
-      <p>Одна строка — один вопрос. От 2 до 10 вариантов A–J. Тип <code>single</code> — один правильный ответ,
-        <code>multi</code> — несколько. Правильные варианты: <code>B</code> или <code>A,C</code>.</p>
-      <p class="muted">Загрузка создаёт новые компоненты. Исходный ID справочный.
-        Поддерживается обычный текст, без изображений, формул и скриптов. До 500 вопросов и 2 МБ за одну загрузку.</p>
+      <p>Одна строка Excel — один вопрос. Столбцы: <code>question</code>, <code>variant1</code>–<code>variant4</code>,
+        <code>correct_answer</code>, <code>type</code>. При необходимости добавьте варианты до <code>variant10</code>.</p>
+      <p><code>single</code> — одиночный выбор, <code>multi</code> — несколько ответов,
+        <code>dropdown</code> — выпадающий список. В <code>correct_answer</code> укажите номера: <code>2</code> или <code>1,3</code>.</p>
+      <p class="muted">Для <code>single</code> с несколькими правильными номерами засчитывается любой один из них;
+        для <code>multi</code> нужно выбрать все указанные варианты.</p>
+      <p><code>text</code> — текст без учёта регистра, <code>text_case_sensitive</code> — с учётом регистра,
+        <code>numeric</code> — число. Для них варианты пустые, в <code>correct_answer</code> — сам ответ.
+        Допустимые текстовые ответы разделяйте <code> || </code>; числовой допуск пишите <code>4 ± 0.1</code> или <code>4 ± 5%</code>.</p>
+      <p class="muted">Не объединяйте ячейки; сохраняйте файл как <code>.xlsx</code>. Загрузка создаёт новые компоненты.
+        Поддерживается текст без изображений и скриптов. До 2000 вопросов и 5 МБ за одну загрузку.
+        Невидимые символы и лишние пробелы по краям убираются при проверке; ошибки показаны по строкам.</p>
       <form method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}">
         <input type="hidden" name="library" value="${selected_id}">
         <input type="hidden" name="action" value="preview">
-        <label for="questions-file">Файл CSV UTF-8</label>
-        <input id="questions-file" type="file" name="questions_file" accept=".csv,text/csv" required>
+        <label for="questions-file">Файл Excel (.xlsx)</label>
+        <input id="questions-file" type="file" name="questions_file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" required>
         <button type="submit">Проверить файл</button>
       </form>
     </section>
@@ -120,6 +146,14 @@
       <h2 id="preview-heading">Проверено вопросов: ${len(preview['questions'])}</h2>
       <p>Библиотека: <strong>${selected_library.display_name or selected_id}</strong>.</p>
       <p class="muted">Ниже первые 20 вопросов. Добавление начнётся после нажатия кнопки.</p>
+      % if preview.get('warnings'):
+        <details class="notice">
+          <summary>Исправлено при проверке: ${len(preview['warnings'])} ячеек</summary>
+          % for warning in preview['warnings']:
+            <p>Строка ${warning['row']}: ${warning['detail']}</p>
+          % endfor
+        </details>
+      % endif
       <div class="scroll"><table>
         <thead><tr><th>Строка</th><th>Вопрос и варианты</th><th>Правильные</th></tr></thead>
         <tbody>
@@ -127,12 +161,12 @@
           <tr><td>${item['row']}</td><td>
             <strong>${item['title']}</strong>
             <div class="question">${item['question']}</div>
-            <ol type="A" class="answer-list">
+            <ol class="answer-list">
             % for answer in item['answers']:
               <li class="question">${answer}</li>
             % endfor
             </ol>
-          </td><td>${','.join(item['correct_answers'])}<br><span class="muted">${item['type']}</span></td></tr>
+          </td><td>${answer_display(item)}<br><span class="muted">${item['type']}</span></td></tr>
         % endfor
         </tbody>
       </table></div>
