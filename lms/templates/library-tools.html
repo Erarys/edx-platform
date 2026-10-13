@@ -1,0 +1,195 @@
+<%page expression_filter="h"/>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Библиотеки и вопросы</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f6fa; color: #243447; font: 15px/1.5 Arial, sans-serif; }
+    main { max-width: 1280px; margin: auto; padding: 30px 22px 60px; }
+    h1 { font-size: 29px; margin: 0 0 8px; } h2 { font-size: 21px; margin: 0 0 16px; }
+    h3 { font-size: 17px; margin: 22px 0 10px; }
+    p { margin: 8px 0 16px; } a { color: #245d8c; }
+    .muted { color: #64748b; } .key { overflow-wrap: anywhere; font-size: 13px; }
+    .panel { background: white; padding: 24px; border: 1px solid #dbe3ec; border-radius: 10px; margin: 22px 0; }
+    .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .button, button { display: inline-block; padding: 10px 16px; border: 1px solid #245d8c; border-radius: 6px; background: #245d8c; color: white; font: inherit; text-decoration: none; cursor: pointer; }
+    .button.secondary, button.secondary { background: white; color: #245d8c; }
+    input { font: inherit; padding: 9px 12px; border: 1px solid #b8c7d8; border-radius: 5px; max-width: 100%; }
+    input[type="search"] { flex: 1; min-width: 180px; } input[type="file"] { width: 100%; margin: 8px 0 16px; }
+    label { display: block; font-weight: bold; margin-top: 16px; }
+    .notice { padding: 14px 18px; border-radius: 6px; border: 1px solid #b8c7d8; margin: 18px 0; }
+    .error { background: #fff0f0; border-color: #e7aaaa; color: #8f2727; }
+    .success { background: #edf8ef; border-color: #afd6b5; color: #276038; }
+    .scroll { overflow-x: auto; } table { width: 100%; min-width: 640px; border-collapse: collapse; }
+    th { background: #edf2f8; text-align: left; padding: 12px; font-weight: bold; }
+    td { border-bottom: 1px solid #e6edf5; padding: 12px; vertical-align: top; overflow-wrap: anywhere; }
+    tbody tr:nth-child(even) { background: #fafcff; }
+    .question { white-space: pre-wrap; } .answer-list { margin: 8px 0; padding-left: 22px; }
+    .status-created, .status-already_added { color: #276038; } .status-failed { color: #8f2727; }
+    .pagination { margin-top: 18px; justify-content: flex-end; }
+    code { font-family: Consolas, monospace; background: #edf2f8; padding: 2px 5px; border-radius: 3px; }
+    details summary { cursor: pointer; font-weight: bold; }
+    input:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #87b9e2; outline-offset: 3px; }
+    @media (max-width: 650px) { main { padding: 20px 12px 40px; } .panel { padding: 16px; } .toolbar > .button, .toolbar > button { width: 100%; text-align: center; } }
+  </style>
+</head>
+<body>
+<main>
+  <nav class="toolbar" aria-label="Навигация администратора">
+    <a href="${course_admin_url}">Управление курсами и студентами</a>
+    <a href="${tools_url}">Все библиотеки</a>
+  </nav>
+  <h1 style="margin-top: 22px;">Библиотеки и вопросы</h1>
+  <p class="muted">Библиотеки V1. Выгрузка текстовых тестов и добавление новых вопросов из CSV.</p>
+
+  % if feedback.get('error'):
+    <div class="notice error" role="alert">${feedback['error']}</div>
+  % endif
+  % if feedback.get('results'):
+    <section class="panel" aria-labelledby="results-heading">
+      <h2 id="results-heading">Результат добавления</h2>
+      <p>Создано: <strong>${sum(row['status'] == 'created' for row in feedback['results'])}</strong>.
+        Уже добавлено: <strong>${sum(row['status'] == 'already_added' for row in feedback['results'])}</strong>.
+        Ошибок: <strong>${sum(row['status'] == 'failed' for row in feedback['results'])}</strong>.</p>
+      <p class="muted">Для использования новых вопросов в уже подключённом курсе обновите библиотечный блок в Studio.</p>
+      <details>
+        <summary>Статус каждой строки</summary>
+        <div class="scroll"><table>
+          <thead><tr><th>Строка CSV</th><th>Название</th><th>Результат</th></tr></thead>
+          <tbody>
+          % for row in feedback['results']:
+            <tr><td>${row['row']}</td><td>${row['title']}</td><td class="status-${row['status']}">${row['detail']}</td></tr>
+          % endfor
+          </tbody>
+        </table></div>
+      </details>
+    </section>
+  % endif
+
+  % if selected_library:
+    <section class="panel" aria-labelledby="selected-heading">
+      <h2 id="selected-heading">${selected_library.display_name or selected_id}</h2>
+      <p class="muted key">${selected_id}</p>
+      <p>Вопросов для CSV: <strong>${supported_count}</strong>. Сложных вопросов: <strong>${len(unsupported)}</strong>.</p>
+      <div class="toolbar">
+        % if supported_count:
+          <a class="button" href="${export_url}">Скачать вопросы CSV (${supported_count})</a>
+        % endif
+        <a class="button secondary" href="${template_url}">Скачать шаблон CSV</a>
+      </div>
+      <p class="muted">CSV содержит правильные ответы. Excel: «Сохранить как → CSV UTF-8».
+        При выгрузке базовое форматирование текста преобразуется в обычный текст.</p>
+      % if unsupported:
+        <div class="notice">
+          Сложные вопросы не входят в CSV. Для полного сохранения их разметки и настроек используйте Tools → Export в Studio.
+        </div>
+        <details>
+          <summary>Какие вопросы не вошли в CSV (${len(unsupported)})</summary>
+          <div class="scroll"><table>
+            <thead><tr><th>Вопрос</th><th>Причина</th></tr></thead>
+            <tbody>
+            % for item in unsupported:
+              <tr><td>${item['title']}<div class="muted key">${item['id']}</div></td><td>${item['reason']}</td></tr>
+            % endfor
+            </tbody>
+          </table></div>
+        </details>
+      % endif
+
+      <h3>Добавить новые вопросы</h3>
+      <p>Одна строка — один вопрос. От 2 до 10 вариантов A–J. Тип <code>single</code> — один правильный ответ,
+        <code>multi</code> — несколько. Правильные варианты: <code>B</code> или <code>A,C</code>.</p>
+      <p class="muted">Загрузка создаёт новые компоненты. Исходный ID справочный.
+        Поддерживается обычный текст, без изображений, формул и скриптов. До 500 вопросов и 2 МБ за одну загрузку.</p>
+      <form method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}">
+        <input type="hidden" name="library" value="${selected_id}">
+        <input type="hidden" name="action" value="preview">
+        <label for="questions-file">Файл CSV UTF-8</label>
+        <input id="questions-file" type="file" name="questions_file" accept=".csv,text/csv" required>
+        <button type="submit">Проверить файл</button>
+      </form>
+    </section>
+  % endif
+
+  % if preview:
+    <section class="panel" aria-labelledby="preview-heading">
+      <h2 id="preview-heading">Проверено вопросов: ${len(preview['questions'])}</h2>
+      <p>Библиотека: <strong>${selected_library.display_name or selected_id}</strong>.</p>
+      <p class="muted">Ниже первые 20 вопросов. Добавление начнётся после нажатия кнопки.</p>
+      <div class="scroll"><table>
+        <thead><tr><th>Строка</th><th>Вопрос и варианты</th><th>Правильные</th></tr></thead>
+        <tbody>
+        % for item in preview['questions'][:20]:
+          <tr><td>${item['row']}</td><td>
+            <strong>${item['title']}</strong>
+            <div class="question">${item['question']}</div>
+            <ol type="A" class="answer-list">
+            % for answer in item['answers']:
+              <li class="question">${answer}</li>
+            % endfor
+            </ol>
+          </td><td>${','.join(item['correct_answers'])}<br><span class="muted">${item['type']}</span></td></tr>
+        % endfor
+        </tbody>
+      </table></div>
+      <form method="post" class="toolbar" style="margin-top: 18px;" id="confirm-import">
+        <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}">
+        <input type="hidden" name="library" value="${selected_id}">
+        <input type="hidden" name="token" value="${preview['token']}">
+        <button type="submit" name="action" value="import">Добавить вопросы (${len(preview['questions'])})</button>
+        <button type="submit" name="action" value="cancel" class="secondary">Отменить проверку</button>
+      </form>
+    </section>
+  % endif
+
+  <section class="panel" aria-labelledby="list-heading">
+    <h2 id="list-heading">Список библиотек (${library_total})</h2>
+    <form method="get" action="${tools_url}" class="toolbar">
+      <label for="library-search" class="sr" style="margin: 0;">Поиск</label>
+      <input id="library-search" type="search" name="q" value="${search}" placeholder="Название, организация или ID">
+      <button type="submit">Найти</button>
+      <a href="${tools_url}">Сбросить</a>
+    </form>
+    <div class="scroll" style="margin-top: 16px;">
+      <table>
+        <thead><tr><th>Библиотека</th><th>ID</th><th>Компонентов</th><th>Действие</th></tr></thead>
+        <tbody>
+        % for item in libraries:
+          <tr><td>${item['name']}</td><td class="key">${item['id']}</td><td>${item['components']}</td><td><a href="${item['url']}">Открыть</a></td></tr>
+        % endfor
+        % if not libraries:
+          <tr><td colspan="4" class="muted">Библиотеки не найдены.</td></tr>
+        % endif
+        </tbody>
+      </table>
+    </div>
+    % if libraries.paginator.num_pages > 1:
+      <nav class="toolbar pagination" aria-label="Страницы библиотек">
+        % if libraries.has_previous():
+          <a href="${tools_url}?q=${search | u}&amp;page=${libraries.previous_page_number()}">Назад</a>
+        % endif
+        <span>Страница ${libraries.number} из ${libraries.paginator.num_pages}</span>
+        % if libraries.has_next():
+          <a href="${tools_url}?q=${search | u}&amp;page=${libraries.next_page_number()}">Далее</a>
+        % endif
+      </nav>
+    % endif
+  </section>
+</main>
+<script>
+  const importForm = document.getElementById('confirm-import');
+  if (importForm) {
+    importForm.addEventListener('submit', function () {
+      this.querySelectorAll('button').forEach(button => {
+        button.style.pointerEvents = 'none';
+        button.setAttribute('aria-disabled', 'true');
+      });
+    });
+  }
+</script>
+</body>
+</html>

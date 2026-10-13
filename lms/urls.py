@@ -17,6 +17,7 @@ from common.djangoapps.student import views as student_views
 from common.djangoapps.util import views as util_views
 from lms.djangoapps.branding import views as branding_views
 from lms.djangoapps.course_admin import views as course_admin_views
+from lms.djangoapps.library_tools import views as library_tools_views
 from lms.djangoapps.courseware.masquerade import MasqueradeView
 from lms.djangoapps.courseware.block_render import (
     handle_xblock_callback,
@@ -97,6 +98,7 @@ notification_prefs_urls = [
 
 urlpatterns = [
     re_path(r'^course-admin/?$', course_admin_views.course_admin, name='course_admin'),
+    path('library-tools/', library_tools_views.library_tools, name='library_tools'),
     path('news/', news_views.news_list, name='news_list'),
     path('news/<int:news_id>/', news_views.news_detail, name='news_detail'),
     path('news/create/', news_views.news_create, name='news_create'),
