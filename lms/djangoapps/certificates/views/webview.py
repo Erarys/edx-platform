@@ -12,6 +12,7 @@ from uuid import uuid4
 import pytz
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.db import DatabaseError
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.template import RequestContext
 from django.utils import translation
@@ -48,6 +49,7 @@ from lms.djangoapps.certificates.utils import (
     get_certificate_url,
     get_preferred_certificate_name
 )
+from lms.djangoapps.grades.models import PersistentCourseGrade
 from openedx.core.djangoapps.catalog.api import get_course_run_details
 from openedx.core.djangoapps.content.course_overviews.api import get_course_overview_or_none
 from openedx.core.djangoapps.lang_pref.api import get_closest_released_language
@@ -64,7 +66,7 @@ INVALID_CERTIFICATE_TEMPLATE_PATH = 'certificates/invalid.html'
 
 
 def _certificate_grade_percent(grade):
-    """Convert the certificate's saved 0–1 grade to a validated percentage."""
+    """Convert a 0–1 course grade to a validated percentage."""
     try:
         value = Decimal(str(grade))
     except (InvalidOperation, ValueError, TypeError):
@@ -72,6 +74,28 @@ def _certificate_grade_percent(grade):
     if not value.is_finite() or not Decimal('0') <= value <= Decimal('1'):
         return None
     return value * 100
+
+
+def _current_certificate_grade_percent(user_certificate):
+    """Read the certificate owner's current course grade, without recalculating it."""
+    if user_certificate.user_id is None or user_certificate.course_id is None:
+        # Studio previews do not represent a learner's course progress.
+        return None
+    try:
+        grade = PersistentCourseGrade.objects.get(
+            user_id=user_certificate.user_id,
+            course_id=user_certificate.course_id,
+        )
+    except PersistentCourseGrade.DoesNotExist:
+        return None
+    except DatabaseError:
+        log.exception(
+            'Could not read current certificate grade for user %s in course %s',
+            user_certificate.user_id,
+            user_certificate.course_id,
+        )
+        return None
+    return _certificate_grade_percent(grade.percent_grade)
 
 
 def get_certificate_description(mode, certificate_type, platform_name, course_key):
@@ -118,8 +142,8 @@ def _update_certificate_context(context, course, course_overview, user_certifica
 
     # Override the defaults with any mode-specific static values
     context['certificate_id_number'] = user_certificate.verify_uuid
-    # Use the issuance snapshot, so regrading does not silently restyle a diploma.
-    context['certificate_grade_percent'] = _certificate_grade_percent(user_certificate.grade)
+    # GeneratedCertificate.grade is an issuance snapshot, not the latest progress.
+    context['certificate_grade_percent'] = _current_certificate_grade_percent(user_certificate)
     context['certificate_verify_url'] = "{prefix}{uuid}{suffix}".format(
         prefix=context.get('certificate_verify_url_prefix'),
         uuid=user_certificate.verify_uuid,

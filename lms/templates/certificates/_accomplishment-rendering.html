@@ -16,7 +16,7 @@ except (InvalidOperation, ValueError, TypeError):
 
 tier = 'blue'
 frame, accent, tint, ornament = ('#163f69', '#2b6fa0', '#edf4f8', '#8bb4d0')
-score_text = format(score.normalize(), 'f') if score is not None else None
+score_text = format(score.quantize(Decimal('0.01')).normalize(), 'f') if score is not None else None
 try:
     formatted_date = datetime.strptime(certificate_date_issued, '%B %d, %Y').strftime('%d.%m.%Y')
 except (ValueError, TypeError):
