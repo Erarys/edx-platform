@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 %>
 <%def name="pagetitle()">${_("SDG 4: Quality Education")}</%def>
-<%def name="head_extra()">
+<%def name="head_extra(**pageargs)">
   <link rel="stylesheet" href="${static.url('sdg4/showcase.css')}" />
 </%def>
 <main id="main" class="sdg4" tabindex="-1">

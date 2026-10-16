@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
 from django.middleware.csrf import get_token
+from django.template import Context
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import translation
@@ -38,7 +39,7 @@ def template_renderer(request, template, context):
     lookup = TemplateLookup(directories=[str(root)], input_encoding="utf-8", default_filters=["h"])
     lookup.put_string(
         "/main.html",
-        '<!doctype html><html lang="${LANGUAGE_CODE}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${self.pagetitle()}</title>${self.head_extra()}</head><body>${next.body()}</body></html>',
+        '<!doctype html><html lang="${LANGUAGE_CODE}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${self.pagetitle()}</title><%block name="head_extra"/></head><body>${next.body()}</body></html>',
     )
     lookup.put_string("/static_content.html", '<%def name="url(path)">/static/${path}</%def>')
     context.update(
@@ -49,7 +50,9 @@ def template_renderer(request, template, context):
         can_manage_sdg4=views.can_manage(request.user),
         LANGUAGE_CODE=translation.get_language(),
     )
-    return HttpResponse(lookup.get_template(f"news/sdg4/{template}.html").render(**context))
+    # Match edxmako's flattened Django context, including True/False/None.
+    # A named Mako block forwards these values as **pageargs to its override.
+    return HttpResponse(lookup.get_template(f"news/sdg4/{template}.html").render(**Context(context).flatten()))
 
 
 def payload(published=True, course_type="lecture"):
@@ -299,7 +302,7 @@ class ShowcaseTests(TestCase):
         with translation.override("ru"):
             self.assertEqual(sorted(["Жуков", "Ёлкин", "Егоров"], key=alphabetical_key), ["Егоров", "Ёлкин", "Жуков"])
 
-    def test_stylesheet_is_in_head_and_no_stray_title(self):
+    def test_header_hook_accepts_django_context_pageargs_without_stray_title(self):
         response = self.client.get(reverse("sdg4_index"))
         html = response.content.decode()
         head, body = html.split("</head>", 1)
