@@ -1,0 +1,626 @@
+{
+  "scope": "courses_started_2026-01-01_through_2026-10-14",
+  "course_runs": 146,
+  "duplicate_title_groups": 61,
+  "courses": [
+    {
+      "course_name": "Academic Writing: The Structure of a Research Paper",
+      "enrolled_students": "218",
+      "certified_students": "22",
+      "directions": "Искусство и гуманитарные науки",
+      "faculties": "Филологический"
+    },
+    {
+      "course_name": "C# тілінде программалау",
+      "enrolled_students": "28",
+      "certified_students": "3",
+      "directions": "Информационно-коммуникационные технологии",
+      "faculties": "Информационные технологии и искусственный интеллект"
+    },
+    {
+      "course_name": "Data Literacy – 2-деңгейлі оқыту бағдарламасы",
+      "enrolled_students": "140",
+      "certified_students": "73",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Информационные технологии и искусственный интеллект"
+    },
+    {
+      "course_name": "English of teacher",
+      "enrolled_students": "5",
+      "certified_students": "0",
+      "directions": "Искусство и гуманитарные науки",
+      "faculties": "Филологический"
+    },
+    {
+      "course_name": "Hi AI! Basics of AI for students",
+      "enrolled_students": "20",
+      "certified_students": "3",
+      "directions": "Информационно-коммуникационные технологии",
+      "faculties": "Информационные технологии и искусственный интеллект"
+    },
+    {
+      "course_name": "Hi AI! Основы ИИ для студентов",
+      "enrolled_students": "31",
+      "certified_students": "3",
+      "directions": "Информационно-коммуникационные технологии; Не указано",
+      "faculties": "Информационные технологии и искусственный интеллект; Не указано"
+    },
+    {
+      "course_name": "Hi AI! Студенттерге арналған ЖИ негіздері",
+      "enrolled_students": "18",
+      "certified_students": "3",
+      "directions": "Информационно-коммуникационные технологии",
+      "faculties": "Информационные технологии и искусственный интеллект"
+    },
+    {
+      "course_name": "Information and Communication Technologies",
+      "enrolled_students": "3",
+      "certified_students": "0",
+      "directions": "Информационно-коммуникационные технологии",
+      "faculties": "Информационные технологии и искусственный интеллект"
+    },
+    {
+      "course_name": "Methods of molecular biology",
+      "enrolled_students": "63",
+      "certified_students": "4",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Биология и биотехнология"
+    },
+    {
+      "course_name": "Python бағдарламалау тілі",
+      "enrolled_students": "26",
+      "certified_students": "1",
+      "directions": "Информационно-коммуникационные технологии",
+      "faculties": "Информационные технологии и искусственный интеллект"
+    },
+    {
+      "course_name": "Reputation and business capital",
+      "enrolled_students": "19",
+      "certified_students": "2",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Журналистика"
+    },
+    {
+      "course_name": "Sociology",
+      "enrolled_students": "439",
+      "certified_students": "120",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Философии и политологии"
+    },
+    {
+      "course_name": "Study by distance!",
+      "enrolled_students": "6",
+      "certified_students": "0",
+      "directions": "Педагогические науки",
+      "faculties": "Офис академических и цифровых инноваций"
+    },
+    {
+      "course_name": "Адам анатомиясына кіріспе. Сүйектер жүйесі, құрылысы және қызметі",
+      "enrolled_students": "20",
+      "certified_students": "0",
+      "directions": "Здравоохранение",
+      "faculties": "Медицины и здравоохранения"
+    },
+    {
+      "course_name": "Административное право Республики Казахстан",
+      "enrolled_students": "61",
+      "certified_students": "0",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Юридический"
+    },
+    {
+      "course_name": "Аналитикалық химия",
+      "enrolled_students": "36",
+      "certified_students": "1",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Химии и химической технологии"
+    },
+    {
+      "course_name": "Аналитикалық химия.Сапалық талдау",
+      "enrolled_students": "24",
+      "certified_students": "1",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Химии и химической технологии"
+    },
+    {
+      "course_name": "Ағылшын тілі",
+      "enrolled_students": "753",
+      "certified_students": "24",
+      "directions": "Искусство и гуманитарные науки",
+      "faculties": "Филологический"
+    },
+    {
+      "course_name": "Ақпаратты қорғау негіздері",
+      "enrolled_students": "1",
+      "certified_students": "0",
+      "directions": "Информационно-коммуникационные технологии",
+      "faculties": "Информационные технологии и искусственный интеллект"
+    },
+    {
+      "course_name": "Ақпараттық және коммуникациялық технологиялар",
+      "enrolled_students": "4",
+      "certified_students": "0",
+      "directions": "Информационно-коммуникационные технологии",
+      "faculties": "Информационные технологии и искусственный интеллект"
+    },
+    {
+      "course_name": "Білім берудегі Smart технологиялар",
+      "enrolled_students": "24",
+      "certified_students": "2",
+      "directions": "Информационно-коммуникационные технологии",
+      "faculties": "Информационные технологии и искусственный интеллект"
+    },
+    {
+      "course_name": "Біртұтас тасымалдау жүйесі",
+      "enrolled_students": "42",
+      "certified_students": "2",
+      "directions": "Инженерные, обрабатывающие и строительные отрасли",
+      "faculties": "Кластер инжиниринга и наукоемких технологий"
+    },
+    {
+      "course_name": "Бейорганикалық химияның таңдамалы мәселелері",
+      "enrolled_students": "13",
+      "certified_students": "1",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Химии и химической технологии"
+    },
+    {
+      "course_name": "Биотехнология негіздері: жоғарғы және төменгі сатыдағы өсімдіктер биотехнологиясы",
+      "enrolled_students": "70",
+      "certified_students": "9",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Биология и биотехнология"
+    },
+    {
+      "course_name": "Ежелгі Шығыс өркениеттері",
+      "enrolled_students": "3",
+      "certified_students": "1",
+      "directions": "Искусство и гуманитарные науки",
+      "faculties": "История"
+    },
+    {
+      "course_name": "Жоғары мектеп педагогикасы",
+      "enrolled_students": "27",
+      "certified_students": "0",
+      "directions": "Педагогические науки",
+      "faculties": "Философии и политологии"
+    },
+    {
+      "course_name": "Информационно – коммуникационные технологии. Курс для студентов КазНУ имени аль-Фараби",
+      "enrolled_students": "13",
+      "certified_students": "0",
+      "directions": "Информационно-коммуникационные технологии",
+      "faculties": "Информационные технологии и искусственный интеллект"
+    },
+    {
+      "course_name": "Информационное право",
+      "enrolled_students": "31",
+      "certified_students": "5",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Юридический"
+    },
+    {
+      "course_name": "Конституционное право Республики Казахстан",
+      "enrolled_students": "12",
+      "certified_students": "2",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Юридический"
+    },
+    {
+      "course_name": "Конфликтно-чувствительная  журналистика: текущее  состояние",
+      "enrolled_students": "33",
+      "certified_students": "15",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Журналистика"
+    },
+    {
+      "course_name": "Культурная антропология",
+      "enrolled_students": "16",
+      "certified_students": "2",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Философии и политологии"
+    },
+    {
+      "course_name": "Культурология",
+      "enrolled_students": "261",
+      "certified_students": "1",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Философии и политологии"
+    },
+    {
+      "course_name": "Кәсіпкерлік",
+      "enrolled_students": "30",
+      "certified_students": "2",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Высшая школа экономики и бизнеса"
+    },
+    {
+      "course_name": "Кәсіпорын экономикасы",
+      "enrolled_students": "1",
+      "certified_students": "0",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Высшая школа экономики и бизнеса"
+    },
+    {
+      "course_name": "Лабораторный практикум по органической химии",
+      "enrolled_students": "59",
+      "certified_students": "1",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Химии и химической технологии"
+    },
+    {
+      "course_name": "Математикалық талдау 1",
+      "enrolled_students": "21",
+      "certified_students": "2",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Механико-математический"
+    },
+    {
+      "course_name": "Математикалық талдау 2",
+      "enrolled_students": "9",
+      "certified_students": "0",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Механико-математический"
+    },
+    {
+      "course_name": "Математический анализ 1",
+      "enrolled_students": "33",
+      "certified_students": "1",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Механико-математический"
+    },
+    {
+      "course_name": "Математический анализ 2",
+      "enrolled_students": "15",
+      "certified_students": "1",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Механико-математический"
+    },
+    {
+      "course_name": "Медико-биологиялық мақсаттағы полимерлер химиясы ",
+      "enrolled_students": "181",
+      "certified_students": "4",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Химии и химической технологии"
+    },
+    {
+      "course_name": "Мемлекеттік қызметшілерде сыбайлас жемқорлыққа қарсы мәдениетті қалыптастыру",
+      "enrolled_students": "29",
+      "certified_students": "7",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Юридический"
+    },
+    {
+      "course_name": "Модуль социально-политических знаний",
+      "enrolled_students": "58",
+      "certified_students": "21",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Философии и политологии"
+    },
+    {
+      "course_name": "Мәдениеттану",
+      "enrolled_students": "8",
+      "certified_students": "0",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Философии и политологии"
+    },
+    {
+      "course_name": "Образовательная программа по разработке наноспутников UniSat для девочек (UNEPG)",
+      "enrolled_students": "5",
+      "certified_students": "1",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Кластер инжиниринга и наукоемких технологий"
+    },
+    {
+      "course_name": "Обучай дистанционно",
+      "enrolled_students": "3",
+      "certified_students": "0",
+      "directions": "Педагогические науки",
+      "faculties": "Офис академических и цифровых инноваций"
+    },
+    {
+      "course_name": "Онлайн курсты әзірлеу: теориядан практикаға",
+      "enrolled_students": "2",
+      "certified_students": "0",
+      "directions": "Педагогические науки",
+      "faculties": "Офис академических и цифровых инноваций"
+    },
+    {
+      "course_name": "Операциялық жүйелер",
+      "enrolled_students": "5",
+      "certified_students": "0",
+      "directions": "Информационно-коммуникационные технологии",
+      "faculties": "Информационные технологии и искусственный интеллект"
+    },
+    {
+      "course_name": "Органическая химия алифатических соединении",
+      "enrolled_students": "54",
+      "certified_students": "6",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Биология и биотехнология"
+    },
+    {
+      "course_name": "Освещение в СМИ проблемы насилия против женщин и девочек",
+      "enrolled_students": "8",
+      "certified_students": "1",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Журналистика"
+    },
+    {
+      "course_name": "Освещение темы об изменении климата  и устойчивом развитии",
+      "enrolled_students": "10",
+      "certified_students": "1",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Журналистика"
+    },
+    {
+      "course_name": "Основные процессы и аппараты химической технологии",
+      "enrolled_students": "67",
+      "certified_students": "37",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Химии и химической технологии"
+    },
+    {
+      "course_name": "Основы утилизации отходов",
+      "enrolled_students": "186",
+      "certified_students": "116",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Физико-технический"
+    },
+    {
+      "course_name": "Педагогика высшей школы",
+      "enrolled_students": "48",
+      "certified_students": "1",
+      "directions": "Педагогические науки",
+      "faculties": "Философии и политологии"
+    },
+    {
+      "course_name": "Повторное использование отходов",
+      "enrolled_students": "177",
+      "certified_students": "138",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Физико-технический"
+    },
+    {
+      "course_name": "Правоохранительные органы Республики Казахстан",
+      "enrolled_students": "11",
+      "certified_students": "1",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Юридический"
+    },
+    {
+      "course_name": "Программалауға кіріспе",
+      "enrolled_students": "4",
+      "certified_students": "1",
+      "directions": "Информационно-коммуникационные технологии",
+      "faculties": "Информационные технологии и искусственный интеллект"
+    },
+    {
+      "course_name": "Противодействие легализации незаконных доходов",
+      "enrolled_students": "21",
+      "certified_students": "4",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Юридический"
+    },
+    {
+      "course_name": "Психология (на русском языке)",
+      "enrolled_students": "3",
+      "certified_students": "1",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Философии и политологии"
+    },
+    {
+      "course_name": "Психология (қазақ тілінде)",
+      "enrolled_students": "9",
+      "certified_students": "0",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Философии и политологии"
+    },
+    {
+      "course_name": "Русский язык в учебно-профессиональной сфере общения",
+      "enrolled_students": "400",
+      "certified_students": "68",
+      "directions": "Искусство и гуманитарные науки",
+      "faculties": "Филологический"
+    },
+    {
+      "course_name": "Саясаттану",
+      "enrolled_students": "5",
+      "certified_students": "1",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Философии и политологии"
+    },
+    {
+      "course_name": "Создаем онлайн курс: от теории к практике",
+      "enrolled_students": "1",
+      "certified_students": "1",
+      "directions": "Педагогические науки",
+      "faculties": "Офис академических и цифровых инноваций"
+    },
+    {
+      "course_name": "Статистика",
+      "enrolled_students": "121",
+      "certified_students": "0",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Высшая школа экономики и бизнеса"
+    },
+    {
+      "course_name": "Теория вероятностей",
+      "enrolled_students": "83",
+      "certified_students": "1",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Механико-математический"
+    },
+    {
+      "course_name": "Типовой курс по безопасности журналистов",
+      "enrolled_students": "11",
+      "certified_students": "4",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Журналистика"
+    },
+    {
+      "course_name": "Уголовно-процессуальное право Республики Казахстан (Общая часть)",
+      "enrolled_students": "375",
+      "certified_students": "1",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Юридический"
+    },
+    {
+      "course_name": "Физикалық химия",
+      "enrolled_students": "4",
+      "certified_students": "1",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Физико-технический"
+    },
+    {
+      "course_name": "Физико-химические методы в управлении отходами",
+      "enrolled_students": "10",
+      "certified_students": "2",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Физико-технический"
+    },
+    {
+      "course_name": "Философия (на русском языке)",
+      "enrolled_students": "36",
+      "certified_students": "3",
+      "directions": "Искусство и гуманитарные науки",
+      "faculties": "Философии и политологии"
+    },
+    {
+      "course_name": "Философия (қазақ тілінде)",
+      "enrolled_students": "14",
+      "certified_students": "4",
+      "directions": "Искусство и гуманитарные науки",
+      "faculties": "Философии и политологии"
+    },
+    {
+      "course_name": "Формирование антикоррупционной культуры у государственных служащих",
+      "enrolled_students": "25",
+      "certified_students": "0",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Юридический"
+    },
+    {
+      "course_name": "Халықаралық қатынастардың қазіргі мәселелері",
+      "enrolled_students": "102",
+      "certified_students": "40",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Международных отношений"
+    },
+    {
+      "course_name": "Энергоэффективные технологии утилизации отходов",
+      "enrolled_students": "12",
+      "certified_students": "2",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Физико-технический"
+    },
+    {
+      "course_name": "Этнологиялық зерттеулердiң әдiстерi",
+      "enrolled_students": "2",
+      "certified_students": "1",
+      "directions": "Искусство и гуманитарные науки",
+      "faculties": "История"
+    },
+    {
+      "course_name": "Қазақстан музейлері",
+      "enrolled_students": "10",
+      "certified_students": "0",
+      "directions": "Искусство и гуманитарные науки",
+      "faculties": "История"
+    },
+    {
+      "course_name": "Қазақстан Республикасының қылмыстық іс жүргізу құқығы (Жалпы бөлім)",
+      "enrolled_students": "426",
+      "certified_students": "1",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Юридический"
+    },
+    {
+      "course_name": "Қазақстанды отарлау саясатында жүргізілген ережелер",
+      "enrolled_students": "31",
+      "certified_students": "1",
+      "directions": "Искусство и гуманитарные науки",
+      "faculties": "Довузовское образование"
+    },
+    {
+      "course_name": "Қазақстанның қазіргі заман тарихы",
+      "enrolled_students": "9",
+      "certified_students": "1",
+      "directions": "Искусство и гуманитарные науки",
+      "faculties": "История"
+    },
+    {
+      "course_name": "Қалдықтардан энергия өндіруге арналған қондырғылар мен технологиялар",
+      "enrolled_students": "12",
+      "certified_students": "1",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Физико-технический"
+    },
+    {
+      "course_name": "Қауіпсіз мектеп ортасы",
+      "enrolled_students": "15",
+      "certified_students": "0",
+      "directions": "Бизнес, управление и право",
+      "faculties": "Юридический"
+    },
+    {
+      "course_name": "Қашықтан зондылау және ГАЖ",
+      "enrolled_students": "24",
+      "certified_students": "1",
+      "directions": "Естественные науки, математика и статистика",
+      "faculties": "Кластер инжиниринга и наукоемких технологий"
+    },
+    {
+      "course_name": "Қашықтықтан оқыту",
+      "enrolled_students": "1",
+      "certified_students": "0",
+      "directions": "Педагогические науки",
+      "faculties": "Офис академических и цифровых инноваций"
+    },
+    {
+      "course_name": "Әлеуметтану",
+      "enrolled_students": "8",
+      "certified_students": "1",
+      "directions": "Социальные науки, журналистика и информация",
+      "faculties": "Философии и политологии"
+    }
+  ],
+  "directions": [
+    {
+      "direction_name": "Искусство и гуманитарные науки",
+      "enrolled_students": "1481"
+    },
+    {
+      "direction_name": "Естественные науки, математика и статистика",
+      "enrolled_students": "1244"
+    },
+    {
+      "direction_name": "Бизнес, управление и право",
+      "enrolled_students": "1158"
+    },
+    {
+      "direction_name": "Социальные науки, журналистика и информация",
+      "enrolled_students": "1044"
+    },
+    {
+      "direction_name": "Информационно-коммуникационные технологии",
+      "enrolled_students": "157"
+    },
+    {
+      "direction_name": "Педагогические науки",
+      "enrolled_students": "88"
+    },
+    {
+      "direction_name": "Инженерные, обрабатывающие и строительные отрасли",
+      "enrolled_students": "42"
+    },
+    {
+      "direction_name": "Здравоохранение",
+      "enrolled_students": "20"
+    },
+    {
+      "direction_name": "Не указано",
+      "enrolled_students": "20"
+    }
+  ]
+}
