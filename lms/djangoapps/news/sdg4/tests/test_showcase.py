@@ -1,13 +1,17 @@
 """Exercise real ORM, forms, multipart uploads, permissions and public routes."""
 
+import io
+import json
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
+from zipfile import ZipFile
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.storage import default_storage
 from django.http import HttpResponse
 from django.middleware.csrf import get_token
 from django.template import Context
@@ -29,7 +33,7 @@ from ..data import (
     validate_media_url,
     youtube_embed,
 )
-from ..forms import Materials
+from ..forms import MaterialForm, Materials, SimpleTeacherForm
 
 
 def template_renderer(request, template, context):
@@ -54,49 +58,28 @@ def template_renderer(request, template, context):
     return HttpResponse(lookup.get_template(f"news/sdg4/{template}.html").render(**Context(context).flatten()))
 
 
-def payload(published=True, course_type="lecture"):
-    result = {"faculty": FACULTIES[0][0], "slug": "ivanov-i-i", "published": "on" if published else ""}
-    for name in ("name", "position", "degree", "department"):
-        for lang, _label in LANGUAGES:
-            result[f"{name}_{lang}"] = f"{name} {lang}"
-    for slot in range(1, 4):
-        prefix = f"course-{slot}"
-        result.update(
-            {
-                f"{prefix}-type": course_type,
-                f"{prefix}-language": "ru",
-                f"{prefix}-programme": "6B06102",
-                f"{prefix}-license": "by",
-            }
-        )
-        for name in ("topic", "discipline", "annotation"):
-            for lang, _label in LANGUAGES:
-                result[f"{prefix}-{name}_{lang}"] = f"{name} {lang} {slot}"
-        mp = f"materials-{slot}"
-        result.update(
-            {
-                f"{mp}-TOTAL_FORMS": "1",
-                f"{mp}-INITIAL_FORMS": "0",
-                f"{mp}-MIN_NUM_FORMS": "1",
-                f"{mp}-MAX_NUM_FORMS": "200",
-                f"{mp}-0-title": f"Lesson {slot}",
-            }
-        )
-        if course_type == "lecture":
-            result[f"{mp}-0-file"] = SimpleUploadedFile(f"lecture-{slot}.pdf", b"%PDF-1.4\n%%EOF", "application/pdf")
-        else:
-            result.update(
-                {
-                    f"{mp}-0-file_url": "https://www.youtube.com/watch?v=abcdefghijk",
-                    f"{mp}-0-youtube_captions": "on",
-                    f"{mp}-0-duration": "125",
-                }
-            )
-    return result
+def payload(published=True):
+    return {
+        "name_ru": "Иванова Алия Сергеевна",
+        "faculty": FACULTIES[0][0],
+        "action": "publish" if published else "draft",
+        "resource_url": "https://open.kaznu.kz/courses/",
+        "resource_title": "Открытый курс",
+    }
 
 
-def russian_only(data):
-    return {key: value for key, value in data.items() if not key.endswith(("_kk", "_en")) and key != "slug"}
+def pdf(name="Презентация.pdf"):
+    return SimpleUploadedFile(name, b"%PDF-1.4\n%%EOF", "application/pdf")
+
+
+def pptx(macro=False):
+    stream = io.BytesIO()
+    with ZipFile(stream, "w") as archive:
+        archive.writestr("[Content_Types].xml", "<Types/>")
+        archive.writestr("ppt/presentation.xml", "<presentation/>")
+        if macro:
+            archive.writestr("ppt/vbaProject.bin", b"macro")
+    return SimpleUploadedFile("Лекция.pptx", stream.getvalue())
 
 
 class ShowcaseTests(TestCase):
@@ -111,338 +94,422 @@ class ShowcaseTests(TestCase):
         self.renderer = patch.object(views, "render", template_renderer)
         self.renderer.start()
         self.addCleanup(self.renderer.stop)
-        self.editor = get_user_model().objects.create_superuser("editor", "editor@example.com", "test")
+        self.editor = get_user_model().objects.create_user("editor")
         self.client.force_login(self.editor)
 
-    def publish(self, course_type="lecture"):
-        response = self.client.post(reverse("sdg4_create"), payload(course_type=course_type))
+    def publish(self, **overrides):
+        data = {**payload(), **overrides}
+        response = self.client.post(reverse("sdg4_create"), data)
         self.assertEqual(response.status_code, 302, response.content.decode())
         row = News.objects.get(title__startswith=NEWS_PREFIX)
         return row, read_document(row), response.url
 
     def edit_payload(self, row, document):
-        data = payload(published=document["published"])
-        data["revision"] = row.updated_at.isoformat()
-        data["slug"] = document["slug"]
-        for slot, course in enumerate(document["courses"], 1):
-            prefix = f"materials-{slot}"
-            data[f"{prefix}-INITIAL_FORMS"] = "1"
-            data.pop(f"{prefix}-0-file", None)
+        data = {
+            "faculty": document["faculty"],
+            "revision": row.updated_at.isoformat(),
+            "action": "save",
+        }
+        for key in ("name", "position", "degree", "department"):
+            data[f"{key}_ru"] = document["profile"].get(key, {}).get("ru", "")
+        link = next(
+            (item for item in document.get("resources", []) if item.get("kind") == "link"),
+            {},
+        )
+        data.update(resource_url=link.get("file_url", ""), resource_title=link.get("title", ""))
         return data
 
-    def test_create_upload_and_anonymous_pdf_access_with_counts(self):
-        row, document, url = self.publish()
-        self.assertEqual(len(document["courses"]), 3)
-        self.assertTrue(document["slug"].endswith(f"-{row.pk}"))
+    def legacy_page(self, video=False):
+        """An existing schema-1 document, independent of the new editor."""
+        path = default_storage.save("sdg4/legacy/lecture.pdf", pdf())
+        courses = []
+        for number in range(1, 4):
+            item = {
+                "id": f"lesson{number}",
+                "title": f"Lesson {number}",
+                "file_path": path,
+                "duration": None,
+                "youtube_captions": False,
+            }
+            if video:
+                item = {
+                    "id": f"lesson{number}",
+                    "title": "Video",
+                    "file_url": "https://youtu.be/abcdefghijk",
+                    "duration": 125,
+                    "youtube_captions": True,
+                }
+            courses.append(
+                {
+                    "type": "video" if video else "lecture",
+                    "language": "ru",
+                    "programme": "6B06102",
+                    "license": "by",
+                    "topic": {"ru": f"Тема {number}", "en": f"Topic {number}"},
+                    "discipline": {"ru": "Дисциплина"},
+                    "annotation": {"ru": "Описание"},
+                    "published_at": "2026-10-01",
+                    "materials": [item],
+                }
+            )
+        document = {
+            "schema": 1,
+            "faculty": FACULTIES[0][0],
+            "slug": "legacy-teacher",
+            "published": True,
+            "profile": {
+                "name": {"ru": "Преподаватель", "en": "Teacher"},
+                "mooc_url": "",
+            },
+            "courses": courses,
+            "stats": {"1": {"views": 7, "downloads": 4}},
+        }
+        row = News.objects.create(
+            title=f"{NEWS_PREFIX}{document['faculty']}/{document['slug']}",
+            content=json.dumps(document),
+        )
+        return (
+            row,
+            document,
+            reverse("sdg4_teacher", args=[document["faculty"], document["slug"]]),
+        )
+
+    def test_link_only_publication_requires_no_course_or_teacher_metadata(self):
+        _row, document, url = self.publish()
+        self.assertEqual(document["schema"], 2)
+        self.assertEqual(document["courses"], [])
+        self.assertEqual(document["profile"]["position"]["ru"], "")
         self.client.logout()
-        response = self.client.get(url)
-        self.assertContains(response, "topic en 1")
-        self.assertContains(response, 'aria-current="page"', count=1)
-        self.assertContains(response, "6B06102")
-        item = document["courses"][0]["materials"][0]
-        args = [document["faculty"], document["slug"], 1, item["id"]]
-        response = self.client.get(reverse("sdg4_material", args=args))
+        self.assertContains(self.client.get(url), "Иванова Алия Сергеевна")
+        link = document["resources"][0]
+        route = reverse("sdg4_resource", args=[document["faculty"], document["slug"], link["id"]])
+        self.assertRedirects(self.client.get(route), link["file_url"], fetch_redirect_response=False)
+
+    def test_pdf_only_publication_multiple_uploads_and_anonymous_download(self):
+        row, doc, url = self.publish(
+            resource_url="",
+            presentations=[pdf("01_Введение.pdf"), pdf("02_Практика.pdf")],
+        )
+        self.assertEqual([item["title"] for item in doc["resources"]], ["01 Введение", "02 Практика"])
+        self.client.logout()
+        self.assertContains(self.client.get(url), "01 Введение")
+        item = doc["resources"][0]
+        args = [doc["faculty"], doc["slug"], item["id"]]
+        response = self.client.get(reverse("sdg4_resource", args=args))
         self.assertEqual(response["Content-Type"], "application/pdf")
-        self.assertTrue(b"".join(response.streaming_content).startswith(b"%PDF-"))
         self.assertEqual(response["X-Frame-Options"], "SAMEORIGIN")
-        response = self.client.get(reverse("sdg4_download", args=args))
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertTrue(b"".join(response.streaming_content).startswith(b"%PDF-"))
+        response = self.client.get(reverse("sdg4_resource_download", args=args))
         self.assertIn("attachment", response["Content-Disposition"])
         b"".join(response.streaming_content)
         row.refresh_from_db()
-        self.assertEqual(read_document(row)["stats"]["1"], {"views": 1, "downloads": 1})
-        self.assertEqual(self.client.get(url + "?course=4").status_code, 404)
-        self.assertEqual(self.client.get(url + "?course=bad").status_code, 404)
+        self.assertEqual(read_document(row)["stats"][item["id"]], {"views": 1, "downloads": 1})
 
-    def test_all_faculties_even_without_teachers(self):
-        self.client.logout()
-        response = self.client.get(reverse("sdg4_index"))
-        self.assertEqual(response.status_code, 200)
-        for faculty, _label in FACULTIES:
-            self.assertContains(response, reverse("sdg4_faculty", args=[faculty]))
-            self.assertEqual(self.client.get(reverse("sdg4_faculty", args=[faculty])).status_code, 200)
-        self.assertEqual(self.client.get("/sdg4/unknown/").status_code, 404)
+    def test_powerpoint_supported_as_download_only(self):
+        _row, doc, url = self.publish(
+            resource_url="",
+            presentations=[
+                pptx(),
+                SimpleUploadedFile("Слайды.ppt", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"data"),
+            ],
+        )
+        self.assertNotContains(self.client.get(url), "<object")
+        for item in doc["resources"]:
+            response = self.client.get(reverse("sdg4_resource", args=[doc["faculty"], doc["slug"], item["id"]]))
+            self.assertIn("attachment", response["Content-Disposition"])
+            b"".join(response.streaming_content)
 
-    def test_editor_available_to_every_signed_in_user_and_requires_csrf(self):
-        self.client.logout()
-        self.assertEqual(self.client.get(reverse("sdg4_manage")).status_code, 403)
-        ordinary_user = get_user_model().objects.create_user("teacher")
-        self.client.force_login(ordinary_user)
+    def test_invalid_pdf_powerpoint_and_macro_rejected(self):
+        for upload in (
+            SimpleUploadedFile("fake.pdf", b"bad"),
+            SimpleUploadedFile("fake.pptx", b"bad"),
+            SimpleUploadedFile("fake.ppt", b"bad"),
+            SimpleUploadedFile("bad.html", b"html"),
+            pptx(True),
+        ):
+            response = self.client.post(reverse("sdg4_create"), {**payload(), "presentations": [upload]})
+            self.assertContains(response, "Please correct the errors")
+            self.assertFalse(News.objects.exists())
+
+    def test_every_upload_validated_and_limits_enforced(self):
+        data = {
+            **payload(),
+            "presentations": [pdf(), SimpleUploadedFile("bad.pdf", b"bad")],
+        }
+        self.assertContains(self.client.post(reverse("sdg4_create"), data), "valid PDF")
+        with override_settings(SDG4_MAX_UPLOAD_BYTES=2):
+            self.assertContains(
+                self.client.post(reverse("sdg4_create"), {**payload(), "presentations": [pdf()]}),
+                "upload limit",
+            )
+        self.assertFalse(News.objects.exists())
+        form = SimpleTeacherForm(payload(), {"presentations": [pdf() for _ in range(201)]})
+        self.assertFalse(form.is_valid())
+        self.assertIn("presentations", form.errors)
+
+    def test_draft_can_have_no_resources_but_publication_cannot(self):
+        data = {**payload(), "resource_url": ""}
+        self.assertContains(self.client.post(reverse("sdg4_create"), data), "Add a link or upload")
+        self.assertFalse(News.objects.exists())
+        data["action"] = "draft"
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 302)
+        row = News.objects.get()
+        doc = read_document(row)
+        self.assertFalse(doc["published"])
+        self.assertContains(self.client.get(response.url), "Draft saved")
+        self.assertEqual(
+            self.client.get(reverse("sdg4_teacher", args=[doc["faculty"], doc["slug"]])).status_code,
+            404,
+        )
+        self.assertNotContains(self.client.get(reverse("sdg4_index")), "Иванова Алия Сергеевна")
+
+    def test_all_signed_in_users_can_create_and_edit_each_others_pages(self):
+        row, _doc, url = self.publish()
+        self.client.force_login(get_user_model().objects.create_user("another-teacher"))
+        self.assertEqual(self.client.get(reverse("sdg4_edit", args=[row.pk])).status_code, 200)
+        self.assertContains(self.client.get(url), reverse("sdg4_edit", args=[row.pk]))
         self.assertEqual(self.client.get(reverse("sdg4_manage")).status_code, 200)
         self.assertEqual(self.client.get(reverse("sdg4_create")).status_code, 200)
-        row, _document, url = self.publish()
-        self.assertContains(self.client.get(url), reverse("sdg4_edit", args=[row.pk]))
-        other_user = get_user_model().objects.create_user("another-teacher")
-        self.client.force_login(other_user)
-        self.assertEqual(self.client.get(reverse("sdg4_edit", args=[row.pk])).status_code, 200)
+
+    def test_guests_cannot_write_or_view_editor_and_csrf_required(self):
+        self.client.logout()
+        for name in ("sdg4_create", "sdg4_manage"):
+            self.assertEqual(self.client.get(reverse(name)).status_code, 403)
+        self.assertEqual(self.client.post(reverse("sdg4_create"), payload()).status_code, 403)
         secured = Client(enforce_csrf_checks=True)
         secured.force_login(self.editor)
         self.assertEqual(secured.post(reverse("sdg4_create"), payload()).status_code, 403)
 
-    def test_three_complete_courses_required_and_annotation_limit(self):
-        data = payload()
-        data["course-3-topic_ru"] = ""
-        data["course-1-annotation_ru"] = "x" * 501
-        response = self.client.post(reverse("sdg4_create"), data)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Please correct the errors")
-        self.assertEqual(News.objects.count(), 0)
-
-    def test_russian_only_publication_and_fallback_until_translations_added(self):
-        data = russian_only(payload())
-        data["action"] = "publish"
-        for slot in range(1, 4):
-            data.pop(f"course-{slot}-language")
-            data.pop(f"course-{slot}-license")
-        data["name_ru"] = "Иванова Алия Сергеевна"
-        response = self.client.post(reverse("sdg4_create"), data)
-        self.assertEqual(response.status_code, 302, response.content.decode())
-        row = News.objects.get()
-        document = read_document(row)
-        self.assertEqual(document["slug"], f"ivanova-aliya-sergeevna-{row.pk}")
-        self.assertEqual(document["profile"]["name"]["en"], "")
-        self.assertEqual([course["language"] for course in document["courses"]], ["ru"] * 3)
-        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "kk"
-        self.assertContains(self.client.get(response.url), "Иванова Алия Сергеевна")
-        self.assertContains(self.client.get(response.url), "topic ru 1")
-
-    def test_save_incomplete_draft_with_bulk_pdf_upload(self):
-        data = {"name_ru": "Иванов И. И.", "faculty": FACULTIES[0][0], "action": "draft"}
-        for slot in range(1, 4):
-            data.update({f"materials-{slot}-TOTAL_FORMS": "0", f"materials-{slot}-INITIAL_FORMS": "0"})
-        data["course-1-lecture_files"] = [
-            SimpleUploadedFile("01_Введение.pdf", b"%PDF-1.4\n%%EOF"),
-            SimpleUploadedFile("02_Практика.pdf", b"%PDF-1.4\n%%EOF"),
-        ]
-        response = self.client.post(reverse("sdg4_create"), data)
-        self.assertEqual(response.status_code, 302, response.content.decode())
-        row = News.objects.get()
-        document = read_document(row)
-        self.assertFalse(document["published"])
-        self.assertEqual(
-            [item["title"] for item in document["courses"][0]["materials"]], ["01 Введение", "02 Практика"]
-        )
-        self.assertEqual(document["courses"][1]["materials"], [])
-        self.assertContains(self.client.get(response.url), "Draft saved")
-        self.assertEqual(
-            self.client.get(reverse("sdg4_teacher", args=[document["faculty"], document["slug"]])).status_code, 404
-        )
-
-    def test_bulk_pdf_can_publish_without_individual_lesson_forms(self):
-        data = russian_only(payload())
-        data["action"] = "publish"
-        for slot in range(1, 4):
-            upload = data.pop(f"materials-{slot}-0-file")
-            data.pop(f"materials-{slot}-0-title")
-            data[f"materials-{slot}-TOTAL_FORMS"] = "0"
-            data[f"course-{slot}-lecture_files"] = [upload]
-        response = self.client.post(reverse("sdg4_create"), data)
-        self.assertEqual(response.status_code, 302, response.content.decode())
-        self.assertTrue(read_document(News.objects.get())["published"])
-
-    def test_bulk_pdf_validates_every_file(self):
-        data = russian_only(payload())
-        data["course-1-lecture_files"] = [
-            SimpleUploadedFile("good.pdf", b"%PDF-1.4\n%%EOF"),
-            SimpleUploadedFile("bad.pdf", b"not a PDF"),
-        ]
-        self.assertContains(self.client.post(reverse("sdg4_create"), data), "valid PDF")
-        self.assertFalse(News.objects.exists())
-
-    def test_add_translations_later_without_changing_url_or_erasing_them(self):
-        response = self.client.post(reverse("sdg4_create"), russian_only(payload()))
-        self.assertEqual(response.status_code, 302, response.content.decode())
-        url = response.url
-        row = News.objects.get()
-        document = read_document(row)
-        data = russian_only(self.edit_payload(row, document))
-        data.update({"name_en": "English name", "course-1-topic_en": "English topic", "action": "save"})
-        response = self.client.post(reverse("sdg4_edit", args=[row.pk]), data)
-        self.assertEqual(response.url, url)
-        self.assertContains(self.client.get(url), "English name")
-        row.refresh_from_db()
-        document = read_document(row)
-        data = russian_only(self.edit_payload(row, document))
-        data.update({"name_ru": "Новое имя", "action": "save"})
-        self.assertEqual(self.client.post(reverse("sdg4_edit", args=[row.pk]), data).status_code, 302)
-        row.refresh_from_db()
-        updated = read_document(row)
-        self.assertEqual(updated["profile"]["name"]["en"], "English name")
-        self.assertEqual(updated["courses"][0]["topic"]["en"], "English topic")
-        self.assertTrue(updated["published"])
-
-    def test_simple_editor_uses_optional_translations_and_multiple_upload(self):
+    def test_editor_has_no_course_fields_and_translations_are_collapsed(self):
         response = self.client.get(reverse("sdg4_create"))
-        self.assertContains(response, '<input type="text" name="name_ru"')
+        self.assertContains(response, 'name="name_ru"')
+        self.assertContains(response, 'name="resource_url"')
+        self.assertRegex(
+            response.content.decode(),
+            r'<input[^>]*name="presentations"[^>]*\bmultiple\b',
+        )
         self.assertContains(response, 'class="sdg4-translations"')
         self.assertNotContains(response, 'class="sdg4-translations" open')
-        self.assertRegex(response.content.decode(), r'<input[^>]*name="course-1-lecture_files"[^>]*\bmultiple\b')
-        self.assertNotContains(response, 'id="id_slug"')
+        for value in (
+            'name="course-',
+            'name="materials-',
+            'id="id_slug"',
+            'name="programme"',
+        ):
+            self.assertNotContains(response, value)
 
-    def test_empty_or_deleted_materials_cannot_be_published(self):
-        for deleted in (False, True):
-            data = payload()
-            if deleted:
-                data["materials-3-0-DELETE"] = "on"
-            else:
-                data["materials-3-TOTAL_FORMS"] = "0"
-            self.assertEqual(self.client.post(reverse("sdg4_create"), data).status_code, 200)
-            self.assertFalse(News.objects.exists())
-
-    def test_video_subtitles_duration_and_safe_embed(self):
-        data = payload(course_type="video")
-        data.pop("materials-2-0-youtube_captions")
-        self.assertEqual(self.client.post(reverse("sdg4_create"), data).status_code, 200)
-        self.assertFalse(News.objects.exists())
-        _row, _doc, url = self.publish(course_type="video")
-        self.client.logout()
-        response = self.client.get(url + "?course=2")
-        self.assertContains(response, "https://www.youtube-nocookie.com/embed/abcdefghijk?cc_load_policy=1")
-        self.assertContains(response, "2 min 5 sec")
-        self.assertNotContains(response, "Download PDF")
-
-    def test_draft_hidden_and_url_fixed_after_name_change(self):
-        response = self.client.post(reverse("sdg4_create"), payload(published=False))
-        row = News.objects.get()
-        self.assertRedirects(response, reverse("sdg4_edit", args=[row.pk]) + "?saved=1")
-        doc = read_document(row)
-        url = reverse("sdg4_teacher", args=[doc["faculty"], doc["slug"]])
-        self.assertEqual(self.client.get(url).status_code, 404)
-        data = self.edit_payload(row, doc)
-        data.update(published="on", faculty="law", slug="different", name_en="New name")
-        response = self.client.post(reverse("sdg4_edit", args=[row.pk]), data)
-        self.assertEqual(response.url, url)
-        self.assertContains(self.client.get(url), "New name")
-
-    def test_edit_preserves_files_counters_and_rejects_stale_revision(self):
+    def test_translations_can_be_added_later_and_omitted_translations_are_kept(self):
         row, doc, url = self.publish()
+        self.assertEqual(doc["profile"]["name"]["en"], "")
         data = self.edit_payload(row, doc)
-        increment(row.pk, 1, "views")
-        response = self.client.post(reverse("sdg4_edit", args=[row.pk]), data)
-        self.assertEqual(response.status_code, 302, response.content.decode())
+        data["name_en"] = "English teacher"
+        self.assertEqual(self.client.post(reverse("sdg4_edit", args=[row.pk]), data).url, url)
+        self.assertContains(self.client.get(url), "English teacher")
         row.refresh_from_db()
-        current = read_document(row)
-        self.assertEqual(current["stats"]["1"]["views"], 1)
-        self.assertEqual(
-            current["courses"][0]["materials"][0]["file_path"], doc["courses"][0]["materials"][0]["file_path"]
-        )
-        self.assertEqual(current["courses"][0]["published_at"], doc["courses"][0]["published_at"])
-        response = self.client.post(reverse("sdg4_edit", args=[row.pk]), data)
-        self.assertContains(response, "edited elsewhere")
+        data = self.edit_payload(row, read_document(row))
+        data["name_ru"] = "Новое имя"
+        self.assertEqual(self.client.post(reverse("sdg4_edit", args=[row.pk]), data).url, url)
+        row.refresh_from_db()
+        self.assertEqual(read_document(row)["profile"]["name"]["en"], "English teacher")
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "kk"
+        self.assertContains(self.client.get(url), "Новое имя")
 
-    def test_material_type_change_needs_replacement_and_pdf_signature(self):
+    def test_edit_retains_files_link_ids_counters_and_fixed_url(self):
+        row, doc, url = self.publish(presentations=[pdf()])
+        data = self.edit_payload(row, doc)
+        data.update(
+            name_ru="Новое имя",
+            faculty="law",
+            slug="changed",
+            resource_url="https://example.org/course",
+            presentations=[pdf("Новые_слайды.pdf")],
+        )
+        increment(row.pk, doc["resources"][0]["id"], "views")
+        self.assertEqual(self.client.post(reverse("sdg4_edit", args=[row.pk]), data).url, url)
+        row.refresh_from_db()
+        updated = read_document(row)
+        self.assertEqual(updated["faculty"], doc["faculty"])
+        self.assertEqual(updated["resources"][0]["id"], doc["resources"][0]["id"])
+        self.assertEqual(updated["resources"][1], doc["resources"][1])
+        self.assertEqual(updated["stats"][doc["resources"][0]["id"]]["views"], 1)
+        self.assertEqual(len(updated["resources"]), 3)
+
+    def test_stale_editor_rejected(self):
         row, doc, _url = self.publish()
         data = self.edit_payload(row, doc)
-        data["course-1-type"] = "video"
-        self.assertContains(self.client.post(reverse("sdg4_edit", args=[row.pk]), data), "file type does not match")
-        data = payload()
-        data["materials-1-0-file"] = SimpleUploadedFile("fake.pdf", b"not pdf", "application/pdf")
-        self.assertContains(self.client.post(reverse("sdg4_create"), data), "valid PDF")
+        self.assertEqual(self.client.post(reverse("sdg4_edit", args=[row.pk]), data).status_code, 302)
+        self.assertContains(
+            self.client.post(reverse("sdg4_edit", args=[row.pk]), data),
+            "edited elsewhere",
+        )
 
-    def test_language_switch_keeps_selected_course(self):
-        _row, _doc, url = self.publish()
-        self.client.logout()
-        response = self.client.post(reverse("sdg4_language"), {"language": "kk", "next": url + "?course=3"})
-        self.assertEqual(response.status_code, 302)
-        response = self.client.get(response.url)
-        self.assertContains(response, "topic kk 3")
-        self.assertContains(response, 'lang="kk"')
-
-    def test_logged_in_language_switch_updates_platform_preference(self):
-        with patch.object(views, "save_language_preference") as save:
-            response = self.client.post(reverse("sdg4_language"), {"language": "ru", "next": "https://evil.example/"})
-        save.assert_called_once_with(self.editor, "ru")
-        self.assertEqual(response.url, "/")
-        self.assertEqual(response.cookies[settings.LANGUAGE_COOKIE_NAME].value, "ru")
-        self.assertEqual(self.client.post(reverse("sdg4_language"), {"language": "fr"}).status_code, 400)
-
-    def test_uploaded_video_requires_webvtt_and_renders_track(self):
-        data = payload(course_type="video")
-        for slot in range(1, 4):
-            prefix = f"materials-{slot}-0"
-            data.pop(f"{prefix}-file_url")
-            data[f"{prefix}-file"] = SimpleUploadedFile("video.mp4", b"video bytes", "video/mp4")
-            data[f"{prefix}-captions"] = SimpleUploadedFile(
-                "captions.vtt", b"WEBVTT\n\n00:00.000 --> 00:01.000\nHello\n", "text/vtt"
-            )
-        response = self.client.post(reverse("sdg4_create"), data)
+    def test_long_auto_generated_slug_does_not_block_later_edits(self):
+        row, document, url = self.publish(name_ru="Преподаватель " + "я" * 100)
+        self.assertGreater(len(document["slug"]), 70)
+        response = self.client.post(reverse("sdg4_edit", args=[row.pk]), self.edit_payload(row, document))
         self.assertEqual(response.status_code, 302, response.content.decode())
-        self.assertContains(self.client.get(response.url), '<track kind="captions"')
+        self.assertEqual(response.url, url)
 
-    def test_oversized_and_missing_video_metadata_rejected(self):
-        with override_settings(SDG4_MAX_UPLOAD_BYTES=2):
-            self.assertContains(self.client.post(reverse("sdg4_create"), payload()), "upload limit")
-        data = payload(course_type="video")
-        data["materials-1-0-file_url"] = "https://open.kaznu.kz/media/video.mp4"
-        data.pop("materials-1-0-duration")
-        self.assertContains(self.client.post(reverse("sdg4_create"), data), "Subtitles are required")
+    def test_legacy_courses_remain_available_after_simple_edit(self):
+        row, doc, url = self.legacy_page()
+        data = self.edit_payload(row, doc)
+        data.update(resource_url="https://example.org/course", presentations=[pdf("Новая.pdf")])
+        self.assertEqual(self.client.post(reverse("sdg4_edit", args=[row.pk]), data).url, url)
+        row.refresh_from_db()
+        updated = read_document(row)
+        self.assertEqual(updated["courses"], doc["courses"])
+        self.assertEqual(updated["stats"], doc["stats"])
+        self.assertEqual(updated["schema"], 2)
+        self.assertContains(self.client.get(url), "Новая")
+        self.client.logout()
+        for number in range(1, 4):
+            self.assertContains(self.client.get(url + f"?course={number}"), f"Topic {number}")
+        item = doc["courses"][0]["materials"][0]
+        response = self.client.get(reverse("sdg4_download", args=[doc["faculty"], doc["slug"], 1, item["id"]]))
+        self.assertIn("attachment", response["Content-Disposition"])
+        b"".join(response.streaming_content)
+        self.assertEqual(self.client.get(url + "?course=4").status_code, 404)
+        self.assertEqual(self.client.get(url + "?course=bad").status_code, 404)
 
-    def test_malicious_urls_and_youtube_ids(self):
-        for value in (
+    def test_legacy_video_embed_and_subtitle_validation_remain_supported(self):
+        _row, _doc, url = self.legacy_page(video=True)
+        response = self.client.get(url + "?course=2")
+        self.assertContains(
+            response,
+            "https://www.youtube-nocookie.com/embed/abcdefghijk?cc_load_policy=1",
+        )
+        self.assertContains(response, "2 min 5 sec")
+        form = MaterialForm({"file_url": "https://open.kaznu.kz/video.mp4"}, course_type="video")
+        self.assertFalse(form.is_valid())
+        self.assertIn("duration", form.errors)
+
+    def test_home_lists_real_new_and_legacy_materials_and_all_faculties(self):
+        self.publish(presentations=[pdf()])
+        self.legacy_page()
+        News.objects.create(title="Ordinary news", content="Not a resource")
+        response = self.client.get(reverse("sdg4_index"))
+        self.assertContains(response, "data-resource-card", count=5)
+        self.assertContains(response, "Открытый курс")
+        self.assertContains(response, "Презентация")
+        self.assertNotContains(response, "Ordinary news")
+        for slug, _name in FACULTIES:
+            self.assertContains(response, reverse("sdg4_faculty", args=[slug]))
+            self.assertEqual(self.client.get(reverse("sdg4_faculty", args=[slug])).status_code, 200)
+        self.assertEqual(self.client.get("/sdg4/unknown/").status_code, 404)
+
+    def test_empty_landing_does_not_show_fake_courses(self):
+        response = self.client.get(reverse("sdg4_index"))
+        self.assertContains(response, "Materials will appear here")
+        self.assertNotContains(response, "data-resource-card")
+
+    def test_unknown_resource_and_legacy_course_on_new_page_return_404(self):
+        _row, doc, _url = self.publish()
+        self.assertEqual(
+            self.client.get(reverse("sdg4_resource", args=[doc["faculty"], doc["slug"], "missing"])).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(reverse("sdg4_material", args=[doc["faculty"], doc["slug"], 1, "missing"])).status_code,
+            404,
+        )
+
+    def test_draft_resource_route_is_not_public(self):
+        row, doc, _url = self.publish()
+        data = self.edit_payload(row, doc)
+        data["action"] = "draft"
+        self.client.post(reverse("sdg4_edit", args=[row.pk]), data)
+        self.assertEqual(
+            self.client.get(
+                reverse(
+                    "sdg4_resource",
+                    args=[doc["faculty"], doc["slug"], doc["resources"][0]["id"]],
+                )
+            ).status_code,
+            404,
+        )
+
+    def test_safe_external_and_existing_site_links(self):
+        for url in ("https://example.org/course", "/asset-v1:kaznu/file.pdf"):
+            self.assertEqual(validate_media_url(url), url)
+        for url in (
             "javascript:alert(1)",
-            "//evil.example/video.mp4",
+            "//evil.example/",
             "/\\evil.example/",
-            "https://user:pass@example.com/file.pdf",
+            "https://user:pass@example.com/",
             "/file\n.pdf",
             "https://[invalid/file.pdf",
         ):
             with self.assertRaises(ValidationError):
-                validate_media_url(value)
+                validate_media_url(url)
+        self.assertContains(
+            self.client.post(
+                reverse("sdg4_create"),
+                {**payload(), "resource_url": "javascript:alert(1)"},
+            ),
+            "HTTPS URL",
+        )
         self.assertEqual(youtube_embed("https://evil.example/embed/abcdefghijk"), "")
         self.assertEqual(youtube_embed("https://youtube.com/watch?v=bad"), "")
-        self.assertTrue(youtube_embed("https://youtu.be/abcdefghijk").endswith("?cc_load_policy=1"))
+
+    def test_untrusted_teacher_and_link_title_escaped(self):
+        _row, _doc, url = self.publish(
+            name_ru='<script>alert("x")</script>',
+            resource_title="<img src=x onerror=alert(1)>",
+        )
+        for route in (url, reverse("sdg4_index")):
+            response = self.client.get(route)
+            self.assertNotContains(response, '<script>alert("x")</script>')
+            self.assertNotContains(response, "<img src=x onerror=alert(1)>")
+            self.assertContains(response, "&lt;script&gt;")
+
+    def test_language_switch_saves_preference_and_rejects_external_redirect(self):
+        with patch.object(views, "save_language_preference") as save:
+            response = self.client.post(
+                reverse("sdg4_language"),
+                {"language": "ru", "next": "https://evil.example/"},
+            )
+        save.assert_called_once_with(self.editor, "ru")
+        self.assertEqual(response.url, "/")
+        self.assertEqual(response.cookies[settings.LANGUAGE_COOKIE_NAME].value, "ru")
+        self.assertEqual(
+            self.client.post(reverse("sdg4_language"), {"language": "fr"}).status_code,
+            400,
+        )
+
+    def test_alphabetical_order_and_language_fallback(self):
+        with translation.override("kk"):
+            self.assertEqual(
+                sorted(["Болат", "Әлия", "Абай"], key=alphabetical_key),
+                ["Абай", "Әлия", "Болат"],
+            )
+        with translation.override("ru"):
+            self.assertEqual(
+                sorted(["Жуков", "Ёлкин", "Егоров"], key=alphabetical_key),
+                ["Егоров", "Ёлкин", "Жуков"],
+            )
         self.assertEqual(language_code("kz-KZ"), "kk")
         self.assertEqual(localized({"ru": "fallback"}, "kk"), "fallback")
 
-    def test_alphabetical_order_in_kazakh_and_russian(self):
-        with translation.override("kk"):
-            self.assertEqual(sorted(["Болат", "Әлия", "Абай"], key=alphabetical_key), ["Абай", "Әлия", "Болат"])
-        with translation.override("ru"):
-            self.assertEqual(sorted(["Жуков", "Ёлкин", "Егоров"], key=alphabetical_key), ["Егоров", "Ёлкин", "Жуков"])
-
-    def test_header_hook_accepts_django_context_pageargs_without_stray_title(self):
-        response = self.client.get(reverse("sdg4_index"))
-        html = response.content.decode()
+    def test_mako_header_hook_accepts_django_pageargs(self):
+        html = self.client.get(reverse("sdg4_index")).content.decode()
         head, body = html.split("</head>", 1)
         self.assertIn("sdg4/showcase.css", head)
         self.assertEqual(body.count('rel="stylesheet"'), 0)
-        self.assertTrue(body.split("<main", 1)[0].strip() == "<body>")
+        self.assertEqual(body.split("<main", 1)[0].strip(), "<body>")
+        self.assertIn("sdg4-showcase.js", body)
 
-    def test_mixed_courses_preserve_material_order(self):
-        data = payload()
-        data["course-2-type"] = "video"
-        data.pop("materials-2-0-file")
-        data.update(
-            {
-                "materials-2-0-file_url": "https://youtu.be/abcdefghijk",
-                "materials-2-0-youtube_captions": "on",
-                "materials-2-0-duration": "60",
-            }
-        )
-        data.update(
-            {
-                "materials-1-TOTAL_FORMS": "2",
-                "materials-1-1-title": "Second lecture",
-                "materials-1-1-file_url": "/media/second.pdf",
-            }
-        )
-        response = self.client.post(reverse("sdg4_create"), data)
-        self.assertEqual(response.status_code, 302, response.content.decode())
-        document = read_document(News.objects.get())
-        self.assertEqual([course["type"] for course in document["courses"]], ["lecture", "video", "lecture"])
-        self.assertEqual(
-            [item["title"] for item in document["courses"][0]["materials"]], ["Lesson 1", "Second lecture"]
-        )
+    def test_animations_are_progressive_and_respect_reduced_motion(self):
+        root = Path(__file__).resolve().parents[4] / "static"
+        css = (root / "sdg4/showcase.css").read_text()
+        script = (root / "js/sdg4-showcase.js").read_text()
+        self.assertIn("prefers-reduced-motion: reduce", css)
+        self.assertIn("prefers-reduced-motion: reduce", script)
+        self.assertIn("IntersectionObserver", script)
+        self.assertIn(".sdg4 [hidden]", css)
 
-    def test_formset_limit_blocks_unbounded_post(self):
+    def test_legacy_formset_cannot_allocate_unbounded_forms(self):
         formset = Materials({"m-TOTAL_FORMS": "10000", "m-INITIAL_FORMS": "0"}, prefix="m")
         self.assertFalse(formset.is_valid())
         self.assertEqual(len(formset.forms), 200)
-
-    def test_untrusted_text_escaped_in_templates(self):
-        data = payload()
-        data["name_en"] = '<script>alert("x")</script>'
-        response = self.client.post(reverse("sdg4_create"), data)
-        self.assertEqual(response.status_code, 302)
-        response = self.client.get(response.url)
-        self.assertNotContains(response, '<script>alert("x")</script>')
-        self.assertContains(response, "&lt;script&gt;")

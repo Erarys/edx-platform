@@ -12,7 +12,22 @@ urlpatterns = [
     path("manage/<int:news_id>/", views.edit, name="sdg4_edit"),
     path("<slug:faculty>/", views.faculty, name="sdg4_faculty"),
     path("<slug:faculty>/<slug:teacher>/", views.teacher, name="sdg4_teacher"),
-    path("<slug:faculty>/<slug:teacher>/<int:course>/<slug:material_id>/", views.material, name="sdg4_material"),
+    path(
+        "<slug:faculty>/<slug:teacher>/resource/<slug:material_id>/",
+        views.resource,
+        name="sdg4_resource",
+    ),
+    path(
+        "<slug:faculty>/<slug:teacher>/resource/<slug:material_id>/download/",
+        views.resource,
+        {"download": True},
+        name="sdg4_resource_download",
+    ),
+    path(
+        "<slug:faculty>/<slug:teacher>/<int:course>/<slug:material_id>/",
+        views.material,
+        name="sdg4_material",
+    ),
     path(
         "<slug:faculty>/<slug:teacher>/<int:course>/<slug:material_id>/download/",
         views.material,

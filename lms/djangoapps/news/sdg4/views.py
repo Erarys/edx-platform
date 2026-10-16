@@ -13,7 +13,6 @@ from django.http import FileResponse, Http404, HttpResponseBadRequest
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
@@ -44,7 +43,7 @@ from .data import (
     teacher_slug,
     youtube_embed,
 )
-from .forms import CourseForm, Materials, TeacherForm, material_title, translations
+from .forms import SimpleTeacherForm, material_title, translations
 
 
 def render(request, template, context):
@@ -102,6 +101,34 @@ def change_language(request):
 
 @require_GET
 def index(request):
+    cards = []
+    for row, document in documents():
+        card = teacher_card(row, document)
+        for resource in resource_cards(document):
+            cards.append({**resource, "teacher": card})
+        for number, course in enumerate(document["courses"], 1):
+            if course.get("materials"):
+                cards.append(
+                    {
+                        "id": f"legacy-{row.pk}-{number}",
+                        "title": localized(course.get("topic")),
+                        "kind": "course",
+                        "format": "",
+                        "teacher": card,
+                        "url": f"{public_url(document)}?course={number}#legacy-{number}",
+                    }
+                )
+        if document["profile"].get("mooc_url"):
+            cards.append(
+                {
+                    "id": f"mooc-{row.pk}",
+                    "title": _("Teacher's MOOC on Open KazNU"),
+                    "kind": "link",
+                    "format": "",
+                    "teacher": card,
+                    "url": document["profile"]["mooc_url"],
+                }
+            )
     return render(
         request,
         "index",
@@ -110,6 +137,7 @@ def index(request):
             "preamble": PREAMBLE,
             "target_43": TARGET_43,
             "target_44": TARGET_44,
+            "resources": cards,
         },
     )
 
@@ -120,7 +148,11 @@ def faculty(request, faculty):
         raise Http404
     teachers = [teacher_card(row, doc) for row, doc in documents() if doc["faculty"] == faculty]
     teachers.sort(key=lambda card: alphabetical_key(card["name"]))
-    return render(request, "faculty", {"faculty_name": dict(FACULTIES)[faculty], "teachers": teachers})
+    return render(
+        request,
+        "faculty",
+        {"faculty_name": dict(FACULTIES)[faculty], "teachers": teachers},
+    )
 
 
 def course_number(request):
@@ -133,10 +165,45 @@ def course_number(request):
     return number
 
 
+def resource_cards(document):
+    result = []
+    for item in document.get("resources", []):
+        args = [document["faculty"], document["slug"], item["id"]]
+        extension = PurePosixPath(item.get("file_path", "")).suffix.lower()
+        result.append(
+            {
+                **item,
+                "format": extension.lstrip(".").upper(),
+                "is_pdf": extension == ".pdf",
+                "url": reverse("sdg4_resource", args=args),
+                "download_url": reverse("sdg4_resource_download", args=args),
+            }
+        )
+    return result
+
+
 @never_cache
 @require_GET
 def teacher(request, faculty, teacher):
     row, document = find_page(faculty, teacher)
+    if not document["courses"]:
+        document = increment(row.pk, "page", "views")
+        return render(
+            request,
+            "profile",
+            {
+                "teacher_name": localized(document["profile"].get("name")),
+                "profile": {
+                    key: localized(document["profile"].get(key)) for key in ("position", "degree", "department")
+                },
+                "photo_url": row.image.url if row.image else "",
+                "faculty_name": dict(FACULTIES)[faculty],
+                "faculty_slug": faculty,
+                "resources": resource_cards(document),
+                "edit_url": reverse("sdg4_edit", args=[row.pk]),
+                "permanent_url": request.build_absolute_uri(public_url(document)),
+            },
+        )
     number = course_number(request)
     document = increment(row.pk, number, "views")
     profile = document["profile"]
@@ -187,6 +254,7 @@ def teacher(request, faculty, teacher):
             "stats": document.get("stats", {}).get(str(number), {}),
             "edit_url": reverse("sdg4_edit", args=[row.pk]),
             "permanent_url": request.build_absolute_uri(public_url(document)),
+            "resources": resource_cards(document),
         },
     )
 
@@ -195,9 +263,12 @@ def teacher(request, faculty, teacher):
 @require_GET
 def material(request, faculty, teacher, course, material_id, download=False):
     row, document = find_page(faculty, teacher)
-    if course not in {1, 2, 3} or document["courses"][course - 1]["type"] != "lecture":
+    if course < 1 or course > len(document["courses"]) or document["courses"][course - 1]["type"] != "lecture":
         raise Http404
-    item = next((item for item in document["courses"][course - 1]["materials"] if item["id"] == material_id), None)
+    item = next(
+        (item for item in document["courses"][course - 1]["materials"] if item["id"] == material_id),
+        None,
+    )
     if item is None:
         raise Http404
     if item.get("file_path"):
@@ -206,7 +277,10 @@ def material(request, faculty, teacher, course, material_id, download=False):
         except FileNotFoundError:
             raise Http404 from None
         response = FileResponse(
-            stream, as_attachment=download, filename=f"{item['title']}.pdf", content_type="application/pdf"
+            stream,
+            as_attachment=download,
+            filename=f"{item['title']}.pdf",
+            content_type="application/pdf",
         )
         response["X-Content-Type-Options"] = "nosniff"
         response["X-Frame-Options"] = "SAMEORIGIN"
@@ -214,6 +288,44 @@ def material(request, faculty, teacher, course, material_id, download=False):
         response = redirect(item["file_url"])
     if download:
         increment(row.pk, course, "downloads")
+    return response
+
+
+@never_cache
+@require_GET
+def resource(request, faculty, teacher, material_id, download=False):
+    row, document = find_page(faculty, teacher)
+    item = next(
+        (item for item in document.get("resources", []) if item["id"] == material_id),
+        None,
+    )
+    if item is None:
+        raise Http404
+    if item.get("kind") == "link":
+        response = redirect(item["file_url"])
+    else:
+        path = item.get("file_path", "")
+        extension = PurePosixPath(path).suffix.lower()
+        types = {
+            ".pdf": "application/pdf",
+            ".ppt": "application/vnd.ms-powerpoint",
+            ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        }
+        if extension not in types:
+            raise Http404
+        try:
+            stream = default_storage.open(path, "rb")
+        except FileNotFoundError:
+            raise Http404 from None
+        response = FileResponse(
+            stream,
+            as_attachment=download or extension != ".pdf",
+            filename=item["title"] + extension,
+            content_type=types[extension],
+        )
+        response["X-Content-Type-Options"] = "nosniff"
+        response["X-Frame-Options"] = "SAMEORIGIN"
+    increment(row.pk, material_id, "downloads" if download else "views")
     return response
 
 
@@ -240,71 +352,55 @@ def save_upload(upload, row_id, slot, saved):
     return path
 
 
-def save_page(row, original, teacher_form, bundles):
-    """Keep counters fresh and URLs immutable; clean only new uploads on failure."""
+def save_page(row, original, form):
+    """Append presentations without touching legacy lessons, counters or fixed URLs."""
     saved = []
     try:
         with transaction.atomic():
             if row:
                 row = News.objects.select_for_update().get(pk=row.pk, title__startswith=NEWS_PREFIX)
-                latest = read_document(row)
+                document = copy.deepcopy(read_document(row))
                 if original["revision"] != row.updated_at.isoformat():
                     raise ValueError(_("This page was edited elsewhere. Reload it before saving."))
             else:
                 row = News.objects.create(title=NEWS_PREFIX + "draft", content="{}")
-                latest = {}
-            cleaned = teacher_form.cleaned_data
-            document = {
-                "schema": 1,
-                "faculty": original.get("faculty", cleaned["faculty"]),
-                # The primary key suffix guarantees uniqueness without a new database index.
-                "slug": original.get("slug") or f"{cleaned['slug'] or teacher_slug(cleaned['name_ru'])}-{row.pk}",
-                "published": cleaned["published"],
-                "profile": {key: translations(cleaned, key) for key in ("name", "position", "degree", "department")},
-                "courses": [],
-                "stats": latest.get("stats", {}),
-            }
-            document["profile"]["mooc_url"] = cleaned["mooc_url"]
-            for slot, (course_form, formset) in enumerate(bundles, 1):
-                fields = course_form.cleaned_data
-                course = {key: fields[key] for key in ("type", "language", "programme", "license")}
-                course.update({key: translations(fields, key) for key in ("topic", "discipline", "annotation")})
-                old_courses = latest.get("courses", [])
-                old = old_courses[slot - 1] if len(old_courses) >= slot else {}
-                course["published_at"] = old.get("published_at") or (
-                    timezone.localdate().isoformat() if cleaned["published"] else ""
+                document = {
+                    "schema": 2,
+                    "faculty": form.cleaned_data["faculty"],
+                    "slug": f"{teacher_slug(form.cleaned_data['name_ru'])}-{row.pk}",
+                    "profile": {},
+                    "courses": [],
+                    "resources": [],
+                    "stats": {},
+                }
+            cleaned = form.cleaned_data
+            document["schema"] = 2
+            document["published"] = cleaned["published"]
+            document["profile"].update(
+                {key: translations(cleaned, key) for key in ("name", "position", "degree", "department")}
+            )
+            resources = document.setdefault("resources", [])
+            link = next((item for item in resources if item.get("kind") == "link"), {})
+            resources[:] = [item for item in resources if item.get("kind") != "link"]
+            if cleaned["resource_url"]:
+                resources.insert(
+                    0,
+                    {
+                        "id": link.get("id") or uuid4().hex,
+                        "kind": "link",
+                        "title": cleaned["resource_title"] or str(_("Open course or material")),
+                        "file_url": cleaned["resource_url"],
+                    },
                 )
-                course["materials"] = []
-                for form in formset:
-                    values = form.cleaned_data
-                    if not values or values.get("DELETE"):
-                        continue
-                    item = copy.deepcopy(form.material)
-                    item.update({key: values[key] for key in ("title", "duration", "youtube_captions")})
-                    item.setdefault("id", uuid4().hex)
-                    for upload_field, kind in (("file", "file"), ("captions", "captions")):
-                        upload = values.get(upload_field)
-                        url = values.get(f"{kind}_url", "")
-                        if upload:
-                            item[f"{kind}_path"] = save_upload(upload, row.pk, slot, saved)
-                            item.pop(f"{kind}_url", None)
-                        elif url:
-                            item[f"{kind}_url"] = url
-                            item.pop(f"{kind}_path", None)
-                        elif not item.get(f"{kind}_path"):
-                            item.pop(f"{kind}_url", None)
-                    course["materials"].append(item)
-                for upload in fields["lecture_files"]:
-                    course["materials"].append(
-                        {
-                            "id": uuid4().hex,
-                            "title": material_title(upload.name),
-                            "file_path": save_upload(upload, row.pk, slot, saved),
-                            "duration": None,
-                            "youtube_captions": False,
-                        }
-                    )
-                document["courses"].append(course)
+            for upload in cleaned["presentations"]:
+                resources.append(
+                    {
+                        "id": uuid4().hex,
+                        "kind": "presentation",
+                        "title": material_title(upload.name),
+                        "file_path": save_upload(upload, row.pk, "presentations", saved),
+                    }
+                )
             if cleaned.get("photo"):
                 row.image = save_upload(cleaned["photo"], row.pk, "photo", saved)
             row.title = document_key(document)
@@ -328,56 +424,39 @@ def edit(request, news_id=None):
     bound_data = request.POST.copy() if request.method == "POST" else None
     publishing = bool(document.get("published"))
     if bound_data is not None:
-        action = bound_data.get("action")
+        action = bound_data.get("action", "save")
         if action in {"draft", "publish"}:
             publishing = action == "publish"
-        elif action != "save":
-            # Support forms opened before this update.
-            publishing = bool(bound_data.get("published"))
         bound_data["published"] = "on" if publishing else ""
-    teacher_form = TeacherForm(
+    form = SimpleTeacherForm(
         bound_data,
         request.FILES or None,
         document=document or None,
         publishing=publishing,
     )
-    bundles = []
-    for slot in range(1, 4):
-        course = document.get("courses", [{}, {}, {}])[slot - 1]
-        if bound_data is not None:
-            for key, default in (("type", "lecture"), ("language", "ru"), ("license", "by")):
-                bound_data.setdefault(f"course-{slot}-{key}", course.get(key, default))
-        form = CourseForm(
-            bound_data, request.FILES or None, prefix=f"course-{slot}", course=course, publishing=publishing
-        )
-        kind = bound_data.get(f"course-{slot}-type") if bound_data is not None else course.get("type", "lecture")
-        formset = Materials(
-            bound_data,
-            request.FILES or None,
-            prefix=f"materials-{slot}",
-            materials=course.get("materials", []),
-            course_type=kind,
-            publishing=publishing,
-            bulk_count=len(request.FILES.getlist(f"course-{slot}-lecture_files")),
-        )
-        bundles.append((form, formset))
     if request.method == "POST":
-        checks = [teacher_form.is_valid()]
-        for form, formset in bundles:
-            checks.extend([form.is_valid(), formset.is_valid()])
-        # A stale browser form must never silently overwrite another editor's changes.
+        valid = form.is_valid()
         if row and request.POST.get("revision") != document["revision"]:
-            teacher_form.add_error(None, _("This page was edited elsewhere. Reload it before saving."))
-            checks.append(False)
-        if all(checks):
+            form.add_error(None, _("This page was edited elsewhere. Reload it before saving."))
+            valid = False
+        if valid:
             try:
-                saved_row, result = save_page(row, document, teacher_form, bundles)
+                saved_row, result = save_page(row, document, form)
             except ValueError as exc:
-                teacher_form.add_error(None, str(exc))
+                form.add_error(None, str(exc))
             else:
                 return redirect(
                     public_url(result)
                     if result["published"]
                     else reverse("sdg4_edit", args=[saved_row.pk]) + "?saved=1"
                 )
-    return render(request, "edit", {"teacher_form": teacher_form, "bundles": bundles, "document": document, "row": row})
+    return render(
+        request,
+        "edit",
+        {
+            "teacher_form": form,
+            "document": document,
+            "row": row,
+            "existing_resources": resource_cards(document) if document else [],
+        },
+    )

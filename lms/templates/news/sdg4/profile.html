@@ -1,0 +1,25 @@
+<%page expression_filter="h"/>
+<%inherit file="base.html" />
+<%!
+from django.urls import reverse
+from django.utils.translation import gettext as _
+%>
+<%def name="pagetitle()">${teacher_name} · ${_("SDG 4: Quality Education")}</%def>
+<nav class="sdg4-breadcrumb" aria-label="${_('Breadcrumbs')}"><a href="${reverse('sdg4_index')}">${_("Courses and materials")}</a> / <a href="${reverse('sdg4_faculty', args=[faculty_slug])}">${faculty_name}</a></nav>
+<header class="sdg4-profile sdg4-profile-header">
+  % if photo_url:
+    <img class="sdg4-photo" src="${photo_url}" alt="${teacher_name}" width="144" height="144" />
+  % endif
+  <div><p class="sdg4-eyebrow">${_("Teacher")}</p><h1>${teacher_name}</h1>
+    % for text in (profile['position'], profile['degree'], profile['department'], faculty_name):
+      % if text:
+        <p>${text}</p>
+      % endif
+    % endfor
+  </div>
+</header>
+% if can_manage_sdg4:
+  <p><a class="sdg4-button" href="${edit_url}">${_("Edit resources")}</a></p>
+% endif
+<%include file="resources.html"/>
+<div class="sdg4-permalink"><label for="sdg4-permalink">${_("Permanent link for the application")}</label><input id="sdg4-permalink" type="url" value="${permanent_url}" readonly /></div>

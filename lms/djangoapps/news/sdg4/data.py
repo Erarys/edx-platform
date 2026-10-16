@@ -51,12 +51,14 @@ def read_document(row):
         document = json.loads(row.content)
         if (
             not isinstance(document, dict)
-            or document.get("schema") != 1
+            or document.get("schema") not in {1, 2}
             or document.get("faculty") not in dict(FACULTIES)
             or not isinstance(document.get("profile"), dict)
             or not isinstance(document.get("courses"), list)
-            or len(document["courses"]) != 3
+            or (document["schema"] == 1 and len(document["courses"]) != 3)
             or not all(isinstance(course, dict) for course in document["courses"])
+            or not isinstance(document.get("resources", []), list)
+            or not all(isinstance(item, dict) for item in document.get("resources", []))
             or row.title != document_key(document)
         ):
             raise ValueError("Invalid SDG 4 document")
@@ -71,7 +73,10 @@ def document_key(document):
 
 
 def public_url(document):
-    return reverse("sdg4_teacher", kwargs={"faculty": document["faculty"], "teacher": document["slug"]})
+    return reverse(
+        "sdg4_teacher",
+        kwargs={"faculty": document["faculty"], "teacher": document["slug"]},
+    )
 
 
 def documents(include_drafts=False):
@@ -176,7 +181,12 @@ def youtube_embed(value):
     """Build an embed from a video ID, never from editor-supplied iframe HTML."""
     parsed = urlsplit(value)
     host = (parsed.hostname or "").lower()
-    if host not in {"youtube.com", "www.youtube.com", "youtu.be", "www.youtube-nocookie.com"}:
+    if host not in {
+        "youtube.com",
+        "www.youtube.com",
+        "youtu.be",
+        "www.youtube-nocookie.com",
+    }:
         return ""
     if host == "youtu.be":
         video_id = parsed.path.strip("/")
@@ -196,12 +206,16 @@ def file_url(material, kind="file"):
 
 @transaction.atomic
 def increment(row_id, course_number, metric):
-    if metric not in {"views", "downloads"} or course_number not in {1, 2, 3}:
+    if metric not in {"views", "downloads"}:
         raise ValueError("Invalid counter")
     row = News.objects.select_for_update().get(pk=row_id, title__startswith=NEWS_PREFIX)
     document = read_document(row)
     if not document.get("published"):
         raise Http404
+    keys = {"page", *(str(index) for index in range(1, len(document["courses"]) + 1))}
+    keys.update(item["id"] for item in document.get("resources", []))
+    if str(course_number) not in keys:
+        raise ValueError("Invalid counter")
     stats = document.setdefault("stats", {}).setdefault(str(course_number), {})
     stats[metric] = int(stats.get(metric, 0)) + 1
     row.content = json.dumps(document, ensure_ascii=False)

@@ -1,100 +1,71 @@
 <%page expression_filter="h"/>
 <%inherit file="base.html" />
 <%namespace name="static" file="/static_content.html"/>
-<%! from django.utils.translation import gettext as _ %>
+<%!
+from django.urls import reverse
+from django.utils.translation import gettext as _
+%>
 <%def name="field(bound)">
-  ${str(bound.errors) | n}
-  <p>${str(bound.label_tag()) | n}${str(bound.as_widget()) | n}
+  <div class="sdg4-field">${bound.errors}<label for="${bound.id_for_label}">${bound.label}${' *' if bound.field.required else ''}</label>${bound}
     % if bound.help_text:
       <span class="helptext">${bound.help_text}</span>
     % endif
-  </p>
+  </div>
 </%def>
-<%def name="translations(form, names)">
-  <details class="sdg4-translations" ${'open' if any(form[name + '_' + code].errors for name in names for code in ('kk', 'en')) else ''}>
-    <summary>${_("Add Kazakh and English translations (optional)")}</summary>
-    % for code, label in (('kk', 'KZ'), ('en', 'EN')):
-      <fieldset><legend>${label}</legend>
-        % for name in names:
-          ${field(form[name + '_' + code])}
-        % endfor
-      </fieldset>
-    % endfor
-  </details>
-</%def>
-<%def name="material_fields(material)">
-  ${str(material.non_field_errors()) | n}
-  % if material.material.get('file_path'):
-    <p>${_("An uploaded file is already attached. Leave the upload field empty to keep it.")}</p>
-  % endif
-  % for name in ('file', 'file_url', 'title', 'captions', 'captions_url', 'youtube_captions', 'duration', 'DELETE'):
-    ${field(material[name])}
-  % endfor
-</%def>
-<h1>${_("Edit resources") if row else _("Add teacher resources")}</h1>
-<p class="sdg4-edit-intro">${_("Start with the Russian version. Save a draft at any time and add translations later.")}</p>
-% if teacher_form.errors or any(form.errors or formset.errors or formset.non_form_errors() for form, formset in bundles):
-  <div class="sdg4-errors" role="alert">${_("Please correct the errors below. Reselect uploaded files before submitting again.")}</div>
+<nav class="sdg4-breadcrumb"><a href="${reverse('sdg4_manage')}">${_("Manage SDG 4 resources")}</a></nav>
+<header class="sdg4-edit-intro"><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Open educational resources")}</p><h1>${_("Edit resources") if row else _("Add material")}</h1>
+  <p>${_("Enter the teacher's name and faculty, then add a link or a presentation. Everything else is optional.")}</p>
+</header>
+% if request.GET.get('saved'):
+  <p class="sdg4-saved" role="status">${_("Draft saved. You can return to it and continue later.")}</p>
 % endif
-% if request.GET.get('saved') == '1':
-  <p class="sdg4-saved" role="status">${_("Draft saved. You can continue editing or return later.")}</p>
-% endif
-<form method="post" enctype="multipart/form-data" class="sdg4-edit">
+<form method="post" enctype="multipart/form-data" class="sdg4-edit sdg4-simple-editor">
   <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}" />
   <input type="hidden" name="revision" value="${document.get('revision', '')}" />
-  <fieldset><legend>${_("Teacher profile")}</legend>
-    ${str(teacher_form.non_field_errors()) | n}
-    ${field(teacher_form['name_ru'])}
-    ${field(teacher_form['faculty'])}
-    <details ${'open' if any(teacher_form[name].errors for name in ('position_ru', 'degree_ru', 'department_ru', 'photo', 'mooc_url')) else ''}>
-      <summary>${_("Position, department, photo and other details")}</summary>
-      % for name in ('position_ru', 'degree_ru', 'department_ru', 'photo', 'mooc_url'):
-        ${field(teacher_form[name])}
-      % endfor
-      % if row and row.image:
-        <img src="${row.image.url}" alt="${_('Current photo')}" width="100" height="100" />
-      % endif
-    </details>
-    ${translations(teacher_form, ('name', 'position', 'degree', 'department'))}
-    <p class="helptext">${_("The permanent link is created automatically and will not change.")}</p>
-  </fieldset>
-  % for slot, (form, formset) in enumerate(bundles, 1):
-    <details class="sdg4-course-editor" ${'open' if slot == 1 or form.errors or formset.errors or formset.non_form_errors() else ''}>
-      <summary>${_('Course {number}').format(number=slot)}${': ' + str(form['topic_ru'].value()) if form['topic_ru'].value() else ''}</summary>
-      ${str(form.non_field_errors()) | n}
-      ${field(form['topic_ru'])}
-      ${field(form['type'])}
-      <div class="sdg4-lecture-upload">${field(form['lecture_files'])}</div>
-      <p class="sdg4-video-help">${_("For university YouTube videos, confirm that subtitles are available. For uploaded videos, attach a WebVTT file. Duration is entered in seconds.")}</p>
-      ${str(formset.management_form) | n}
-      ${str(formset.non_form_errors()) | n}
-      <details class="sdg4-individual-materials" ${'open' if formset.initial_form_count() or formset.errors or formset.non_form_errors() else ''}>
-        <summary>${_("Existing files, links and individual lessons")}</summary>
-        <div class="sdg4-formset" data-prefix="${formset.prefix}">
-          <div class="sdg4-material-forms">
-            % for material in formset:
-              <fieldset class="sdg4-material-form"><legend>${_("Lesson")}</legend>${material_fields(material)}</fieldset>
-            % endfor
-          </div>
-          <template class="sdg4-empty-form"><fieldset class="sdg4-material-form"><legend>${_("Lesson")}</legend>${material_fields(formset.empty_form)}</fieldset></template>
-          <button type="button" class="sdg4-add-material">${_("Add lesson")}</button>
-        </div>
-      </details>
-      <details ${'open' if any(form[name].errors for name in ('discipline_ru', 'programme', 'annotation_ru', 'language', 'license')) else ''}>
-        <summary>${_("Course description and settings")}</summary>
-        % for name in ('discipline_ru', 'programme', 'annotation_ru', 'language', 'license'):
-          ${field(form[name])}
+  % if teacher_form.errors:
+    <div class="sdg4-errors" role="alert"><p>${_("Please correct the errors below.")}</p>${teacher_form.non_field_errors()}</div>
+  % endif
+  <fieldset><legend>01 · ${_("Teacher")}</legend>
+    <div class="sdg4-form-grid">${field(teacher_form['name_ru'])}${field(teacher_form['faculty'])}</div>
+    <details><summary>${_("Additional teacher details (optional)")}</summary>
+      <div class="sdg4-form-grid">
+        % for name in ('position_ru', 'degree_ru', 'department_ru', 'photo'):
+          ${field(teacher_form[name])}
         % endfor
-      </details>
-      ${translations(form, ('topic', 'discipline', 'annotation'))}
+      </div>
     </details>
-  % endfor
-  <p class="helptext">${_("To publish, complete all three courses in Russian and add their materials. Translations are optional.")}</p>
-  <div class="sdg4-save-actions">
-    <button type="submit" name="action" value="${'save' if document.get('published') else 'draft'}" class="sdg4-button" formnovalidate>${_("Save changes") if document.get('published') else _("Save draft")}</button>
-    % if not document.get('published'):
-      <button type="submit" name="action" value="publish">${_("Publish")}</button>
+  </fieldset>
+  <fieldset><legend>02 · ${_("Link or presentation")}</legend>
+    <p class="helptext">${_("You do not need to create a course. Paste a link to any course or educational material, or select presentation files.")}</p>
+    ${field(teacher_form['resource_url'])}
+    ${field(teacher_form['resource_title'])}
+    <div class="sdg4-upload-box">${field(teacher_form['presentations'])}<p id="sdg4-upload-help">${_("PDF, PPT or PPTX. You can select several files at once; titles come from file names.")}</p><p id="sdg4-file-list" role="status" aria-live="polite"></p></div>
+    % if existing_resources or document.get('courses'):
+      <details><summary>${_("Previously added materials")}</summary><p class="helptext">${_("Existing presentations and courses are kept. New files will be added to them.")}</p>
+        <ul>
+          % for item in existing_resources:
+            <li>${item['title']} ${item['format']}</li>
+          % endfor
+          % for course in document.get('courses', []):
+            % for item in course.get('materials', []):
+              <li>${item['title']}</li>
+            % endfor
+          % endfor
+        </ul>
+      </details>
     % endif
-  </div>
+  </fieldset>
+  <details class="sdg4-translations"><summary>${_("Add translations later (KZ / EN)")}</summary>
+    % for code in ('kk', 'en'):
+      <h2>${'KZ' if code == 'kk' else 'EN'}</h2>
+      <div class="sdg4-form-grid">
+        % for name in ('name', 'position', 'degree', 'department'):
+          ${field(teacher_form[f'{name}_{code}'])}
+        % endfor
+      </div>
+    % endfor
+  </details>
+  <p class="helptext">${_("A permanent link is created automatically and will not change.")}</p>
+  <div class="sdg4-save-actions"><button class="sdg4-button" type="submit" name="action" value="${'save' if document.get('published') else 'publish'}">${_("Save changes") if document.get('published') else _("Publish")}</button><button type="submit" name="action" value="draft">${_("Save draft")}</button></div>
 </form>
 <script src="${static.url('js/sdg4-editor.js')}" defer></script>

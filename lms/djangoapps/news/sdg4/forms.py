@@ -2,6 +2,7 @@
 
 from pathlib import PurePosixPath
 from urllib.parse import unquote, urlsplit
+from zipfile import BadZipFile, ZipFile
 
 from django import forms
 from django.conf import settings
@@ -45,7 +46,10 @@ class TeacherForm(forms.Form):
     )
     photo = forms.ImageField(label=_("Photo (optional)"), required=False)
     mooc_url = forms.CharField(
-        label=_("MOOC link (optional)"), max_length=1000, required=False, validators=[validate_media_url]
+        label=_("MOOC link (optional)"),
+        max_length=1000,
+        required=False,
+        validators=[validate_media_url],
     )
     published = forms.BooleanField(label=_("Publish this page"), required=False, widget=forms.HiddenInput())
 
@@ -96,6 +100,75 @@ class MultipleFileField(forms.FileField):
         return [clean_single(upload, initial) for upload in (data if isinstance(data, (list, tuple)) else [data])]
 
 
+class SimpleTeacherForm(TeacherForm):
+    """Only a teacher, faculty and a link or presentation are needed to publish."""
+
+    resource_url = forms.CharField(
+        label=_("Course or material link"),
+        max_length=2000,
+        required=False,
+        validators=[validate_media_url],
+    )
+    resource_title = forms.CharField(label=_("Link title (optional)"), max_length=250, required=False)
+    presentations = MultipleFileField(
+        label=_("Upload presentations"),
+        required=False,
+        widget=MultipleFileInput(attrs={"accept": ".pdf,.ppt,.pptx", "aria-describedby": "sdg4-upload-help"}),
+    )
+
+    def __init__(self, *args, document=None, publishing=True, **kwargs):
+        self.publishing = publishing
+        super().__init__(*args, document=document, publishing=False, **kwargs)
+        self.fields.pop("mooc_url")
+        self.fields.pop("slug")
+        # The link is a single editable field, not a course/lesson formset.
+        resources = self.document.get("resources", [])
+        link = next((item for item in resources if item.get("kind") == "link"), {})
+        self.initial.update(resource_url=link.get("file_url", ""), resource_title=link.get("title", ""))
+
+    def clean_presentations(self):
+        uploads = self.cleaned_data["presentations"]
+        existing = sum(item.get("kind") != "link" for item in self.document.get("resources", []))
+        if len(uploads) + existing > 200:
+            raise ValidationError(_("You can upload up to 200 presentations per teacher."))
+        for upload in uploads:
+            MaterialForm.validate_upload(upload, {".pdf", ".ppt", ".pptx"})
+            extension = PurePosixPath(upload.name.lower()).suffix
+            try:
+                if extension == ".ppt":
+                    if upload.read(8) != b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+                        raise ValidationError(_("Upload a valid PowerPoint presentation."))
+                elif extension == ".pptx":
+                    # Inspect the directory only; never extract or execute an Office file.
+                    with ZipFile(upload) as archive:
+                        names = set(archive.namelist())
+                        if not {
+                            "[Content_Types].xml",
+                            "ppt/presentation.xml",
+                        } <= names or any("vbaproject" in name.lower() for name in names):
+                            raise ValidationError(_("Upload a valid PowerPoint presentation."))
+            except (BadZipFile, OSError):
+                raise ValidationError(_("Upload a valid PowerPoint presentation.")) from None
+            finally:
+                upload.seek(0)
+        return uploads
+
+    def clean(self):
+        cleaned = super().clean()
+        legacy = self.document.get("courses", [])
+        existing = any(item.get("kind") != "link" for item in self.document.get("resources", []))
+        has_legacy = self.document.get("profile", {}).get("mooc_url") or any(
+            course.get("materials") for course in legacy
+        )
+        if (
+            self.publishing
+            and not self.errors
+            and not (cleaned.get("resource_url") or cleaned.get("presentations") or existing or has_legacy)
+        ):
+            raise ValidationError(_("Add a link or upload a presentation to publish. You can also save a draft."))
+        return cleaned
+
+
 class CourseForm(forms.Form):
     type = forms.ChoiceField(label=_("Course type"), choices=COURSE_TYPES)
     language = forms.ChoiceField(label=_("Language of materials"), choices=LANGUAGES)
@@ -110,7 +183,12 @@ class CourseForm(forms.Form):
 
     def __init__(self, *args, course=None, publishing=True, **kwargs):
         course = course or {}
-        kwargs["initial"] = {"type": "lecture", "language": "ru", "license": "by", **course}
+        kwargs["initial"] = {
+            "type": "lecture",
+            "language": "ru",
+            "license": "by",
+            **course,
+        }
         super().__init__(*args, **kwargs)
         self.fields["programme"].required = publishing
         translated_fields(
@@ -189,7 +267,10 @@ class MaterialForm(forms.Form):
         if self.errors:
             return cleaned
         upload, url = cleaned.get("file"), cleaned.get("file_url", "")
-        self.validate_upload(upload, {".pdf"} if self.course_type == "lecture" else {".mp4", ".webm", ".ogv"})
+        self.validate_upload(
+            upload,
+            {".pdf"} if self.course_type == "lecture" else {".mp4", ".webm", ".ogv"},
+        )
         self.validate_upload(cleaned.get("captions"), {".vtt"})
         if upload and url:
             raise ValidationError(_("Choose either an uploaded file or an existing URL."))
@@ -206,7 +287,12 @@ class MaterialForm(forms.Form):
             if PurePosixPath(existing_path.lower()).suffix not in expected:
                 raise ValidationError(_("The file type does not match this material."))
         host = (urlsplit(source).hostname or "").lower()
-        youtube_host = host in {"youtube.com", "www.youtube.com", "youtu.be", "www.youtube-nocookie.com"}
+        youtube_host = host in {
+            "youtube.com",
+            "www.youtube.com",
+            "youtu.be",
+            "www.youtube-nocookie.com",
+        }
         if self.course_type == "lecture":
             if source and PurePosixPath(urlsplit(source).path.lower()).suffix != ".pdf":
                 raise ValidationError(_("Lecture materials must be PDF files."))
@@ -221,7 +307,8 @@ class MaterialForm(forms.Form):
                 allowed = set(getattr(settings, "SDG4_MEDIA_HOSTS", ()))
                 allowed.update(
                     filter(
-                        None, (urlsplit(getattr(settings, key, "")).hostname for key in ("MEDIA_URL", "LMS_ROOT_URL"))
+                        None,
+                        (urlsplit(getattr(settings, key, "")).hostname for key in ("MEDIA_URL", "LMS_ROOT_URL")),
                     )
                 )
                 if host and not (
@@ -244,7 +331,15 @@ class MaterialForm(forms.Form):
 class MaterialFormSet(BaseFormSet):
     """Bind existing file references by their server-side row index, never hidden paths."""
 
-    def __init__(self, *args, materials=None, course_type="lecture", publishing=True, bulk_count=0, **kwargs):
+    def __init__(
+        self,
+        *args,
+        materials=None,
+        course_type="lecture",
+        publishing=True,
+        bulk_count=0,
+        **kwargs,
+    ):
         self.materials = materials or []
         self.course_type = course_type
         self.publishing = publishing
