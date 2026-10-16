@@ -13,6 +13,7 @@ from django.core.files.storage import default_storage
 from django.db import transaction
 from django.http import Http404
 from django.urls import reverse
+from django.utils.text import slugify
 from django.utils.translation import get_language
 from django.utils.translation import gettext as _
 
@@ -97,7 +98,61 @@ def find_page(faculty, teacher):
 
 
 def can_manage(user):
-    return user.is_authenticated and user.is_active and user.is_staff and user.has_perm("news.change_news")
+    # Temporarily shared editing for every signed-in user, as requested.
+    return user.is_authenticated and user.is_active
+
+
+def teacher_slug(name):
+    letters = dict(
+        zip(
+            "абвгдеёжзийклмнопрстуфхцчшщъыьэюяәғқңөұүһі",
+            (
+                "a",
+                "b",
+                "v",
+                "g",
+                "d",
+                "e",
+                "yo",
+                "zh",
+                "z",
+                "i",
+                "y",
+                "k",
+                "l",
+                "m",
+                "n",
+                "o",
+                "p",
+                "r",
+                "s",
+                "t",
+                "u",
+                "f",
+                "kh",
+                "ts",
+                "ch",
+                "sh",
+                "shch",
+                "",
+                "y",
+                "",
+                "e",
+                "yu",
+                "ya",
+                "a",
+                "gh",
+                "q",
+                "ng",
+                "o",
+                "u",
+                "u",
+                "h",
+                "i",
+            ),
+        )
+    )
+    return slugify("".join(letters.get(char, char) for char in name.lower()))[:70].rstrip("-") or "teacher"
 
 
 def validate_media_url(value):

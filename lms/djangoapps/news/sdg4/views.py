@@ -41,9 +41,10 @@ from .data import (
     localized,
     public_url,
     read_document,
+    teacher_slug,
     youtube_embed,
 )
-from .forms import CourseForm, Materials, TeacherForm, translations
+from .forms import CourseForm, Materials, TeacherForm, material_title, translations
 
 
 def render(request, template, context):
@@ -216,8 +217,8 @@ def material(request, faculty, teacher, course, material_id, download=False):
     return response
 
 
-def require_editor(request, create=False):
-    if not can_manage(request.user) or (create and not request.user.has_perm("news.add_news")):
+def require_editor(request):
+    if not can_manage(request.user):
         raise PermissionDenied
 
 
@@ -229,7 +230,7 @@ def manage(request):
         (teacher_card(row, doc) for row, doc in documents(include_drafts=True)),
         key=lambda card: alphabetical_key(card["name"]),
     )
-    return render(request, "manage", {"teachers": teachers, "can_create": request.user.has_perm("news.add_news")})
+    return render(request, "manage", {"teachers": teachers, "can_create": True})
 
 
 def save_upload(upload, row_id, slot, saved):
@@ -257,7 +258,7 @@ def save_page(row, original, teacher_form, bundles):
                 "schema": 1,
                 "faculty": original.get("faculty", cleaned["faculty"]),
                 # The primary key suffix guarantees uniqueness without a new database index.
-                "slug": original.get("slug") or f"{cleaned['slug']}-{row.pk}",
+                "slug": original.get("slug") or f"{cleaned['slug'] or teacher_slug(cleaned['name_ru'])}-{row.pk}",
                 "published": cleaned["published"],
                 "profile": {key: translations(cleaned, key) for key in ("name", "position", "degree", "department")},
                 "courses": [],
@@ -293,13 +294,23 @@ def save_page(row, original, teacher_form, bundles):
                         elif not item.get(f"{kind}_path"):
                             item.pop(f"{kind}_url", None)
                     course["materials"].append(item)
+                for upload in fields["lecture_files"]:
+                    course["materials"].append(
+                        {
+                            "id": uuid4().hex,
+                            "title": material_title(upload.name),
+                            "file_path": save_upload(upload, row.pk, slot, saved),
+                            "duration": None,
+                            "youtube_captions": False,
+                        }
+                    )
                 document["courses"].append(course)
             if cleaned.get("photo"):
                 row.image = save_upload(cleaned["photo"], row.pk, "photo", saved)
             row.title = document_key(document)
             row.content = json.dumps(document, ensure_ascii=False)
             row.save()
-            return document
+            return row, document
     except Exception:
         for path in saved:
             default_storage.delete(path)
@@ -309,25 +320,45 @@ def save_page(row, original, teacher_form, bundles):
 @never_cache
 @require_http_methods(["GET", "POST"])
 def edit(request, news_id=None):
-    require_editor(request, create=news_id is None)
+    require_editor(request)
     row = get_object_or_404(News, pk=news_id, title__startswith=NEWS_PREFIX) if news_id else None
     document = read_document(row) if row else {}
     if row:
         document["revision"] = row.updated_at.isoformat()
+    bound_data = request.POST.copy() if request.method == "POST" else None
+    publishing = bool(document.get("published"))
+    if bound_data is not None:
+        action = bound_data.get("action")
+        if action in {"draft", "publish"}:
+            publishing = action == "publish"
+        elif action != "save":
+            # Support forms opened before this update.
+            publishing = bool(bound_data.get("published"))
+        bound_data["published"] = "on" if publishing else ""
     teacher_form = TeacherForm(
-        request.POST if request.method == "POST" else None, request.FILES or None, document=document or None
+        bound_data,
+        request.FILES or None,
+        document=document or None,
+        publishing=publishing,
     )
     bundles = []
     for slot in range(1, 4):
         course = document.get("courses", [{}, {}, {}])[slot - 1]
-        form = CourseForm(request.POST if request.method == "POST" else None, prefix=f"course-{slot}", course=course)
-        kind = request.POST.get(f"course-{slot}-type", course.get("type", "lecture"))
+        if bound_data is not None:
+            for key, default in (("type", "lecture"), ("language", "ru"), ("license", "by")):
+                bound_data.setdefault(f"course-{slot}-{key}", course.get(key, default))
+        form = CourseForm(
+            bound_data, request.FILES or None, prefix=f"course-{slot}", course=course, publishing=publishing
+        )
+        kind = bound_data.get(f"course-{slot}-type") if bound_data is not None else course.get("type", "lecture")
         formset = Materials(
-            request.POST if request.method == "POST" else None,
+            bound_data,
             request.FILES or None,
             prefix=f"materials-{slot}",
             materials=course.get("materials", []),
             course_type=kind,
+            publishing=publishing,
+            bulk_count=len(request.FILES.getlist(f"course-{slot}-lecture_files")),
         )
         bundles.append((form, formset))
     if request.method == "POST":
@@ -340,9 +371,13 @@ def edit(request, news_id=None):
             checks.append(False)
         if all(checks):
             try:
-                result = save_page(row, document, teacher_form, bundles)
+                saved_row, result = save_page(row, document, teacher_form, bundles)
             except ValueError as exc:
                 teacher_form.add_error(None, str(exc))
             else:
-                return redirect(public_url(result) if result["published"] else reverse("sdg4_manage"))
+                return redirect(
+                    public_url(result)
+                    if result["published"]
+                    else reverse("sdg4_edit", args=[saved_row.pk]) + "?saved=1"
+                )
     return render(request, "edit", {"teacher_form": teacher_form, "bundles": bundles, "document": document, "row": row})

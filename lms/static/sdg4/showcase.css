@@ -60,6 +60,12 @@
 .sdg4-edit .errorlist, .sdg4-errors { color: #8a1527; background: #fff0f2; padding: 14px 28px; border-left: 4px solid #8a1527; }
 .sdg4-edit .sdg4-material-form { background: #f4f6f9; }
 .sdg4-editor-link { text-align: right; }
+.sdg4-edit > details { margin: 22px 0; padding: 20px; border: 1px solid var(--sdg4-line); border-radius: 8px; }
+.sdg4-edit > details > summary { font-weight: 700; font-size: 1.2rem; }
+.sdg4-edit details details { margin: 18px 0; padding: 12px 16px; border: 1px solid var(--sdg4-line); border-radius: 6px; }
+.sdg4-edit-intro { max-width: 800px; }
+.sdg4-saved { color: #14532d; background: #edf8ef; border-left: 4px solid #238444; padding: 16px; }
+.sdg4-save-actions { display: flex; flex-wrap: wrap; gap: 14px; padding: 16px 0; }
 .sdg4-home-link { display: block; margin: 20px 0; padding: 22px; background: #a71930; color: #fff !important; border-radius: 8px; text-align: center; font-weight: 700; }
 @media (max-width: 900px) { .sdg4-grid, .sdg4-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .sdg4 { padding: 20px 16px 40px; } .sdg4-toolbar { align-items: flex-start; flex-direction: column; gap: 12px; } .sdg4-grid, .sdg4-tabs, .sdg4-meta { grid-template-columns: minmax(0, 1fr); } .sdg4-hero, .sdg4-course, .sdg4-edit fieldset { padding: 20px; } .sdg4-profile { flex-direction: column; } .sdg4-tabs a { padding: 14px; } .sdg4-pdf { height: 420px; } }

@@ -1,7 +1,7 @@
-"""Editorial forms: exactly three courses with ordered, uploaded materials."""
+"""Russian-first forms with optional translations and incremental drafts."""
 
 from pathlib import PurePosixPath
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from django import forms
 from django.conf import settings
@@ -13,7 +13,7 @@ from .constants import COURSE_TYPES, FACULTIES, LANGUAGES, LICENSES
 from .data import validate_media_url, youtube_embed
 
 
-def translated_fields(form, names, initial):
+def translated_fields(form, names, initial, publishing=True):
     for name, label, limit, multiline in names:
         for code, short in LANGUAGES:
             key = f"{name}_{code}"
@@ -22,7 +22,12 @@ def translated_fields(form, names, initial):
                 max_length=limit,
                 widget=forms.Textarea(attrs={"rows": 3}) if multiline else forms.TextInput(),
                 initial=initial.get(name, {}).get(code, ""),
+                required=code == "ru" and (publishing or name == "name"),
             )
+            # A Russian-only update must not erase translations absent from POST.
+            if form.is_bound and code != "ru" and form.add_prefix(key) not in form.data:
+                form.data = form.data.copy()
+                form.data[form.add_prefix(key)] = initial.get(name, {}).get(code, "")
 
 
 def translations(cleaned_data, name):
@@ -30,19 +35,21 @@ def translations(cleaned_data, name):
 
 
 class TeacherForm(forms.Form):
-    faculty = forms.ChoiceField(label=_("Faculty"), choices=FACULTIES)
+    faculty = forms.ChoiceField(label=_("Faculty"), choices=(("", _("Select your faculty")), *FACULTIES))
     slug = forms.SlugField(
         label=_("Permanent address"),
         max_length=70,
+        required=False,
+        widget=forms.HiddenInput(),
         help_text=_("Use a surname and initials in Latin letters. The address is fixed after the first save."),
     )
     photo = forms.ImageField(label=_("Photo (optional)"), required=False)
     mooc_url = forms.CharField(
         label=_("MOOC link (optional)"), max_length=1000, required=False, validators=[validate_media_url]
     )
-    published = forms.BooleanField(label=_("Publish this page"), required=False)
+    published = forms.BooleanField(label=_("Publish this page"), required=False, widget=forms.HiddenInput())
 
-    def __init__(self, *args, document=None, **kwargs):
+    def __init__(self, *args, document=None, publishing=True, **kwargs):
         self.document = document or {}
         profile = self.document.get("profile", {})
         kwargs["initial"] = {
@@ -65,6 +72,7 @@ class TeacherForm(forms.Form):
                 ("department", _("Department"), 250, False),
             ),
             profile,
+            publishing=publishing,
         )
 
     def clean_photo(self):
@@ -74,16 +82,37 @@ class TeacherForm(forms.Form):
         return photo
 
 
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleFileField(forms.FileField):
+    widget = MultipleFileInput
+
+    def clean(self, data, initial=None):
+        if not data:
+            return []
+        clean_single = super().clean
+        return [clean_single(upload, initial) for upload in (data if isinstance(data, (list, tuple)) else [data])]
+
+
 class CourseForm(forms.Form):
     type = forms.ChoiceField(label=_("Course type"), choices=COURSE_TYPES)
     language = forms.ChoiceField(label=_("Language of materials"), choices=LANGUAGES)
     programme = forms.CharField(label=_("Educational programme code"), max_length=200)
     license = forms.ChoiceField(label=_("Creative Commons license"), choices=LICENSES)
+    lecture_files = MultipleFileField(
+        label=_("Upload PDF files"),
+        required=False,
+        help_text=_("Select several files at once. Lesson titles will use the file names."),
+        widget=MultipleFileInput(attrs={"accept": ".pdf"}),
+    )
 
-    def __init__(self, *args, course=None, **kwargs):
+    def __init__(self, *args, course=None, publishing=True, **kwargs):
         course = course or {}
-        kwargs["initial"] = course
+        kwargs["initial"] = {"type": "lecture", "language": "ru", "license": "by", **course}
         super().__init__(*args, **kwargs)
+        self.fields["programme"].required = publishing
         translated_fields(
             self,
             (
@@ -92,11 +121,24 @@ class CourseForm(forms.Form):
                 ("annotation", _("Annotation (up to 500 characters)"), 500, True),
             ),
             course,
+            publishing=publishing,
         )
+
+    def clean_lecture_files(self):
+        files = self.cleaned_data["lecture_files"]
+        if files and self.cleaned_data.get("type") != "lecture":
+            raise ValidationError(_("The file type does not match this material."))
+        for upload in files:
+            MaterialForm.validate_upload(upload, {".pdf"})
+        return files
+
+
+def material_title(filename):
+    return PurePosixPath(unquote(urlsplit(filename).path)).stem.replace("_", " ").strip()[:250] or str(_("Lesson"))
 
 
 class MaterialForm(forms.Form):
-    title = forms.CharField(label=_("Lesson title"), max_length=250)
+    title = forms.CharField(label=_("Lesson title"), max_length=250, required=False)
     file = forms.FileField(label=_("PDF or video file"), required=False)
     file_url = forms.CharField(
         label=_("Existing file URL or YouTube link"),
@@ -117,9 +159,10 @@ class MaterialForm(forms.Form):
     )
     duration = forms.IntegerField(label=_("Video duration in seconds"), required=False, min_value=1)
 
-    def __init__(self, *args, material=None, course_type="lecture", **kwargs):
+    def __init__(self, *args, material=None, course_type="lecture", publishing=True, **kwargs):
         self.material = material or {}
         self.course_type = course_type
+        self.publishing = publishing
         super().__init__(*args, **kwargs)
         if material:
             # Initial values must also be set on bound forms, for empty-form detection.
@@ -150,8 +193,10 @@ class MaterialForm(forms.Form):
         self.validate_upload(cleaned.get("captions"), {".vtt"})
         if upload and url:
             raise ValidationError(_("Choose either an uploaded file or an existing URL."))
-        if not (upload or url or self.material.get("file_path")):
+        if self.publishing and not (upload or url or self.material.get("file_path")):
             raise ValidationError(_("Add a file or a link for every lesson."))
+        if not cleaned.get("title"):
+            cleaned["title"] = material_title(upload.name if upload else url or self.material.get("file_path", ""))
         if cleaned.get("captions") and cleaned.get("captions_url"):
             raise ValidationError(_("Choose either uploaded subtitles or a subtitles URL."))
         source = url or self.material.get("file_url", "")
@@ -166,10 +211,10 @@ class MaterialForm(forms.Form):
             if source and PurePosixPath(urlsplit(source).path.lower()).suffix != ".pdf":
                 raise ValidationError(_("Lecture materials must be PDF files."))
         else:
-            if not cleaned.get("duration"):
+            if self.publishing and not cleaned.get("duration"):
                 self.add_error("duration", _("Enter the video duration."))
             if youtube_host:
-                if not youtube_embed(source) or not cleaned.get("youtube_captions"):
+                if not youtube_embed(source) or (self.publishing and not cleaned.get("youtube_captions")):
                     raise ValidationError(_("Use a valid university YouTube video and confirm its subtitles."))
             else:
                 # University media can also use a separately configured storage/CDN host.
@@ -189,7 +234,9 @@ class MaterialForm(forms.Form):
                     raise ValidationError(_("Use university-hosted video or the university YouTube channel."))
                 if source and PurePosixPath(urlsplit(source).path.lower()).suffix not in {".mp4", ".webm", ".ogv"}:
                     raise ValidationError(_("Use an MP4, WebM or OGV video URL."))
-                if not (cleaned.get("captions") or cleaned.get("captions_url") or self.material.get("captions_path")):
+                if self.publishing and not (
+                    cleaned.get("captions") or cleaned.get("captions_url") or self.material.get("captions_path")
+                ):
                     raise ValidationError(_("Subtitles are required for each video."))
         return cleaned
 
@@ -197,15 +244,18 @@ class MaterialForm(forms.Form):
 class MaterialFormSet(BaseFormSet):
     """Bind existing file references by their server-side row index, never hidden paths."""
 
-    def __init__(self, *args, materials=None, course_type="lecture", **kwargs):
+    def __init__(self, *args, materials=None, course_type="lecture", publishing=True, bulk_count=0, **kwargs):
         self.materials = materials or []
         self.course_type = course_type
+        self.publishing = publishing
+        self.bulk_count = bulk_count
+        self.min_num = 1 if publishing and not bulk_count else 0
         kwargs["initial"] = self.materials
         super().__init__(*args, **kwargs)
 
     def get_form_kwargs(self, index):
         kwargs = super().get_form_kwargs(index)
-        kwargs.update(course_type=self.course_type)
+        kwargs.update(course_type=self.course_type, publishing=self.publishing)
         if index is not None and index < len(self.materials):
             kwargs["material"] = self.materials[index]
         return kwargs
@@ -214,7 +264,13 @@ class MaterialFormSet(BaseFormSet):
         super().clean()
         if any(self.errors):
             return
-        if not any(form.cleaned_data and not form.cleaned_data.get("DELETE") for form in self.forms):
+        count = (
+            sum(bool(form.cleaned_data) and not form.cleaned_data.get("DELETE") for form in self.forms)
+            + self.bulk_count
+        )
+        if count > self.max_num:
+            raise ValidationError(_("A course can contain at most 200 lessons."))
+        if self.publishing and not count:
             raise ValidationError(_("Add at least one lesson to each of the three courses."))
 
 

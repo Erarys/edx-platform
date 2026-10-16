@@ -3,19 +3,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateCourseFields = (editor) => {
         const isVideo = editor.querySelector('select[name$="-type"]').value === 'video';
         editor.querySelector('.sdg4-video-help').hidden = !isVideo;
+        editor.querySelector('.sdg4-lecture-upload').hidden = isVideo;
+        if (isVideo) {
+            editor.querySelector('.sdg4-individual-materials').open = true;
+            if (!editor.querySelector('.sdg4-material-forms .sdg4-material-form')) {
+                editor.querySelector('.sdg4-add-material').click();
+            }
+        }
         editor.querySelectorAll('input').forEach((input) => {
             if (/-captions$|-captions_url$|-youtube_captions$|-duration$/.test(input.name)) {
                 input.closest('p').hidden = !isVideo;
             }
-            if (input.type === 'file') {
+            if (input.type === 'file' && !input.multiple) {
                 input.accept = input.name.endsWith('-captions') ? '.vtt' : isVideo ? '.mp4,.webm,.ogv' : '.pdf';
             }
         });
     };
-    document.querySelectorAll('.sdg4-course-editor').forEach((editor) => {
-        editor.querySelector('select[name$="-type"]').addEventListener('change', () => updateCourseFields(editor));
-        updateCourseFields(editor);
-    });
     document.querySelectorAll('.sdg4-formset').forEach((formset) => {
         const total = document.getElementById(`id_${formset.dataset.prefix}-TOTAL_FORMS`);
         const maximum = document.getElementById(`id_${formset.dataset.prefix}-MAX_NUM_FORMS`);
@@ -40,5 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
             updateCourseFields(formset.closest('.sdg4-course-editor'));
             firstInput.focus();
         });
+    });
+    document.querySelectorAll('.sdg4-course-editor').forEach((editor) => {
+        editor.querySelector('select[name$="-type"]').addEventListener('change', () => updateCourseFields(editor));
+        updateCourseFields(editor);
     });
 });

@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
@@ -96,6 +95,10 @@ def payload(published=True, course_type="lecture"):
     return result
 
 
+def russian_only(data):
+    return {key: value for key, value in data.items() if not key.endswith(("_kk", "_en")) and key != "slug"}
+
+
 class ShowcaseTests(TestCase):
     def setUp(self):
         temp_root = Path(__file__).resolve().parents[5] / "test_root"
@@ -159,27 +162,121 @@ class ShowcaseTests(TestCase):
             self.assertEqual(self.client.get(reverse("sdg4_faculty", args=[faculty])).status_code, 200)
         self.assertEqual(self.client.get("/sdg4/unknown/").status_code, 404)
 
-    def test_editor_requires_staff_and_permissions_and_csrf(self):
+    def test_editor_available_to_every_signed_in_user_and_requires_csrf(self):
         self.client.logout()
         self.assertEqual(self.client.get(reverse("sdg4_manage")).status_code, 403)
-        staff = get_user_model().objects.create_user("staff", is_staff=True)
-        self.client.force_login(staff)
-        self.assertEqual(self.client.get(reverse("sdg4_create")).status_code, 403)
-        staff.user_permissions.add(Permission.objects.get(codename="change_news"))
+        ordinary_user = get_user_model().objects.create_user("teacher")
+        self.client.force_login(ordinary_user)
         self.assertEqual(self.client.get(reverse("sdg4_manage")).status_code, 200)
-        self.assertEqual(self.client.get(reverse("sdg4_create")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("sdg4_create")).status_code, 200)
+        row, _document, url = self.publish()
+        self.assertContains(self.client.get(url), reverse("sdg4_edit", args=[row.pk]))
+        other_user = get_user_model().objects.create_user("another-teacher")
+        self.client.force_login(other_user)
+        self.assertEqual(self.client.get(reverse("sdg4_edit", args=[row.pk])).status_code, 200)
         secured = Client(enforce_csrf_checks=True)
         secured.force_login(self.editor)
         self.assertEqual(secured.post(reverse("sdg4_create"), payload()).status_code, 403)
 
     def test_three_complete_courses_required_and_annotation_limit(self):
         data = payload()
-        data["course-3-topic_kk"] = ""
+        data["course-3-topic_ru"] = ""
         data["course-1-annotation_ru"] = "x" * 501
         response = self.client.post(reverse("sdg4_create"), data)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Please correct the errors")
         self.assertEqual(News.objects.count(), 0)
+
+    def test_russian_only_publication_and_fallback_until_translations_added(self):
+        data = russian_only(payload())
+        data["action"] = "publish"
+        for slot in range(1, 4):
+            data.pop(f"course-{slot}-language")
+            data.pop(f"course-{slot}-license")
+        data["name_ru"] = "Иванова Алия Сергеевна"
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        row = News.objects.get()
+        document = read_document(row)
+        self.assertEqual(document["slug"], f"ivanova-aliya-sergeevna-{row.pk}")
+        self.assertEqual(document["profile"]["name"]["en"], "")
+        self.assertEqual([course["language"] for course in document["courses"]], ["ru"] * 3)
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "kk"
+        self.assertContains(self.client.get(response.url), "Иванова Алия Сергеевна")
+        self.assertContains(self.client.get(response.url), "topic ru 1")
+
+    def test_save_incomplete_draft_with_bulk_pdf_upload(self):
+        data = {"name_ru": "Иванов И. И.", "faculty": FACULTIES[0][0], "action": "draft"}
+        for slot in range(1, 4):
+            data.update({f"materials-{slot}-TOTAL_FORMS": "0", f"materials-{slot}-INITIAL_FORMS": "0"})
+        data["course-1-lecture_files"] = [
+            SimpleUploadedFile("01_Введение.pdf", b"%PDF-1.4\n%%EOF"),
+            SimpleUploadedFile("02_Практика.pdf", b"%PDF-1.4\n%%EOF"),
+        ]
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        row = News.objects.get()
+        document = read_document(row)
+        self.assertFalse(document["published"])
+        self.assertEqual(
+            [item["title"] for item in document["courses"][0]["materials"]], ["01 Введение", "02 Практика"]
+        )
+        self.assertEqual(document["courses"][1]["materials"], [])
+        self.assertContains(self.client.get(response.url), "Draft saved")
+        self.assertEqual(
+            self.client.get(reverse("sdg4_teacher", args=[document["faculty"], document["slug"]])).status_code, 404
+        )
+
+    def test_bulk_pdf_can_publish_without_individual_lesson_forms(self):
+        data = russian_only(payload())
+        data["action"] = "publish"
+        for slot in range(1, 4):
+            upload = data.pop(f"materials-{slot}-0-file")
+            data.pop(f"materials-{slot}-0-title")
+            data[f"materials-{slot}-TOTAL_FORMS"] = "0"
+            data[f"course-{slot}-lecture_files"] = [upload]
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        self.assertTrue(read_document(News.objects.get())["published"])
+
+    def test_bulk_pdf_validates_every_file(self):
+        data = russian_only(payload())
+        data["course-1-lecture_files"] = [
+            SimpleUploadedFile("good.pdf", b"%PDF-1.4\n%%EOF"),
+            SimpleUploadedFile("bad.pdf", b"not a PDF"),
+        ]
+        self.assertContains(self.client.post(reverse("sdg4_create"), data), "valid PDF")
+        self.assertFalse(News.objects.exists())
+
+    def test_add_translations_later_without_changing_url_or_erasing_them(self):
+        response = self.client.post(reverse("sdg4_create"), russian_only(payload()))
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        url = response.url
+        row = News.objects.get()
+        document = read_document(row)
+        data = russian_only(self.edit_payload(row, document))
+        data.update({"name_en": "English name", "course-1-topic_en": "English topic", "action": "save"})
+        response = self.client.post(reverse("sdg4_edit", args=[row.pk]), data)
+        self.assertEqual(response.url, url)
+        self.assertContains(self.client.get(url), "English name")
+        row.refresh_from_db()
+        document = read_document(row)
+        data = russian_only(self.edit_payload(row, document))
+        data.update({"name_ru": "Новое имя", "action": "save"})
+        self.assertEqual(self.client.post(reverse("sdg4_edit", args=[row.pk]), data).status_code, 302)
+        row.refresh_from_db()
+        updated = read_document(row)
+        self.assertEqual(updated["profile"]["name"]["en"], "English name")
+        self.assertEqual(updated["courses"][0]["topic"]["en"], "English topic")
+        self.assertTrue(updated["published"])
+
+    def test_simple_editor_uses_optional_translations_and_multiple_upload(self):
+        response = self.client.get(reverse("sdg4_create"))
+        self.assertContains(response, '<input type="text" name="name_ru"')
+        self.assertContains(response, 'class="sdg4-translations"')
+        self.assertNotContains(response, 'class="sdg4-translations" open')
+        self.assertRegex(response.content.decode(), r'<input[^>]*name="course-1-lecture_files"[^>]*\bmultiple\b')
+        self.assertNotContains(response, 'id="id_slug"')
 
     def test_empty_or_deleted_materials_cannot_be_published(self):
         for deleted in (False, True):
@@ -205,8 +302,8 @@ class ShowcaseTests(TestCase):
 
     def test_draft_hidden_and_url_fixed_after_name_change(self):
         response = self.client.post(reverse("sdg4_create"), payload(published=False))
-        self.assertRedirects(response, reverse("sdg4_manage"))
         row = News.objects.get()
+        self.assertRedirects(response, reverse("sdg4_edit", args=[row.pk]) + "?saved=1")
         doc = read_document(row)
         url = reverse("sdg4_teacher", args=[doc["faculty"], doc["slug"]])
         self.assertEqual(self.client.get(url).status_code, 404)
