@@ -1,0 +1,69 @@
+<%page expression_filter="h"/>
+<%inherit file="base.html" />
+<%!
+from django.urls import reverse
+from django.utils.translation import gettext as _, pgettext
+%>
+<%def name="pagetitle()">${_('E-learning resources — {name}').format(name=teacher_name)}</%def>
+<nav class="sdg4-breadcrumb" aria-label="${_('Breadcrumbs')}">
+  <a href="${reverse('sdg4_index')}">${pgettext("SDG 4 showcase", "Faculties")}</a><span aria-hidden="true"> / </span>
+  <a href="${reverse('sdg4_faculty', args=[faculty_slug])}">${faculty_name}</a>
+</nav>
+<header class="sdg4-profile">
+  % if photo_url:
+    <img class="sdg4-photo" src="${photo_url}" alt="${teacher_name}" width="144" height="144" />
+  % endif
+  <div>
+    <h1>${_('E-learning resources — {name}').format(name=teacher_name)}</h1>
+    <p>${profile['position']} · ${profile['degree']}</p>
+    <p>${profile['department']}<br />${faculty_name}</p>
+    % if mooc_url:
+      <p><a href="${mooc_url}">${_("Teacher's MOOC on Open KazNU")}</a></p>
+    % endif
+  </div>
+</header>
+<div class="sdg4-permalink"><label for="sdg4-permalink">${_("Permanent link for the application")}</label><input id="sdg4-permalink" type="url" value="${permanent_url}" readonly /></div>
+% if can_manage_sdg4:
+  <p><a href="${edit_url}">${_("Edit resources")}</a></p>
+% endif
+<nav class="sdg4-tabs" aria-label="${_('Courses')}">
+  % for course in courses:
+    <a href="${course['url']}" aria-current="${'page' if course['number'] == selected['number'] else 'false'}">${course['title']}</a>
+  % endfor
+</nav>
+<section id="course-panel" class="sdg4-course" aria-labelledby="sdg4-course-title" tabindex="-1">
+  <h2 id="sdg4-course-title">${selected['title']}</h2>
+  <p class="sdg4-annotation">${annotation}</p>
+  <dl class="sdg4-meta">
+    <div><dt>${_("Language of materials")}</dt><dd>${material_language}</dd></div>
+    <div><dt>${_("Discipline")}</dt><dd>${discipline}</dd></div>
+    <div><dt>${_("Educational programme code")}</dt><dd>${selected['programme']}</dd></div>
+    <div><dt>${_("Number of lessons")}</dt><dd>${len(selected['materials'])}</dd></div>
+    % if selected['type'] == 'video':
+      <div><dt>${_("Total video duration")}</dt><dd>${_('{minutes} min {seconds} sec').format(minutes=duration // 60, seconds=duration % 60)}</dd></div>
+    % endif
+    <div><dt>${_("Publication date")}</dt><dd><time datetime="${selected['published_at']}">${selected['published_at']}</time></dd></div>
+    <div><dt>${_("Creative Commons license")}</dt><dd><a href="https://creativecommons.org/licenses/${selected['license']}/4.0/" rel="license">${license_name}</a></dd></div>
+    <div><dt>${_("Views")}</dt><dd>${stats.get('views', 0)}</dd></div>
+    <div><dt>${_("Downloads")}</dt><dd>${stats.get('downloads', 0)}</dd></div>
+  </dl>
+  <ol class="sdg4-materials">
+    % for item in selected['materials']:
+      <li>
+        <h3>${item['title']}</h3>
+        % if selected['type'] == 'lecture':
+          <div class="sdg4-actions"><a href="${item['view_url']}" target="_blank" rel="noopener">${_("Open PDF")}</a><a class="sdg4-button" href="${item['download_url']}" download>${_("Download PDF")}</a></div>
+          <details><summary>${_("View PDF on this page")}</summary><object data="${item['view_url']}" type="application/pdf" class="sdg4-pdf" aria-label="${item['title']}"><a href="${item['view_url']}">${_("Open PDF")}</a></object></details>
+        % elif item['embed']:
+          <iframe class="sdg4-video" src="${item['embed']}" title="${item['title']}" loading="lazy" allow="fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        % else:
+          <video class="sdg4-video" controls preload="metadata" aria-label="${item['title']}" crossorigin="anonymous">
+            <source src="${item['source']}" />
+            <track kind="captions" src="${item['captions']}" srclang="${selected['language']}" label="${material_language}" default />
+            <a href="${item['source']}">${_("Open video")}</a>
+          </video>
+        % endif
+      </li>
+    % endfor
+  </ol>
+</section>

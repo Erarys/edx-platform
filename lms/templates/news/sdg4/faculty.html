@@ -1,0 +1,18 @@
+<%page expression_filter="h"/>
+<%inherit file="base.html" />
+<%!
+from django.urls import reverse
+from django.utils.translation import gettext as _, pgettext
+%>
+<nav class="sdg4-breadcrumb" aria-label="${_('Breadcrumbs')}"><a href="${reverse('sdg4_index')}">${pgettext("SDG 4 showcase", "Faculties")}</a><span aria-hidden="true"> / </span>${faculty_name}</nav>
+<h1>${faculty_name}</h1>
+<h2>${_("Teachers")}</h2>
+% if teachers:
+  <ul class="sdg4-teachers">
+    % for teacher in teachers:
+      <li><a href="${teacher['url']}">${teacher['name']}</a><p>${teacher['position']}</p></li>
+    % endfor
+  </ul>
+% else:
+  <p class="sdg4-empty">${_("Resources for this faculty have not been published yet.")}</p>
+% endif

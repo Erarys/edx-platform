@@ -1,0 +1,24 @@
+<%page expression_filter="h"/>
+<%inherit file="base.html" />
+<%!
+from django.urls import reverse
+from django.utils.translation import gettext as _, pgettext
+%>
+<header class="sdg4-hero">
+  <span class="sdg4-eyebrow">${_("Open educational resources")}</span>
+  <h1>${_("SDG 4: Quality Education")}</h1>
+  <p>${_("Lecture and video courses from Al-Farabi KazNU teachers. Free access without registration.")}</p>
+</header>
+<section class="sdg4-intro" aria-labelledby="sdg4-about">
+  <h2 id="sdg4-about">${_("Education open to everyone")}</h2>
+  <p>${preamble}</p>
+  <ul class="sdg4-targets"><li>${target_43}</li><li>${target_44}</li></ul>
+</section>
+<section aria-labelledby="sdg4-faculties">
+  <h2 id="sdg4-faculties">${pgettext("SDG 4 showcase", "Faculties")}</h2>
+  <ul class="sdg4-grid">
+    % for slug, name in faculties:
+      <li><a class="sdg4-card" href="${reverse('sdg4_faculty', args=[slug])}">${name}<span aria-hidden="true">→</span></a></li>
+    % endfor
+  </ul>
+</section>

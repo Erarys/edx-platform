@@ -97,6 +97,7 @@ notification_prefs_urls = [
 
 
 urlpatterns = [
+    path('sdg4/', include('lms.djangoapps.news.sdg4.urls')),
     re_path(r'^course-admin/?$', course_admin_views.course_admin, name='course_admin'),
     path('library-tools/', library_tools_views.library_tools, name='library_tools'),
     path('news/', news_views.news_list, name='news_list'),

@@ -3,6 +3,7 @@ from django.urls import reverse
 from common.djangoapps.edxmako.shortcuts import render_to_response
 from .models import News
 from .forms import NewsForm
+from .sdg4.constants import NEWS_PREFIX
 from django.contrib.auth.decorators import user_passes_test
 from common.djangoapps.student.models import CourseEnrollment, UserProfile
 from lms.djangoapps.certificates.data import CertificateStatuses
@@ -35,7 +36,7 @@ from django.db.models import Avg, Count, Exists, Min, OuterRef, Q
 logger = logging.getLogger(__name__)
 
 def news_list(request):
-    news = News.objects.all()
+    news = News.objects.exclude(title__startswith=NEWS_PREFIX)
     context = {
         'news_list': news,
         'create_url': reverse('news_create'),
@@ -43,7 +44,7 @@ def news_list(request):
     return render_to_response('news/list.html', context, request=request)
 
 def news_detail(request, news_id):  # используем news_id
-    news = get_object_or_404(News, pk=news_id)  # все равно используем pk для поиска
+    news = get_object_or_404(News.objects.exclude(title__startswith=NEWS_PREFIX), pk=news_id)
     context = {
         'news': news,
         'list_url': reverse('news_list'),

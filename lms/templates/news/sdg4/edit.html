@@ -1,0 +1,44 @@
+<%page expression_filter="h"/>
+<%inherit file="base.html" />
+<%namespace name="static" file="/static_content.html"/>
+<%! from django.utils.translation import gettext as _ %>
+<h1>${_("Edit resources") if row else _("Add teacher resources")}</h1>
+<p>${_("Complete all three courses. Add PDF lectures or captioned videos in the required order. Only published pages are public.")}</p>
+% if teacher_form.errors or any(form.errors or formset.errors or formset.non_form_errors() for form, formset in bundles):
+  <div class="sdg4-errors" role="alert">${_("Please correct the errors below. Reselect uploaded files before submitting again.")}</div>
+% endif
+<form method="post" enctype="multipart/form-data" class="sdg4-edit">
+  <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}" />
+  <input type="hidden" name="revision" value="${document.get('revision', '')}" />
+  <fieldset><legend>${_("Teacher profile")}</legend>
+    % if row and row.image:
+      <img src="${row.image.url}" alt="${_('Current photo')}" width="100" height="100" />
+    % endif
+    ${teacher_form.as_p() | n}
+  </fieldset>
+  % for slot, (form, formset) in enumerate(bundles, 1):
+    <fieldset class="sdg4-course-editor"><legend>${_('Course {number}').format(number=slot)}</legend>
+      ${form.as_p() | n}
+      <h2>${_("Lessons in display order")}</h2>
+      <p class="sdg4-video-help">${_("For university YouTube videos, confirm that subtitles are available. For uploaded videos, attach a WebVTT file. Duration is entered in seconds.")}</p>
+      ${str(formset.management_form) | n}
+      ${str(formset.non_form_errors()) | n}
+      <div class="sdg4-formset" data-prefix="${formset.prefix}">
+        <div class="sdg4-material-forms">
+          % for material in formset:
+            <fieldset class="sdg4-material-form"><legend>${_("Lesson")}</legend>
+              % if material.material.get('file_path'):
+                <p>${_("An uploaded file is already attached. Leave the upload field empty to keep it.")}</p>
+              % endif
+              ${material.as_p() | n}
+            </fieldset>
+          % endfor
+        </div>
+        <template class="sdg4-empty-form"><fieldset class="sdg4-material-form"><legend>${_("Lesson")}</legend>${formset.empty_form.as_p() | n}</fieldset></template>
+        <button type="button" class="sdg4-add-material">${_("Add lesson")}</button>
+      </div>
+    </fieldset>
+  % endfor
+  <button type="submit" class="sdg4-button">${_("Save resources")}</button>
+</form>
+<script src="${static.url('js/sdg4-editor.js')}" defer></script>

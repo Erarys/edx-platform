@@ -1,0 +1,21 @@
+<%page expression_filter="h"/>
+<%inherit file="base.html" />
+<%!
+from django.urls import reverse
+from django.utils.translation import gettext as _
+%>
+<h1>${_("Manage SDG 4 resources")}</h1>
+% if can_create:
+  <p><a class="sdg4-button" href="${reverse('sdg4_create')}">${_("Add teacher resources")}</a></p>
+% endif
+<ul class="sdg4-teachers">
+  % for teacher in teachers:
+    <li>
+      <a href="${teacher['edit_url']}">${teacher['name']}</a>
+      <p>${teacher['faculty']} · ${_("Published") if teacher['published'] else _("Draft")}</p>
+      % if teacher['published']:
+        <a href="${teacher['url']}">${_("Open public page")}</a>
+      % endif
+    </li>
+  % endfor
+</ul>
