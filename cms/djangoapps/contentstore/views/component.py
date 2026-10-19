@@ -281,6 +281,7 @@ def get_component_templates(courselike, library=False):  # lint-amnesty, pylint:
     component_display_names = {
         'discussion': _("Discussion"),
         'html': _("Text"),
+        'matching': _("Matching"),
         'problem': _("Problem"),
         'video': _("Video"),
         'openassessment': _("Open Response"),
@@ -296,18 +297,9 @@ def get_component_templates(courselike, library=False):  # lint-amnesty, pylint:
     # by the components in the order listed in COMPONENT_TYPES.
     component_types = COMPONENT_TYPES[:]
 
-    # Libraries do not support discussions, drag-and-drop, and openassessment and other libraries
-    component_not_supported_by_library = [
-        'discussion',
-        'library',
-        'openassessment',
-        'drag-and-drop-v2',
-        'library_v2',
-        'itembank',
-    ]
+    # Legacy libraries expose only the explicitly supported component types.
     if library:
-        component_types = [component for component in component_types
-                           if component not in set(component_not_supported_by_library)]
+        component_types = settings.SUPPORTED_LIBRARY_COMPONENT_TYPES[:]
 
     component_types = _filter_disabled_blocks(component_types)
 
@@ -448,7 +440,7 @@ def get_component_templates(courselike, library=False):  # lint-amnesty, pylint:
             "beta": category in BETA_COMPONENT_TYPES,
         })
 
-    # Libraries do not support advanced components at this time.
+    # Libraries do not expose the generic Advanced component group.
     if library:
         return component_templates
 

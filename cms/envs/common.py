@@ -2056,6 +2056,15 @@ ADVANCED_PROBLEM_TYPES = [
     }
 ]
 
+# XBlock types that can be created directly inside legacy content libraries.
+# Keep this list in sync with the components exposed by the library authoring UI.
+SUPPORTED_LIBRARY_COMPONENT_TYPES = [
+    'html',
+    'video',
+    'problem',
+    'matching',
+]
+
 LIBRARY_BLOCK_TYPES = [
     {
         'component': 'library_content',
