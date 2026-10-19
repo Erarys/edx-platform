@@ -1,7 +1,7 @@
 <%page expression_filter="h"/>
 <%! from django.utils.translation import gettext as _ %>
 
-<div class="matching-editor wrapper-comp-settings is-active editor-with-buttons" data-matching-editor>
+<div class="matching-editor wrapper-comp-settings is-active" data-matching-editor>
   <div class="matching-editor__error" data-matching-editor-error role="alert" hidden></div>
 
   <label class="matching-editor__field">
@@ -65,7 +65,7 @@
     </label>
   </div>
 
-  <div class="xblock-actions">
+  <div class="xblock-actions matching-editor__actions">
     <ul>
       <li class="action-item">
         <button type="button" class="button action-primary save-button">${_("Save")}</button>
