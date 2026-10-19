@@ -14,6 +14,7 @@ window.MatchingBlock = function MatchingBlock(runtime, element, config) {
   var submitButton = root.querySelector('[data-matching-submit]');
   var clearButton = root.querySelector('[data-matching-clear]');
   var feedback = root.querySelector('[data-matching-feedback]');
+  var progress = root.querySelector('[data-matching-progress]');
   var attemptsLabel = root.querySelector('[data-matching-attempts]');
   var leftItems = Array.prototype.slice.call(root.querySelectorAll('[data-matching-left]'));
   var rightItems = Array.prototype.slice.call(root.querySelectorAll('[data-matching-right]'));
@@ -51,8 +52,22 @@ window.MatchingBlock = function MatchingBlock(runtime, element, config) {
     });
   }
 
-  function setFeedback(text) {
+  function setFeedback(text, status) {
     feedback.textContent = text || '';
+    feedback.classList.remove(
+      'matching-feedback--correct',
+      'matching-feedback--incorrect',
+      'matching-feedback--error'
+    );
+    if (status) {
+      feedback.classList.add('matching-feedback--' + status);
+    }
+  }
+
+  function setProgress(score, maximum) {
+    var earned = Number(score || 0).toFixed(1);
+    var possible = Number(maximum || 0).toFixed(1);
+    progress.textContent = message('progress', { earned: earned, maximum: possible });
   }
 
   function setAttempts(attempts) {
@@ -241,7 +256,7 @@ window.MatchingBlock = function MatchingBlock(runtime, element, config) {
     });
     request.done(function submitted(response) {
       if (response.result !== 'success') {
-        setFeedback(response.message || message('requestFailed'));
+        setFeedback(response.message || message('requestFailed'), 'error');
         updateItems();
         return;
       }
@@ -250,13 +265,14 @@ window.MatchingBlock = function MatchingBlock(runtime, element, config) {
       locked = Boolean(response.locked);
       showCorrectness();
       setAttempts(response.attempts);
+      setProgress(response.score, response.maxScore);
       setFeedback(response.status === 'correct'
         ? message('correct')
-        : message('incorrect', { correct: response.correct, total: response.total }));
+        : message('incorrect', { correct: response.correct, total: response.total }), response.status);
       updateItems();
     });
     request.fail(function submissionFailed() {
-      setFeedback(message('requestFailed'));
+      setFeedback(message('requestFailed'), 'error');
       updateItems();
     });
   }
@@ -328,10 +344,11 @@ window.MatchingBlock = function MatchingBlock(runtime, element, config) {
   }
 
   setAttempts(attempts);
+  setProgress(options.score, options.maxScore);
   updateItems();
   showCorrectness();
   if (locked && correctPairIds.length !== options.total) {
-    setFeedback(message('locked'));
+    setFeedback(message('locked'), 'error');
   }
   return {};
 };
