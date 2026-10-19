@@ -4,65 +4,113 @@
 <div class="matching-editor wrapper-comp-settings is-active" data-matching-editor>
   <div class="matching-editor__error" data-matching-editor-error role="alert" hidden></div>
 
-  <label class="matching-editor__field">
-    <span>${_("Display name")}</span>
-    <input type="text" data-matching-display-name value="${display_name}" maxlength="500" required />
-  </label>
+  <div class="matching-editor__layout">
+    <main class="matching-editor__main">
+      <section class="matching-editor__section">
+        <label class="matching-editor__field">
+          <span>${_("Display name")}</span>
+          <input type="text" data-matching-display-name value="${display_name}" maxlength="500" required />
+        </label>
+      </section>
 
-  <label class="matching-editor__field">
-    <span>${_("Question or instructions")}</span>
-    <textarea data-matching-question rows="3" maxlength="500" required>${question}</textarea>
-  </label>
+      <section class="matching-editor__section matching-editor__question-section">
+        <label class="matching-editor__field">
+          <span>${_("Question")}</span>
+          <textarea data-matching-question rows="5" maxlength="500" required>${question}</textarea>
+        </label>
+      </section>
 
-  <div class="matching-editor__pairs">
-    <div class="matching-editor__pairs-heading">
-      <h3>${_("Correct pairs")}</h3>
-      <span>${_("Left item")}</span>
-      <span>${_("Right match")}</span>
-    </div>
-    <div data-matching-pairs>
-      % for pair in pairs:
-        <div
-          class="matching-editor__pair"
-          data-matching-pair
-          data-pair-id="${pair['id']}"
-          data-pair-right-id="${pair['right_id']}"
-        >
-          <input
-            type="text"
-            data-pair-left
-            value="${pair['left']}"
-            maxlength="500"
-            aria-label="${_('Left item')}"
-          />
-          <span class="matching-editor__arrow" aria-hidden="true">→</span>
-          <input
-            type="text"
-            data-pair-right
-            value="${pair['right']}"
-            maxlength="500"
-            aria-label="${_('Right match')}"
-          />
-          <button type="button" class="matching-editor__remove" data-remove-pair aria-label="${_('Remove pair')}">×</button>
+      <section class="matching-editor__pairs">
+        <div class="matching-editor__section-heading">
+          <h3>${_("Answers")}</h3>
+          <p>${_("Enter the items learners should connect. Each row defines one correct pair.")}</p>
         </div>
-      % endfor
-    </div>
-    <button type="button" class="button matching-editor__add" data-add-pair>+ ${_("Add pair")}</button>
-  </div>
+        <div class="matching-editor__pairs-heading" aria-hidden="true">
+          <span></span>
+          <span>${_("Left item")}</span>
+          <span></span>
+          <span>${_("Right match")}</span>
+          <span></span>
+        </div>
+        <div data-matching-pairs>
+          % for pair in pairs:
+            <div
+              class="matching-editor__pair"
+              data-matching-pair
+              data-pair-id="${pair['id']}"
+              data-pair-right-id="${pair['right_id']}"
+            >
+              <span class="matching-editor__pair-index" data-pair-index>${loop.index}</span>
+              <input
+                type="text"
+                data-pair-left
+                value="${pair['left']}"
+                maxlength="500"
+                aria-label="${_('Left item')} ${loop.index}"
+              />
+              <span class="matching-editor__arrow" aria-hidden="true">↔</span>
+              <input
+                type="text"
+                data-pair-right
+                value="${pair['right']}"
+                maxlength="500"
+                aria-label="${_('Right match')} ${loop.index}"
+              />
+              <button type="button" class="matching-editor__remove" data-remove-pair aria-label="${_('Remove pair')}">×</button>
+            </div>
+          % endfor
+        </div>
+        <button type="button" class="matching-editor__add" data-add-pair>
+          <span aria-hidden="true">＋</span> ${_("Add pair")}
+        </button>
+      </section>
+    </main>
 
-  <div class="matching-editor__settings">
-    <label>
-      <input type="checkbox" data-matching-shuffle ${'checked' if shuffle_answers else ''} />
-      ${_("Shuffle the right column")}
-    </label>
-    <label>
-      <span>${_("Maximum attempts (0 means unlimited)")}</span>
-      <input type="number" data-matching-max-attempts value="${max_attempts}" min="0" step="1" />
-    </label>
-    <label>
-      <span>${_("Problem weight")}</span>
-      <input type="number" data-matching-weight value="${weight}" min="0" step="0.1" />
-    </label>
+    <aside class="matching-editor__sidebar" aria-label="${_('Problem settings')}">
+      <section class="matching-editor__settings-card">
+        <h3>${_("Type")}</h3>
+        <p>${_("Matching")}</p>
+      </section>
+
+      <details class="matching-editor__settings-card">
+        <summary>
+          <span class="matching-editor__settings-title">${_("Scoring")}</span>
+          <span class="matching-editor__settings-summary" data-scoring-summary>
+            % if max_attempts:
+              ${_("{weight} points · {attempts} attempts").format(weight="{:g}".format(weight), attempts=max_attempts)}
+            % else:
+              ${_("{weight} points · unlimited attempts").format(weight="{:g}".format(weight))}
+            % endif
+          </span>
+        </summary>
+        <div class="matching-editor__settings-body">
+          <label class="matching-editor__field">
+            <span>${_("Problem weight")}</span>
+            <input type="number" data-matching-weight value="${weight}" min="0" step="0.1" />
+          </label>
+          <label class="matching-editor__field">
+            <span>${_("Maximum attempts")}</span>
+            <input type="number" data-matching-max-attempts value="${max_attempts}" min="0" step="1" />
+            <small>${_("Use 0 for unlimited attempts.")}</small>
+          </label>
+        </div>
+      </details>
+
+      <details class="matching-editor__settings-card">
+        <summary>
+          <span class="matching-editor__settings-title">${_("Options")}</span>
+          <span class="matching-editor__settings-summary" data-options-summary>
+            ${_("Right column shuffled") if shuffle_answers else _("Fixed answer order")}
+          </span>
+        </summary>
+        <div class="matching-editor__settings-body">
+          <label class="matching-editor__checkbox">
+            <input type="checkbox" data-matching-shuffle ${'checked' if shuffle_answers else ''} />
+            <span>${_("Shuffle the right column")}</span>
+          </label>
+        </div>
+      </details>
+    </aside>
   </div>
 
   <div class="xblock-actions matching-editor__actions">

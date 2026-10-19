@@ -1,58 +1,73 @@
 <%page expression_filter="h"/>
-<%! from django.utils.translation import gettext as _ %>
+<%! from django.utils.translation import gettext as _, ngettext %>
 
 <div class="matching-block" data-matching-block>
   <h3 class="matching-block__title">${display_name}</h3>
-  <p class="matching-block__question">${question}</p>
-  <p class="matching-block__instructions">
-    ${_("Select an item on the left, then select its match on the right. You can also drag between the dots.")}
-  </p>
-
-  <div class="matching-board" data-matching-board>
-    <svg class="matching-lines" data-matching-lines aria-hidden="true"></svg>
-    <div class="matching-column matching-column--left" aria-label="${_('Items to match')}">
-      % for pair in pairs:
-        <button
-          type="button"
-          class="matching-item matching-item--left"
-          data-matching-left="${pair['id']}"
-          aria-pressed="false"
-        >
-          <span class="matching-item__text">${pair['left']}</span>
-          <span class="matching-endpoint" aria-hidden="true"></span>
-        </button>
-      % endfor
-    </div>
-    <div class="matching-column matching-column--right" aria-label="${_('Possible matches')}">
-      % for pair in right_pairs:
-        <button
-          type="button"
-          class="matching-item matching-item--right"
-          data-matching-right="${pair['right_id']}"
-          aria-pressed="false"
-        >
-          <span class="matching-endpoint" aria-hidden="true"></span>
-          <span class="matching-item__text">${pair['right']}</span>
-        </button>
-      % endfor
-    </div>
+  <div class="matching-block__progress" data-matching-progress>
+    ${_("{earned:.1f}/{maximum:.1f} points").format(earned=earned_score, maximum=max_score)}
   </div>
 
-  <p class="matching-feedback" data-matching-feedback role="status" aria-live="polite"></p>
-  <p class="matching-attempts" data-matching-attempts>
-    % if max_attempts:
-      ${_("Attempts: {attempts} of {max_attempts}").format(attempts=attempts, max_attempts=max_attempts)}
-    % elif attempts:
-      ${_("Attempts: {attempts}").format(attempts=attempts)}
-    % endif
-  </p>
-  <div class="matching-actions">
-    <button type="button" class="btn btn-brand matching-submit" data-matching-submit disabled>
-      ${_("Check")}
-    </button>
-    <button type="button" class="btn btn-outline-primary matching-clear" data-matching-clear>
-      ${_("Clear connections")}
-    </button>
+  <div class="matching-problem">
+    <p class="matching-block__question">${question}</p>
+    <p class="matching-block__instructions">
+      ${_("Select an item on the left, then select its match on the right. You can also drag between the dots.")}
+    </p>
+
+    <div class="matching-board" data-matching-board>
+      <svg class="matching-lines" data-matching-lines aria-hidden="true"></svg>
+      <div class="matching-column matching-column--left" aria-label="${_('Items to match')}">
+        % for pair in pairs:
+          <button
+            type="button"
+            class="matching-item matching-item--left"
+            data-matching-left="${pair['id']}"
+            aria-pressed="false"
+          >
+            <span class="matching-item__text">${pair['left']}</span>
+            <span class="matching-endpoint" aria-hidden="true"></span>
+          </button>
+        % endfor
+      </div>
+      <div class="matching-column matching-column--right" aria-label="${_('Possible matches')}">
+        % for pair in right_pairs:
+          <button
+            type="button"
+            class="matching-item matching-item--right"
+            data-matching-right="${pair['right_id']}"
+            aria-pressed="false"
+          >
+            <span class="matching-endpoint" aria-hidden="true"></span>
+            <span class="matching-item__text">${pair['right']}</span>
+          </button>
+        % endfor
+      </div>
+    </div>
+
+    <p class="matching-feedback" data-matching-feedback role="status" aria-live="polite"></p>
+
+    <div class="matching-action">
+      <div class="matching-secondary-actions">
+        <button type="button" class="matching-clear" data-matching-clear>
+          ${_("Clear connections")}
+        </button>
+      </div>
+      <div class="matching-submit-attempt-container">
+        <button type="button" class="submit btn-brand matching-submit" data-matching-submit disabled>
+          ${_("Submit")}
+        </button>
+        <p class="matching-attempts" data-matching-attempts>
+          % if max_attempts:
+            ${ngettext(
+              "You have used {num_used} of {num_total} attempt",
+              "You have used {num_used} of {num_total} attempts",
+              max_attempts,
+            ).format(num_used=attempts, num_total=max_attempts)}
+          % elif attempts:
+            ${_("Attempts used: {attempts}").format(attempts=attempts)}
+          % endif
+        </p>
+      </div>
+    </div>
   </div>
 </div>
 

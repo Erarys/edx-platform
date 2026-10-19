@@ -11,9 +11,18 @@ window.MatchingBlockStudio = function MatchingBlockStudio(runtime, element, conf
 
   var pairsContainer = root.querySelector('[data-matching-pairs]');
   var errorBox = root.querySelector('[data-matching-editor-error]');
+  var weightInput = root.querySelector('[data-matching-weight]');
+  var attemptsInput = root.querySelector('[data-matching-max-attempts]');
+  var shuffleInput = root.querySelector('[data-matching-shuffle]');
+  var scoringSummary = root.querySelector('[data-scoring-summary]');
+  var optionsSummary = root.querySelector('[data-options-summary]');
 
-  function message(key) {
-    return (options.messages && options.messages[key]) || '';
+  function message(key, values) {
+    var text = (options.messages && options.messages[key]) || '';
+    Object.keys(values || {}).forEach(function replaceValue(name) {
+      text = text.replace('{' + name + '}', values[name]);
+    });
+    return text;
   }
 
   function pairId() {
@@ -38,27 +47,53 @@ window.MatchingBlockStudio = function MatchingBlockStudio(runtime, element, conf
     return input;
   }
 
+  function updatePairIndexes() {
+    Array.prototype.forEach.call(
+      root.querySelectorAll('[data-matching-pair]'),
+      function updatePairIndex(row, index) {
+        row.querySelector('[data-pair-index]').textContent = index + 1;
+      }
+    );
+  }
+
+  function updateSettingsSummaries() {
+    var weight = weightInput.value || '0';
+    var attempts = parseInt(attemptsInput.value, 10) || 0;
+    var attemptsText = attempts > 0
+      ? message('attemptsSummary', { attempts: attempts })
+      : message('unlimitedAttempts');
+    scoringSummary.textContent = message('points', { weight: weight }) + ' · ' + attemptsText;
+    optionsSummary.textContent = shuffleInput.checked
+      ? message('rightColumnShuffled')
+      : message('fixedAnswerOrder');
+  }
+
   function addPair() {
     var row = document.createElement('div');
+    var index = document.createElement('span');
     var arrow = document.createElement('span');
     var remove = document.createElement('button');
     row.className = 'matching-editor__pair';
     row.setAttribute('data-matching-pair', '');
     row.setAttribute('data-pair-id', pairId());
     row.setAttribute('data-pair-right-id', rightId());
+    index.className = 'matching-editor__pair-index';
+    index.setAttribute('data-pair-index', '');
     arrow.className = 'matching-editor__arrow';
     arrow.setAttribute('aria-hidden', 'true');
-    arrow.textContent = '→';
+    arrow.textContent = '↔';
     remove.type = 'button';
     remove.className = 'matching-editor__remove';
     remove.setAttribute('data-remove-pair', '');
     remove.setAttribute('aria-label', message('removePair'));
     remove.textContent = '×';
+    row.appendChild(index);
     row.appendChild(createInput('data-pair-left', message('leftItem')));
     row.appendChild(arrow);
     row.appendChild(createInput('data-pair-right', message('rightMatch')));
     row.appendChild(remove);
     pairsContainer.appendChild(row);
+    updatePairIndexes();
     row.querySelector('[data-pair-left]').focus();
   }
 
@@ -84,8 +119,13 @@ window.MatchingBlockStudio = function MatchingBlockStudio(runtime, element, conf
       return;
     }
     remove.closest('[data-matching-pair]').remove();
+    updatePairIndexes();
     showError('');
   });
+
+  weightInput.addEventListener('input', updateSettingsSummaries);
+  attemptsInput.addEventListener('input', updateSettingsSummaries);
+  shuffleInput.addEventListener('change', updateSettingsSummaries);
 
   root.querySelector('.cancel-button').addEventListener('click', function cancel(event) {
     event.preventDefault();

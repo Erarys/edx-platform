@@ -7,7 +7,7 @@ import re
 import uuid
 
 from django.contrib.staticfiles.storage import staticfiles_storage
-from django.utils.translation import gettext
+from django.utils.translation import gettext, ngettext
 from web_fragments.fragment import Fragment
 from xblock.completable import XBlockCompletionMode
 from xblock.core import XBlock
@@ -200,6 +200,7 @@ class MatchingBlock(XBlock, XmlMixin):  # pylint: disable=abstract-method
     def student_view(self, _context=None):
         """Render the learner-facing matching interaction."""
         pairs = self.normalized_pairs
+        maximum = self.max_score()
         saved_matches = self._valid_saved_matches(pairs)
         _, correct_pair_ids = (
             grade_matches(pairs, saved_matches) if self.attempts else (0, [])
@@ -215,6 +216,8 @@ class MatchingBlock(XBlock, XmlMixin):  # pylint: disable=abstract-method
                     "right_pairs": self._right_column(pairs),
                     "attempts": self.attempts,
                     "max_attempts": self.max_attempts,
+                    "earned_score": self.score * maximum,
+                    "max_score": maximum,
                 },
             )
         )
@@ -231,6 +234,8 @@ class MatchingBlock(XBlock, XmlMixin):  # pylint: disable=abstract-method
                 "total": len(pairs),
                 "attempts": self.attempts,
                 "maxAttempts": self.max_attempts,
+                "score": self.score * maximum,
+                "maxScore": maximum,
                 "messages": {
                     "selectLeft": gettext(
                         "Select an item on the left, then select its match on the right."
@@ -247,9 +252,12 @@ class MatchingBlock(XBlock, XmlMixin):  # pylint: disable=abstract-method
                     "requestFailed": gettext(
                         "Your answer could not be saved. Please try again."
                     ),
-                    "attempts": gettext("Attempts: {attempts}"),
-                    "attemptsLimited": gettext(
-                        "Attempts: {attempts} of {max_attempts}"
+                    "progress": gettext("{earned}/{maximum} points"),
+                    "attempts": gettext("Attempts used: {attempts}"),
+                    "attemptsLimited": ngettext(
+                        "You have used {attempts} of {max_attempts} attempt",
+                        "You have used {attempts} of {max_attempts} attempts",
+                        self.max_attempts,
                     ),
                 },
             },
@@ -307,6 +315,8 @@ class MatchingBlock(XBlock, XmlMixin):  # pylint: disable=abstract-method
             "correctPairIds": correct_pair_ids,
             "attempts": self.attempts,
             "locked": self.is_locked,
+            "score": self.score * maximum,
+            "maxScore": maximum,
         }
 
     def studio_view(self, _context=None):
@@ -345,6 +355,11 @@ class MatchingBlock(XBlock, XmlMixin):  # pylint: disable=abstract-method
                         "The matching problem could not be saved. Please try again."
                     ),
                     "errorTitle": gettext("Error saving changes"),
+                    "points": gettext("{weight} points"),
+                    "attemptsSummary": gettext("{attempts} attempts"),
+                    "unlimitedAttempts": gettext("unlimited attempts"),
+                    "rightColumnShuffled": gettext("Right column shuffled"),
+                    "fixedAnswerOrder": gettext("Fixed answer order"),
                 }
             },
         )
