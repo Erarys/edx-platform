@@ -2043,6 +2043,10 @@ DEFAULT_COURSE_LANGUAGE = "en"
 #
 ADVANCED_PROBLEM_TYPES = [
     {
+        'component': 'matching',
+        'boilerplate_name': None
+    },
+    {
         'component': 'drag-and-drop-v2',
         'boilerplate_name': None
     },
