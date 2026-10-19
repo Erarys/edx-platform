@@ -46,6 +46,13 @@
   background: url('#{$static-path}/images/large-problem-icon.png') center no-repeat;
 }
 
+.large-matching-icon {
+  display: inline-block;
+  width: ($baseline*3);
+  height: ($baseline*3);
+  background: url('#{$static-path}/images/large-problem-icon.png') center no-repeat;
+}
+
 .large-video-icon {
   display: inline-block;
   width: ($baseline*3);

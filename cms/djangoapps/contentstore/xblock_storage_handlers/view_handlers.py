@@ -618,7 +618,7 @@ def _create_block(request):
     category = request.json["category"]
     if isinstance(usage_key, LibraryUsageLocator):
         # Only these categories are supported at this time.
-        if category not in ["html", "problem", "video"]:
+        if category not in settings.SUPPORTED_LIBRARY_COMPONENT_TYPES:
             return HttpResponseBadRequest(
                 "Category '%s' not supported for Libraries" % category,
                 content_type="text/plain",

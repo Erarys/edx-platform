@@ -391,14 +391,20 @@ class UnitTestLibraries(CourseTestCase):
 
     def test_get_component_templates(self):
         """
-        Verify that templates for adding discussion and advanced components to
-        content libraries are not provided.
+        Verify that supported library components, including Matching, are
+        provided while unsupported advanced components are omitted.
         """
         lib = LibraryFactory.create()
         lib.advanced_modules = ['lti']
         lib.save()
-        templates = [template['type'] for template in get_component_templates(lib, library=True)]
+        component_templates = get_component_templates(lib, library=True)
+        templates = [template['type'] for template in component_templates]
         self.assertIn('problem', templates)
+        self.assertIn('matching', templates)
+        matching_templates = next(
+            component['templates'] for component in component_templates if component['type'] == 'matching'
+        )
+        self.assertTrue(any(template['category'] == 'matching' for template in matching_templates))
         self.assertNotIn('discussion', templates)
         self.assertNotIn('advanced', templates)
         self.assertNotIn('openassessment', templates)

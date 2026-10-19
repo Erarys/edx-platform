@@ -3924,6 +3924,22 @@ class TestLibraryXBlockCreation(ItemTest):
         xblock_locator = lib.children[0]
         self.assertEqual(self.store.get_item(xblock_locator).display_name, "Test")
 
+    def test_add_matching_xblock(self):
+        """Verify a Matching XBlock can be added to a Library."""
+        lib = LibraryFactory.create()
+        response = self.create_xblock(
+            parent_usage_key=lib.location,
+            display_name="Matching test",
+            category="matching",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        lib = self.store.get_library(lib.location.library_key)
+        self.assertEqual(len(lib.children), 1)
+        matching_block = self.store.get_item(lib.children[0])
+        self.assertEqual(matching_block.category, "matching")
+        self.assertEqual(matching_block.display_name, "Matching test")
+
     def test_no_add_discussion(self):
         """
         Verify we cannot add a discussion block to a Library.
