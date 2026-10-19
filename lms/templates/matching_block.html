@@ -1,0 +1,58 @@
+<%page expression_filter="h"/>
+<%! from django.utils.translation import gettext as _ %>
+
+<div class="matching-block" data-matching-block>
+  <h3 class="matching-block__title">${display_name}</h3>
+  <p class="matching-block__question">${question}</p>
+  <p class="matching-block__instructions">
+    ${_("Select an item on the left, then select its match on the right. You can also drag between the dots.")}
+  </p>
+
+  <div class="matching-board" data-matching-board>
+    <svg class="matching-lines" data-matching-lines aria-hidden="true"></svg>
+    <div class="matching-column matching-column--left" aria-label="${_('Items to match')}">
+      % for pair in pairs:
+        <button
+          type="button"
+          class="matching-item matching-item--left"
+          data-matching-left="${pair['id']}"
+          aria-pressed="false"
+        >
+          <span class="matching-item__text">${pair['left']}</span>
+          <span class="matching-endpoint" aria-hidden="true"></span>
+        </button>
+      % endfor
+    </div>
+    <div class="matching-column matching-column--right" aria-label="${_('Possible matches')}">
+      % for pair in right_pairs:
+        <button
+          type="button"
+          class="matching-item matching-item--right"
+          data-matching-right="${pair['right_id']}"
+          aria-pressed="false"
+        >
+          <span class="matching-endpoint" aria-hidden="true"></span>
+          <span class="matching-item__text">${pair['right']}</span>
+        </button>
+      % endfor
+    </div>
+  </div>
+
+  <p class="matching-feedback" data-matching-feedback role="status" aria-live="polite"></p>
+  <p class="matching-attempts" data-matching-attempts>
+    % if max_attempts:
+      ${_("Attempts: {attempts} of {max_attempts}").format(attempts=attempts, max_attempts=max_attempts)}
+    % elif attempts:
+      ${_("Attempts: {attempts}").format(attempts=attempts)}
+    % endif
+  </p>
+  <div class="matching-actions">
+    <button type="button" class="btn btn-brand matching-submit" data-matching-submit disabled>
+      ${_("Check")}
+    </button>
+    <button type="button" class="btn btn-outline-primary matching-clear" data-matching-clear>
+      ${_("Clear connections")}
+    </button>
+  </div>
+</div>
+

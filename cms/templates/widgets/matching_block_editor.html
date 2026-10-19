@@ -1,0 +1,79 @@
+<%page expression_filter="h"/>
+<%! from django.utils.translation import gettext as _ %>
+
+<div class="matching-editor wrapper-comp-settings is-active editor-with-buttons" data-matching-editor>
+  <div class="matching-editor__error" data-matching-editor-error role="alert" hidden></div>
+
+  <label class="matching-editor__field">
+    <span>${_("Display name")}</span>
+    <input type="text" data-matching-display-name value="${display_name}" maxlength="500" required />
+  </label>
+
+  <label class="matching-editor__field">
+    <span>${_("Question or instructions")}</span>
+    <textarea data-matching-question rows="3" maxlength="500" required>${question}</textarea>
+  </label>
+
+  <div class="matching-editor__pairs">
+    <div class="matching-editor__pairs-heading">
+      <h3>${_("Correct pairs")}</h3>
+      <span>${_("Left item")}</span>
+      <span>${_("Right match")}</span>
+    </div>
+    <div data-matching-pairs>
+      % for pair in pairs:
+        <div
+          class="matching-editor__pair"
+          data-matching-pair
+          data-pair-id="${pair['id']}"
+          data-pair-right-id="${pair['right_id']}"
+        >
+          <input
+            type="text"
+            data-pair-left
+            value="${pair['left']}"
+            maxlength="500"
+            aria-label="${_('Left item')}"
+          />
+          <span class="matching-editor__arrow" aria-hidden="true">→</span>
+          <input
+            type="text"
+            data-pair-right
+            value="${pair['right']}"
+            maxlength="500"
+            aria-label="${_('Right match')}"
+          />
+          <button type="button" class="matching-editor__remove" data-remove-pair aria-label="${_('Remove pair')}">×</button>
+        </div>
+      % endfor
+    </div>
+    <button type="button" class="button matching-editor__add" data-add-pair>+ ${_("Add pair")}</button>
+  </div>
+
+  <div class="matching-editor__settings">
+    <label>
+      <input type="checkbox" data-matching-shuffle ${'checked' if shuffle_answers else ''} />
+      ${_("Shuffle the right column")}
+    </label>
+    <label>
+      <span>${_("Maximum attempts (0 means unlimited)")}</span>
+      <input type="number" data-matching-max-attempts value="${max_attempts}" min="0" step="1" />
+    </label>
+    <label>
+      <span>${_("Problem weight")}</span>
+      <input type="number" data-matching-weight value="${weight}" min="0" step="0.1" />
+    </label>
+  </div>
+
+  <div class="xblock-actions">
+    <ul>
+      <li class="action-item">
+        <button type="button" class="button action-primary save-button">${_("Save")}</button>
+      </li>
+      <li class="action-item">
+        <button type="button" class="button cancel-button">${_("Cancel")}</button>
+      </li>
+    </ul>
+  </div>
+</div>
+
