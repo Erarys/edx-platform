@@ -258,7 +258,16 @@
   margin-bottom: 1rem;
 }
 
-.matching-editor .xblock-actions ul {
+.matching-editor__actions {
+  position: static !important;
+  box-sizing: border-box;
+  width: auto !important;
+  margin-top: 1.25rem;
+  border-top: 1px solid #d8dde3;
+  padding: 1rem 0 0 !important;
+}
+
+.matching-editor__actions ul {
   display: flex;
   gap: .5rem;
   justify-content: flex-end;
