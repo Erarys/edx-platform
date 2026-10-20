@@ -1,6 +1,18 @@
 """Tests for the matching XBlock's validation and grading helpers."""
 
-from xmodule.matching_block import MAX_PAIRS, grade_matches, normalize_pairs
+from xmodule.matching_block import (
+    MAX_PAIRS,
+    grade_matches,
+    normalize_max_attempts,
+    normalize_pairs,
+)
+
+
+def test_normalize_max_attempts_handles_nullable_library_setting():
+    assert normalize_max_attempts(None) == 0
+    assert normalize_max_attempts(2) == 2
+    assert normalize_max_attempts(-1) == 0
+    assert normalize_max_attempts("invalid") == 0
 
 
 def test_normalize_pairs_drops_incomplete_and_repairs_duplicate_ids():

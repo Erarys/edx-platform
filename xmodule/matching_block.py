@@ -47,6 +47,17 @@ MAX_PAIRS = 50
 MAX_TEXT_LENGTH = 500
 
 
+def normalize_max_attempts(raw_value):
+    """Return a non-negative attempt limit for course and library runtimes."""
+    if raw_value is None:
+        return 0
+
+    try:
+        return max(0, int(raw_value))
+    except (TypeError, ValueError):
+        return 0
+
+
 def normalize_pairs(raw_pairs):
     """Return safe, unique matching pairs from persisted or submitted data."""
     normalized = []
@@ -165,8 +176,9 @@ class MatchingBlock(XBlock, XmlMixin):  # pylint: disable=abstract-method
     @property
     def is_locked(self):
         """Return whether the learner can no longer change the answer."""
+        max_attempts = normalize_max_attempts(self.max_attempts)
         return self.score >= 1.0 or (
-            self.max_attempts > 0 and self.attempts >= self.max_attempts
+            max_attempts > 0 and self.attempts >= max_attempts
         )
 
     def max_score(self):
@@ -201,6 +213,7 @@ class MatchingBlock(XBlock, XmlMixin):  # pylint: disable=abstract-method
         """Render the learner-facing matching interaction."""
         pairs = self.normalized_pairs
         maximum = self.max_score()
+        max_attempts = normalize_max_attempts(self.max_attempts)
         saved_matches = self._valid_saved_matches(pairs)
         _, correct_pair_ids = (
             grade_matches(pairs, saved_matches) if self.attempts else (0, [])
@@ -215,7 +228,7 @@ class MatchingBlock(XBlock, XmlMixin):  # pylint: disable=abstract-method
                     "pairs": pairs,
                     "right_pairs": self._right_column(pairs),
                     "attempts": self.attempts,
-                    "max_attempts": self.max_attempts,
+                    "max_attempts": max_attempts,
                     "earned_score": self.score * maximum,
                     "max_score": maximum,
                 },
@@ -233,7 +246,7 @@ class MatchingBlock(XBlock, XmlMixin):  # pylint: disable=abstract-method
                 "locked": self.is_locked,
                 "total": len(pairs),
                 "attempts": self.attempts,
-                "maxAttempts": self.max_attempts,
+                "maxAttempts": max_attempts,
                 "score": self.score * maximum,
                 "maxScore": maximum,
                 "messages": {
@@ -257,7 +270,7 @@ class MatchingBlock(XBlock, XmlMixin):  # pylint: disable=abstract-method
                     "attemptsLimited": ngettext(
                         "You have used {attempts} of {max_attempts} attempt",
                         "You have used {attempts} of {max_attempts} attempts",
-                        self.max_attempts,
+                        max_attempts,
                     ),
                 },
             },
@@ -329,7 +342,7 @@ class MatchingBlock(XBlock, XmlMixin):  # pylint: disable=abstract-method
                     "question": self.question,
                     "pairs": self.normalized_pairs,
                     "shuffle_answers": self.shuffle_answers,
-                    "max_attempts": self.max_attempts,
+                    "max_attempts": normalize_max_attempts(self.max_attempts),
                     "weight": self.weight,
                 },
             )

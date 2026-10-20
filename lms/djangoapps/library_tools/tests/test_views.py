@@ -109,6 +109,57 @@ class LibraryToolsTests(SimpleTestCase):
         self.store.update_item.assert_not_called()
         self.store.delete_item.assert_not_called()
 
+    def test_direct_matching_form_creates_matching_xblock(self):
+        request = self.request('post', {
+            'library': str(self.key),
+            'action': 'add_matching',
+            'matching_title': 'Страны и столицы',
+            'matching_question': 'Соедините страну и столицу.',
+            'matching_left': ['Казахстан', 'Франция'],
+            'matching_right': ['Астана', 'Париж'],
+            'matching_shuffle': '1',
+            'matching_max_attempts': '2',
+            'matching_weight': '1,5',
+        })
+        response, _ = self.run_view(request)
+        self.assertEqual(response.status_code, 302)
+        args, kwargs = self.store.create_child.call_args
+        self.assertEqual(args, (1, self.library.location, 'matching'))
+        self.assertEqual(kwargs['fields']['display_name'], 'Страны и столицы')
+        self.assertEqual(kwargs['fields']['question'], 'Соедините страну и столицу.')
+        self.assertEqual(
+            [(pair['left'], pair['right']) for pair in kwargs['fields']['pairs']],
+            [('Казахстан', 'Астана'), ('Франция', 'Париж')],
+        )
+        self.assertTrue(kwargs['fields']['shuffle_answers'])
+        self.assertEqual(kwargs['fields']['max_attempts'], 2)
+        self.assertEqual(kwargs['fields']['weight'], 1.5)
+        self.assertIn('matching_created', request.session[views.FEEDBACK_KEY])
+
+    def test_direct_matching_form_rejects_incomplete_or_duplicate_pairs(self):
+        invalid_rows = [
+            (['Один'], ['One']),
+            (['Один', 'Один'], ['One', 'Two']),
+            (['Один', 'Два'], ['One']),
+        ]
+        for left, right in invalid_rows:
+            with self.subTest(left=left, right=right):
+                self.store.create_child.reset_mock()
+                request = self.request('post', {
+                    'library': str(self.key),
+                    'action': 'add_matching',
+                    'matching_title': 'Сопоставление',
+                    'matching_question': 'Соедините пары.',
+                    'matching_left': left,
+                    'matching_right': right,
+                    'matching_max_attempts': '0',
+                    'matching_weight': '1',
+                })
+                self.run_view(request)
+                self.store.create_child.assert_not_called()
+                self.assertIn('error', request.session[views.FEEDBACK_KEY])
+                self.assertEqual(request.session[views.FEEDBACK_KEY]['matching_form']['title'], 'Сопоставление')
+
     def test_retry_skips_a_block_created_from_same_batch(self):
         new_id = uuid.uuid5(uuid.UUID(self.preview['token']), str(self.question.row)).hex
         self.library.children = [self.key.make_usage_key('problem', new_id)]
