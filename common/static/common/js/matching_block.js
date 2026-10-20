@@ -352,4 +352,3 @@ window.MatchingBlock = function MatchingBlock(runtime, element, config) {
   }
   return {};
 };
-
