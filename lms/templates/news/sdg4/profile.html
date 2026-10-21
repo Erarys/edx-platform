@@ -18,7 +18,7 @@ from django.utils.translation import gettext as _
     % endfor
   </div>
 </header>
-% if can_manage_sdg4:
+% if can_edit_sdg4:
   <p><a class="sdg4-button" href="${edit_url}">${_("Edit resources")}</a></p>
 % endif
 <%include file="article.html"/>

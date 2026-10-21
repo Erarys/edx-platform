@@ -34,7 +34,9 @@ from .constants import (
 )
 from .data import (
     alphabetical_key,
+    can_edit,
     can_manage,
+    can_moderate,
     document_key,
     documents,
     file_url,
@@ -88,18 +90,25 @@ def render(request, template, context):
         sdg4_languages=LANGUAGES,
         sdg4_language=language_code(),
         can_manage_sdg4=can_manage(request.user),
+        can_moderate_sdg4=can_moderate(request.user),
         csrf_token=get_token(request),
     )
     return render_to_response(f"news/sdg4/{template}.html", context, request=request)
 
 
 def teacher_card(row, document):
+    published = (
+        document.get("published", False)
+        and row.moderation_status == News.ModerationStatus.PUBLISHED
+    )
     return {
         "name": localized(document["profile"].get("name")),
         "position": localized(document["profile"].get("position")),
         "url": public_url(document),
         "edit_url": reverse("sdg4_edit", args=[row.pk]),
-        "published": document.get("published", False),
+        "published": published,
+        "moderation_status": row.moderation_status,
+        "status_label": row.get_moderation_status_display(),
         "faculty": str(dict(FACULTIES)[document["faculty"]]),
     }
 
@@ -136,45 +145,10 @@ def change_language(request):
 
 @require_GET
 def index(request):
-    cards = []
+    publications = []
     for row, document in documents():
-        card = teacher_card(row, document)
-        if document.get("article"):
-            cards.append(
-                {
-                    "id": f"article-{row.pk}",
-                    "title": localized(document.get("article_title")) or _("Article by {name}").format(name=card["name"]),
-                    "kind": "article",
-                    "format": "",
-                    "teacher": card,
-                    "url": public_url(document) + "#sdg4-article",
-                }
-            )
-        for resource in resource_cards(document):
-            cards.append({**resource, "teacher": card})
-        for number, course in enumerate(document["courses"], 1):
-            if course.get("materials"):
-                cards.append(
-                    {
-                        "id": f"legacy-{row.pk}-{number}",
-                        "title": localized(course.get("topic")),
-                        "kind": "course",
-                        "format": "",
-                        "teacher": card,
-                        "url": f"{public_url(document)}?course={number}#legacy-{number}",
-                    }
-                )
-        if document["profile"].get("mooc_url"):
-            cards.append(
-                {
-                    "id": f"mooc-{row.pk}",
-                    "title": _("Teacher's MOOC on Open KazNU"),
-                    "kind": "link",
-                    "format": "",
-                    "teacher": card,
-                    "url": document["profile"]["mooc_url"],
-                }
-            )
+        publications.append(publication_card(row, document))
+    publications.sort(key=lambda item: item["published_at"], reverse=True)
     return render(
         request,
         "index",
@@ -183,7 +157,7 @@ def index(request):
             "preamble": PREAMBLE,
             "target_43": TARGET_43,
             "target_44": TARGET_44,
-            "resources": cards,
+            "publications": publications,
         },
     )
 
@@ -265,6 +239,41 @@ def publication_context(row, document):
     }
 
 
+def publication_card(row, document):
+    """One feed card per publication, regardless of how many files it contains."""
+    teacher = teacher_card(row, document)
+    metadata = publication_context(row, document)
+    text = next(
+        (
+            block.get("text", "")
+            for block in document.get("article", [])
+            if block.get("kind") == "text" and block.get("text", "").strip()
+        ),
+        "",
+    )
+    summary = re.sub(r"\s+", " ", text).strip()
+    if len(summary) > 420:
+        summary = summary[:417].rstrip() + "…"
+    courses = sum(bool(course.get("materials")) for course in document.get("courses", []))
+    attachments = sum(block.get("kind") != "text" for block in document.get("article", []))
+    return {
+        "id": row.pk,
+        "title": localized(document.get("article_title"))
+        or _("Educational materials by {name}").format(name=teacher["name"]),
+        "summary": summary or localized(document.get("profile", {}).get("position")),
+        "url": public_url(document),
+        "teacher": teacher,
+        "author": metadata["article_author"],
+        "published_at": metadata["article_published_at"],
+        "published_ago": metadata["article_published_ago"],
+        "reading_minutes": metadata["article_reading_minutes"],
+        "view_count": metadata["article_view_count"],
+        "cover_url": metadata["cover_url"],
+        "photo_url": row.image.url if row.image else "",
+        "material_count": len(document.get("resources", [])) + courses + attachments,
+    }
+
+
 @never_cache
 @require_GET
 def teacher(request, faculty, teacher):
@@ -287,6 +296,7 @@ def teacher(request, faculty, teacher):
                 "article_title": localized(document.get("article_title")),
                 "article_blocks": article_blocks(document),
                 "edit_url": reverse("sdg4_edit", args=[row.pk]),
+                "can_edit_sdg4": can_edit(request.user, row),
                 "permanent_url": request.build_absolute_uri(public_url(document)),
                 **publication_context(row, document),
             },
@@ -345,6 +355,7 @@ def teacher(request, faculty, teacher):
             "resources": resource_cards(document),
             "article_title": localized(document.get("article_title")),
             "article_blocks": article_blocks(document),
+            "can_edit_sdg4": can_edit(request.user, row),
             **publication_context(row, document),
         },
     )
@@ -476,11 +487,27 @@ def require_editor(request):
 @require_GET
 def manage(request):
     require_editor(request)
+    catalogue = documents(include_drafts=True)
+    if not can_moderate(request.user):
+        catalogue = ((row, doc) for row, doc in catalogue if row.author_id == request.user.id)
     teachers = sorted(
-        (teacher_card(row, doc) for row, doc in documents(include_drafts=True)),
-        key=lambda card: alphabetical_key(card["name"]),
+        (teacher_card(row, doc) for row, doc in catalogue),
+        key=lambda card: (
+            card["moderation_status"] != News.ModerationStatus.PENDING,
+            alphabetical_key(card["name"]),
+        ),
     )
-    return render(request, "manage", {"teachers": teachers, "can_create": True})
+    return render(
+        request,
+        "manage",
+        {
+            "teachers": teachers,
+            "can_create": True,
+            "pending_count": sum(
+                card["moderation_status"] == News.ModerationStatus.PENDING for card in teachers
+            ),
+        },
+    )
 
 
 def save_upload(upload, row_id, slot, saved):
@@ -490,7 +517,7 @@ def save_upload(upload, row_id, slot, saved):
     return path
 
 
-def save_page(row, original, form, article_formset=None, author=None):
+def save_page(row, original, form, moderation_status, article_formset=None, author=None):
     """Save an ordered article while retaining legacy lessons, counters and URLs."""
     saved = []
     try:
@@ -517,9 +544,13 @@ def save_page(row, original, form, article_formset=None, author=None):
                     "stats": {},
                 }
             cleaned = form.cleaned_data
-            was_published = bool(document.get("published"))
+            was_published = (
+                bool(document.get("published"))
+                and row.moderation_status == News.ModerationStatus.PUBLISHED
+            )
+            publishing = moderation_status == News.ModerationStatus.PUBLISHED
             document["schema"] = 3
-            document["published"] = cleaned["published"]
+            document["published"] = publishing
             document["article_title"] = translations(cleaned, "article_title")
             document["profile"].update(
                 {key: translations(cleaned, key) for key in ("name", "position", "degree", "department")}
@@ -576,13 +607,14 @@ def save_page(row, original, form, article_formset=None, author=None):
                 row.cover_image = save_upload(cleaned["cover_image"], row.pk, "cover", saved)
             if not row.author_id and author is not None:
                 row.author = author
-            if cleaned["published"] and not was_published:
+            if publishing and not was_published:
                 row.published_at = timezone.now()
-            elif not cleaned["published"]:
+            elif not publishing:
                 row.published_at = None
             row.title = document_key(document)
             row.content = json.dumps(document, ensure_ascii=False)
             row.content_type = News.ContentType.SDG4
+            row.moderation_status = moderation_status
             row.save()
             return row, document
     except Exception:
@@ -596,16 +628,31 @@ def save_page(row, original, form, article_formset=None, author=None):
 def edit(request, news_id=None):
     require_editor(request)
     row = get_object_or_404(sdg4_queryset(), pk=news_id) if news_id else None
+    if row and not can_edit(request.user, row):
+        raise PermissionDenied
     document = read_document(row) if row else {}
     if row:
         document["revision"] = row.updated_at.isoformat()
     bound_data = request.POST.copy() if request.method == "POST" else None
-    publishing = bool(document.get("published"))
+    moderation_status = row.moderation_status if row else News.ModerationStatus.DRAFT
+    publishing = moderation_status != News.ModerationStatus.DRAFT
     if bound_data is not None:
         action = bound_data.get("action", "save")
-        if action in {"draft", "publish"}:
-            publishing = action == "publish"
-        bound_data["published"] = "on" if publishing else ""
+        if action == "draft":
+            moderation_status = News.ModerationStatus.DRAFT
+        elif can_moderate(request.user):
+            if action in {"approve", "publish"}:
+                moderation_status = News.ModerationStatus.PUBLISHED
+            elif action == "submit":
+                moderation_status = News.ModerationStatus.PENDING
+        else:
+            # Never trust the button value sent by a contributor. Any attempt to
+            # publish or save a complete article must still pass staff review.
+            moderation_status = News.ModerationStatus.PENDING
+        publishing = moderation_status != News.ModerationStatus.DRAFT
+        bound_data["published"] = (
+            "on" if moderation_status == News.ModerationStatus.PUBLISHED else ""
+        )
     form = SimpleTeacherForm(
         bound_data,
         request.FILES or None,
@@ -649,17 +696,17 @@ def edit(request, news_id=None):
                     row,
                     document,
                     form,
+                    moderation_status,
                     article_formset if article_submitted else None,
                     request.user,
                 )
             except ValueError as exc:
                 form.add_error(None, str(exc))
             else:
-                return redirect(
-                    public_url(result)
-                    if result["published"]
-                    else reverse("sdg4_edit", args=[saved_row.pk]) + "?saved=1"
-                )
+                if result["published"]:
+                    return redirect(public_url(result))
+                query = "submitted=1" if moderation_status == News.ModerationStatus.PENDING else "saved=1"
+                return redirect(reverse("sdg4_edit", args=[saved_row.pk]) + f"?{query}")
     return render(
         request,
         "edit",
@@ -667,6 +714,7 @@ def edit(request, news_id=None):
             "teacher_form": form,
             "document": document,
             "row": row,
+            "moderation_status": moderation_status,
             "existing_resources": resource_cards(document) if document else [],
             "article_formset": article_formset,
         },

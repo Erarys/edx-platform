@@ -15,9 +15,15 @@ from django.utils.translation import gettext as _
 <nav class="sdg4-breadcrumb"><a href="${reverse('sdg4_manage')}">${_("Manage SDG 4 resources")}</a></nav>
 <header class="sdg4-edit-intro"><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Open educational resources")}</p><h1>${_("Edit article") if row else _("Add article")}</h1>
   <p>${_("Build an article from text, images, presentations, audio and video. Blocks are displayed in the order shown below.")}</p>
+  % if row:
+    <p class="sdg4-status sdg4-status-${moderation_status}">${row.get_moderation_status_display()}</p>
+  % endif
 </header>
 % if request.GET.get('saved'):
   <p class="sdg4-saved" role="status">${_("Draft saved. You can return to it and continue later.")}</p>
+% endif
+% if request.GET.get('submitted'):
+  <p class="sdg4-saved sdg4-submitted" role="status">${_("The publication has been sent for moderation. It will appear in the public feed after administrator approval.")}</p>
 % endif
 <form method="post" enctype="multipart/form-data" class="sdg4-edit sdg4-simple-editor">
   <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}" />
@@ -112,6 +118,17 @@ from django.utils.translation import gettext as _
     % endfor
   </details>
   <p class="helptext">${_("A permanent link is created automatically and will not change.")}</p>
-  <div class="sdg4-save-actions"><button class="sdg4-button" type="submit" name="action" value="${'save' if document.get('published') else 'publish'}">${_("Save changes") if document.get('published') else _("Publish")}</button><button type="submit" name="action" value="draft">${_("Save draft")}</button></div>
+  <div class="sdg4-save-actions">
+    % if can_moderate_sdg4:
+      % if moderation_status == 'published':
+        <button class="sdg4-button" type="submit" name="action" value="save">${_("Save published changes")}</button>
+      % else:
+        <button class="sdg4-button" type="submit" name="action" value="approve">${_("Approve and publish")}</button>
+      % endif
+    % else:
+      <button class="sdg4-button" type="submit" name="action" value="submit">${_("Submit for moderation")}</button>
+    % endif
+    <button type="submit" name="action" value="draft">${_("Save draft")}</button>
+  </div>
 </form>
 <script src="${static.url('js/sdg4-editor.js')}" defer></script>

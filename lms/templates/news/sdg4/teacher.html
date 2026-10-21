@@ -23,7 +23,7 @@ from django.utils.translation import gettext as _, pgettext
   </div>
 </header>
 <div class="sdg4-permalink"><label for="sdg4-permalink">${_("Permanent link for the application")}</label><input id="sdg4-permalink" type="url" value="${permanent_url}" readonly /></div>
-% if can_manage_sdg4:
+% if can_edit_sdg4:
   <p><a href="${edit_url}">${_("Edit resources")}</a></p>
 % endif
 <%include file="article.html"/>

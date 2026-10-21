@@ -60,7 +60,11 @@ def news_create(request):
     if request.method == 'POST':
         form = NewsForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
+            news = form.save(commit=False)
+            news.author = request.user
+            news.moderation_status = News.ModerationStatus.PUBLISHED
+            news.published_at = timezone.now()
+            news.save()
             return redirect('news_list')
     else:
         form = NewsForm()

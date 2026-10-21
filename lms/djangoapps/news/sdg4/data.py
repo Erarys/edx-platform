@@ -109,7 +109,10 @@ def documents(include_drafts=False):
             document = read_document(row)
         except Http404:
             continue
-        if include_drafts or document.get("published"):
+        if include_drafts or (
+            document.get("published")
+            and row.moderation_status == News.ModerationStatus.PUBLISHED
+        ):
             result.append((row, document))
     return result
 
@@ -119,14 +122,24 @@ def find_page(faculty, teacher):
     if row is None:
         raise Http404
     document = read_document(row)
-    if not document.get("published"):
+    if (
+        not document.get("published")
+        or row.moderation_status != News.ModerationStatus.PUBLISHED
+    ):
         raise Http404
     return row, document
 
 
 def can_manage(user):
-    # Temporarily shared editing for every signed-in user, as requested.
     return user.is_authenticated and user.is_active
+
+
+def can_moderate(user):
+    return can_manage(user) and user.is_staff
+
+
+def can_edit(user, row):
+    return can_moderate(user) or (can_manage(user) and row.author_id == user.id)
 
 
 def teacher_slug(name):
@@ -232,7 +245,10 @@ def increment(row_id, course_number, metric, count_page_view=False):
         raise ValueError("Invalid counter")
     row = sdg4_queryset().select_for_update().get(pk=row_id)
     document = read_document(row)
-    if not document.get("published"):
+    if (
+        not document.get("published")
+        or row.moderation_status != News.ModerationStatus.PUBLISHED
+    ):
         raise Http404
     keys = {"page", *(str(index) for index in range(1, len(document["courses"]) + 1))}
     keys.update(item["id"] for item in document.get("resources", []))

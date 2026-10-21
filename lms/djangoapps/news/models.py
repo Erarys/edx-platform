@@ -7,6 +7,11 @@ class News(models.Model):
         NEWS = "news", "Новость"
         SDG4 = "sdg4", "Материал ЦУР 4"
 
+    class ModerationStatus(models.TextChoices):
+        DRAFT = "draft", "Черновик"
+        PENDING = "pending", "На модерации"
+        PUBLISHED = "published", "Опубликовано"
+
     title = models.CharField(max_length=200, verbose_name="Заголовок")
     content = models.TextField(verbose_name="Содержание")
     content_type = models.CharField(
@@ -15,6 +20,13 @@ class News(models.Model):
         default=ContentType.NEWS,
         db_index=True,
         verbose_name="Тип материала",
+    )
+    moderation_status = models.CharField(
+        max_length=16,
+        choices=ModerationStatus.choices,
+        default=ModerationStatus.DRAFT,
+        db_index=True,
+        verbose_name="Статус модерации",
     )
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -52,6 +52,7 @@ def template_renderer(request, template, context):
         sdg4_languages=LANGUAGES,
         sdg4_language=language_code(),
         can_manage_sdg4=views.can_manage(request.user),
+        can_moderate_sdg4=views.can_moderate(request.user),
         LANGUAGE_CODE=translation.get_language(),
     )
     # Match edxmako's flattened Django context, including True/False/None.
@@ -127,7 +128,7 @@ class ShowcaseTests(TestCase):
         self.renderer = patch.object(views, "render", template_renderer)
         self.renderer.start()
         self.addCleanup(self.renderer.stop)
-        self.editor = get_user_model().objects.create_user("editor")
+        self.editor = get_user_model().objects.create_user("editor", is_staff=True)
         self.client.force_login(self.editor)
 
     def publish(self, **overrides):
@@ -200,6 +201,8 @@ class ShowcaseTests(TestCase):
         row = News.objects.create(
             title=f"{NEWS_PREFIX}{document['faculty']}/{document['slug']}",
             content=json.dumps(document),
+            content_type=News.ContentType.SDG4,
+            moderation_status=News.ModerationStatus.PUBLISHED,
         )
         return (
             row,
@@ -458,13 +461,54 @@ class ShowcaseTests(TestCase):
         )
         self.assertNotContains(self.client.get(reverse("sdg4_index")), "Иванова Алия Сергеевна")
 
-    def test_all_signed_in_users_can_create_and_edit_each_others_pages(self):
+    def test_contributors_submit_own_materials_and_staff_approve_them(self):
         row, _doc, url = self.publish()
-        self.client.force_login(get_user_model().objects.create_user("another-teacher"))
-        self.assertEqual(self.client.get(reverse("sdg4_edit", args=[row.pk])).status_code, 200)
-        self.assertContains(self.client.get(url), reverse("sdg4_edit", args=[row.pk]))
-        self.assertEqual(self.client.get(reverse("sdg4_manage")).status_code, 200)
+        contributor = get_user_model().objects.create_user("another-teacher")
+        self.client.force_login(contributor)
+        self.assertEqual(self.client.get(reverse("sdg4_edit", args=[row.pk])).status_code, 403)
+        self.assertNotContains(self.client.get(url), reverse("sdg4_edit", args=[row.pk]))
+        manage = self.client.get(reverse("sdg4_manage"))
+        self.assertEqual(manage.status_code, 200)
+        self.assertNotContains(manage, "Иванова Алия Сергеевна")
         self.assertEqual(self.client.get(reverse("sdg4_create")).status_code, 200)
+
+        response = self.client.post(
+            reverse("sdg4_create"),
+            {**payload(), "name_ru": "Автор на модерации", "action": "publish"},
+        )
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        self.assertIn("submitted=1", response.url)
+        pending = News.objects.exclude(pk=row.pk).get()
+        document = read_document(pending)
+        self.assertEqual(pending.author, contributor)
+        self.assertEqual(pending.moderation_status, News.ModerationStatus.PENDING)
+        self.assertFalse(document["published"])
+        public_url = reverse("sdg4_teacher", args=[document["faculty"], document["slug"]])
+        self.assertEqual(self.client.get(public_url).status_code, 404)
+        self.assertNotContains(self.client.get(reverse("sdg4_index")), "Автор на модерации")
+
+        self.client.force_login(self.editor)
+        approval = self.edit_payload(pending, document)
+        approval["action"] = "approve"
+        response = self.client.post(reverse("sdg4_edit", args=[pending.pk]), approval)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        self.assertEqual(response.url, public_url)
+        pending.refresh_from_db()
+        self.assertEqual(pending.moderation_status, News.ModerationStatus.PUBLISHED)
+        self.assertTrue(read_document(pending)["published"])
+        self.assertContains(self.client.get(public_url), "Автор на модерации")
+
+        # Changes made by the original contributor require a new approval.
+        self.client.force_login(contributor)
+        document = read_document(pending)
+        revision = self.edit_payload(pending, document)
+        revision["action"] = "submit"
+        response = self.client.post(reverse("sdg4_edit", args=[pending.pk]), revision)
+        self.assertIn("submitted=1", response.url)
+        pending.refresh_from_db()
+        self.assertEqual(pending.moderation_status, News.ModerationStatus.PENDING)
+        self.assertFalse(read_document(pending)["published"])
+        self.assertEqual(self.client.get(public_url).status_code, 404)
 
     def test_guests_cannot_write_or_view_editor_and_csrf_required(self):
         self.client.logout()
@@ -583,9 +627,9 @@ class ShowcaseTests(TestCase):
         self.legacy_page()
         News.objects.create(title="Ordinary news", content="Not a resource")
         response = self.client.get(reverse("sdg4_index"))
-        self.assertContains(response, "data-resource-card", count=5)
-        self.assertContains(response, "Открытый курс")
-        self.assertContains(response, "Презентация")
+        self.assertContains(response, "data-resource-card", count=2)
+        self.assertContains(response, "Иванова Алия Сергеевна")
+        self.assertContains(response, "Teacher")
         self.assertNotContains(response, "Ordinary news")
         for slug, _name in FACULTIES:
             self.assertContains(response, reverse("sdg4_faculty", args=[slug]))
