@@ -1,0 +1,13 @@
+<%page expression_filter="h"/>
+<%inherit file="base.html" />
+<%!
+from django.utils.translation import gettext as _
+%>
+<section class="sdg4-account-confirmation" aria-labelledby="sdg4-confirm-account-title">
+  <span class="sdg4-confirmation-icon" aria-hidden="true">✉</span>
+  <p class="sdg4-eyebrow">OPEN KAZNU · ${_("Account confirmation")}</p>
+  <h1 id="sdg4-confirm-account-title">${_("Confirm your account to create publications")}</h1>
+  <p>${_("Your account has not been activated yet. Open the message sent to {email} and follow the activation link, then sign in again.").format(email=account_email)}</p>
+  <p>${_("If the message is missing, check the spam folder or open your learner dashboard to request another activation email.")}</p>
+  <a class="sdg4-button" href="/dashboard">${_("Open learner dashboard")}</a>
+</section>

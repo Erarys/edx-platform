@@ -60,10 +60,18 @@ from django.utils.translation import gettext as _
     % if access_error:
       <p class="sdg4-errors" role="alert">${access_error}</p>
     % endif
+    % if access_errors:
+      <div class="sdg4-errors" role="alert"><p>${_("Access was not changed. Correct these accounts:")}</p><ul>
+        % for identifier, error in access_errors:
+          <li><strong>${identifier}</strong>: ${error}</li>
+        % endfor
+      </ul></div>
+    % endif
     <form method="post" class="sdg4-access-form">
       <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}" />
-      <label for="sdg4-user-identifier">${_("Login or email")}</label>
-      <input id="sdg4-user-identifier" name="identifier" type="text" autocomplete="off" required />
+      <label for="sdg4-user-identifiers">${_("Logins or email addresses")}</label>
+      <textarea id="sdg4-user-identifiers" name="identifiers" rows="6" autocomplete="off" placeholder="user1&#10;teacher@example.com&#10;user3" required>${identifiers_value}</textarea>
+      <p class="helptext">${_("Enter up to 50 accounts, one per line or separated by commas.")}</p>
       <div class="sdg4-actions"><button class="sdg4-button" type="submit" name="action" value="grant">${_("Grant access")}</button><button type="submit" name="action" value="revoke">${_("Revoke access")}</button></div>
     </form>
     % if publishers:

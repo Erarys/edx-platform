@@ -89,7 +89,7 @@ COVER_CONTENT_TYPES = {
 }
 
 
-def render(request, template, context):
+def render(request, template, context, status=200):
     from common.djangoapps.edxmako.shortcuts import render_to_response  # pylint: disable=import-outside-toplevel
 
     context.update(
@@ -100,7 +100,12 @@ def render(request, template, context):
         can_publish_sdg4=can_publish(request.user),
         csrf_token=get_token(request),
     )
-    return render_to_response(f"news/sdg4/{template}.html", context, request=request)
+    return render_to_response(
+        f"news/sdg4/{template}.html",
+        context,
+        request=request,
+        status=status,
+    )
 
 
 def teacher_card(row, document):
@@ -271,8 +276,6 @@ def publication_card(row, document):
     summary = re.sub(r"\s+", " ", text).strip()
     if len(summary) > 420:
         summary = summary[:417].rstrip() + "…"
-    courses = sum(bool(course.get("materials")) for course in document.get("courses", []))
-    attachments = sum(block.get("kind") != "text" for block in document.get("article", []))
     cover_url = metadata["cover_url"]
     if not cover_url:
         first_image = next(
@@ -297,7 +300,6 @@ def publication_card(row, document):
         "view_count": metadata["article_view_count"],
         "cover_url": cover_url,
         "photo_url": row.image.url if row.image else "",
-        "material_count": len(document.get("resources", [])) + courses + attachments,
     }
 
 
@@ -506,6 +508,13 @@ def cover_image(request, faculty, teacher):
 def require_editor(request):
     if not request.user.is_authenticated:
         return redirect_to_login(request.get_full_path(), settings.LOGIN_URL)
+    if not request.user.is_active:
+        return render(
+            request,
+            "account_confirmation",
+            {"account_email": request.user.email},
+            status=403,
+        )
     if not can_manage(request.user):
         raise PermissionDenied
     return None
@@ -591,6 +600,31 @@ def user_by_login_or_email(identifier):
     return matches[0], ""
 
 
+def users_by_login_or_email(value):
+    """Resolve a bounded, de-duplicated batch without applying partial changes."""
+    identifiers = []
+    seen = set()
+    for identifier in re.split(r"[,;\r\n]+", value):
+        identifier = identifier.strip()
+        key = identifier.casefold()
+        if identifier and key not in seen:
+            identifiers.append(identifier)
+            seen.add(key)
+    if not identifiers:
+        return [], [], str(_("Enter one or more logins or email addresses."))
+    if len(identifiers) > 50:
+        return [], [], str(_("You can update up to 50 accounts at once."))
+    users = []
+    errors = []
+    for identifier in identifiers:
+        user, error = user_by_login_or_email(identifier)
+        if error:
+            errors.append((identifier, error))
+        else:
+            users.append(user)
+    return users, errors, ""
+
+
 @never_cache
 @require_http_methods(["GET", "POST"])
 def moderation(request):
@@ -598,25 +632,28 @@ def moderation(request):
     if response is not None:
         return response
     access_error = ""
+    access_errors = []
+    identifiers_value = ""
     if request.method == "POST":
         action = request.POST.get("action")
-        identifier = request.POST.get("identifier", "").strip()
+        identifiers_value = request.POST.get(
+            "identifiers",
+            request.POST.get("identifier", ""),
+        ).strip()
         if action not in {"grant", "revoke"}:
             return HttpResponseBadRequest()
-        if not identifier:
-            access_error = str(_("Enter a login or email address."))
-        else:
-            user, access_error = user_by_login_or_email(identifier)
-            if user is not None:
+        users, access_errors, access_error = users_by_login_or_email(identifiers_value)
+        if users and not access_errors and not access_error:
+            with transaction.atomic():
                 group, _created = Group.objects.get_or_create(name=PUBLISHERS_GROUP)
                 if action == "grant":
-                    user.groups.add(group)
+                    group.user_set.add(*users)
                 else:
-                    user.groups.remove(group)
-                return redirect(
-                    reverse("sdg4_moderation")
-                    + ("?access=granted" if action == "grant" else "?access=revoked")
-                )
+                    group.user_set.remove(*users)
+            return redirect(
+                reverse("sdg4_moderation")
+                + ("?access=granted" if action == "grant" else "?access=revoked")
+            )
     pending = [
         moderation_card(row, document)
         for row, document in documents(include_drafts=True)
@@ -635,6 +672,8 @@ def moderation(request):
             "pending": pending,
             "publishers": publishers,
             "access_error": access_error,
+            "access_errors": access_errors,
+            "identifiers_value": identifiers_value,
         },
     )
 

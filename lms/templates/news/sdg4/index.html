@@ -54,9 +54,6 @@ from django.utils.translation import gettext as _, pgettext
                 <span aria-label="${_('Reading time')}">◷ ${_('{minutes} min').format(minutes=item['reading_minutes'])}</span>
               % endif
               <span aria-label="${_('Views')}">◉ ${item['view_count']}</span>
-              % if item['material_count']:
-                <span aria-label="${_('Attached materials')}">▣ ${item['material_count']}</span>
-              % endif
             </div>
             % if item['cover_url']:
               <a class="sdg4-feed-cover" href="${item['url']}" tabindex="-1" aria-hidden="true"><img src="${item['cover_url']}" alt="" loading="lazy" /></a>

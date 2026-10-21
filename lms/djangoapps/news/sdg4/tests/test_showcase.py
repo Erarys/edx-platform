@@ -16,7 +16,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
 from django.middleware.csrf import get_token
 from django.template import Context
-from django.test import Client, TestCase, override_settings
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import translation
 from mako.lookup import TemplateLookup
@@ -37,7 +37,7 @@ from ..data import (
 from ..forms import MaterialForm, Materials, SimpleTeacherForm
 
 
-def template_renderer(request, template, context):
+def template_renderer(request, template, context, status=200):
     """Render real showcase templates, substituting only the full LMS shell."""
     root = Path(__file__).resolve().parents[4] / "templates"
     lookup = TemplateLookup(directories=[str(root)], input_encoding="utf-8", default_filters=["h"])
@@ -58,7 +58,10 @@ def template_renderer(request, template, context):
     )
     # Match edxmako's flattened Django context, including True/False/None.
     # A named Mako block forwards these values as **pageargs to its override.
-    return HttpResponse(lookup.get_template(f"news/sdg4/{template}.html").render(**Context(context).flatten()))
+    return HttpResponse(
+        lookup.get_template(f"news/sdg4/{template}.html").render(**Context(context).flatten()),
+        status=status,
+    )
 
 
 def payload(published=True):
@@ -537,6 +540,10 @@ class ShowcaseTests(TestCase):
             "trusted-author",
             email="trusted@example.com",
         )
+        second_contributor = get_user_model().objects.create_user(
+            "second-trusted-author",
+            email="second@example.com",
+        )
         self.client.force_login(contributor)
         response = self.client.post(
             reverse("sdg4_create"),
@@ -553,7 +560,10 @@ class ShowcaseTests(TestCase):
         self.assertContains(moderation, "trusted@example.com")
         access = self.client.post(
             reverse("sdg4_moderation"),
-            {"identifier": "trusted@example.com", "action": "grant"},
+            {
+                "identifiers": "trusted@example.com\nsecond-trusted-author",
+                "action": "grant",
+            },
         )
         self.assertRedirects(
             access,
@@ -561,6 +571,7 @@ class ShowcaseTests(TestCase):
             fetch_redirect_response=False,
         )
         self.assertTrue(views.can_publish(contributor))
+        self.assertTrue(views.can_publish(second_contributor))
         approval = self.client.post(reverse("sdg4_approve", args=[pending.pk]))
         self.assertRedirects(
             approval,
@@ -584,10 +595,41 @@ class ShowcaseTests(TestCase):
         self.client.force_login(self.editor)
         self.client.post(
             reverse("sdg4_moderation"),
-            {"identifier": "trusted-author", "action": "revoke"},
+            {
+                "identifiers": "trusted-author, second@example.com",
+                "action": "revoke",
+            },
         )
         contributor.refresh_from_db()
         self.assertFalse(views.can_publish(contributor))
+        self.assertFalse(views.can_publish(second_contributor))
+
+    def test_batch_access_is_atomic_when_one_account_is_unknown(self):
+        contributor = get_user_model().objects.create_user("known-author")
+        response = self.client.post(
+            reverse("sdg4_moderation"),
+            {
+                "identifiers": "known-author\nmissing-author",
+                "action": "grant",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Access was not changed")
+        self.assertContains(response, "missing-author")
+        self.assertFalse(views.can_publish(contributor))
+
+    def test_inactive_account_sees_confirmation_warning(self):
+        inactive = get_user_model().objects.create_user(
+            "inactive-author",
+            email="inactive@example.com",
+            is_active=False,
+        )
+        request = RequestFactory().get(reverse("sdg4_create"))
+        request.user = inactive
+        response = views.require_editor(request)
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, "Confirm your account", status_code=403)
+        self.assertContains(response, "inactive@example.com", status_code=403)
 
     def test_author_or_staff_can_delete_with_confirmation_and_files_are_removed(self):
         author = get_user_model().objects.create_user("article-owner")
@@ -775,6 +817,7 @@ class ShowcaseTests(TestCase):
         self.assertContains(response, "Иванова Алия Сергеевна")
         self.assertContains(response, "Teacher")
         self.assertNotContains(response, "Ordinary news")
+        self.assertNotContains(response, "▣")
         for slug, _name in FACULTIES:
             self.assertContains(response, reverse("sdg4_faculty", args=[slug]))
             self.assertEqual(self.client.get(reverse("sdg4_faculty", args=[slug])).status_code, 200)
