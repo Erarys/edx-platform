@@ -1,0 +1,19 @@
+<%page expression_filter="h"/>
+<%inherit file="base.html" />
+<%!
+from django.urls import reverse
+from django.utils.translation import gettext as _
+%>
+<section class="sdg4-delete-confirmation" aria-labelledby="sdg4-delete-title">
+  <p class="sdg4-eyebrow">OPEN KAZNU · ${_("Publication management")}</p>
+  <h1 id="sdg4-delete-title">${_("Delete publication?")}</h1>
+  <p>${_("This will permanently remove “{title}” and its uploaded files. This action cannot be undone.").format(title=publication_title)}</p>
+  <form method="post">
+    <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}" />
+    <input type="hidden" name="confirm" value="yes" />
+    % if return_to_moderation:
+      <input type="hidden" name="from" value="moderation" />
+    % endif
+    <div class="sdg4-actions"><button class="sdg4-danger-button" type="submit">${_("Yes, delete publication")}</button><a class="sdg4-button sdg4-button-light" href="${reverse('sdg4_moderation') if return_to_moderation else reverse('sdg4_manage')}">${_("Cancel")}</a></div>
+  </form>
+</section>

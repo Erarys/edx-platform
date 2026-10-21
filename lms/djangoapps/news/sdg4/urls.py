@@ -7,8 +7,11 @@ from . import views
 urlpatterns = [
     path("", views.index, name="sdg4_index"),
     path("language/", views.change_language, name="sdg4_language"),
+    path("moderation/", views.moderation, name="sdg4_moderation"),
+    path("moderation/<int:news_id>/approve/", views.approve, name="sdg4_approve"),
     path("manage/", views.manage, name="sdg4_manage"),
     path("manage/new/", views.edit, name="sdg4_create"),
+    path("manage/<int:news_id>/delete/", views.delete_publication, name="sdg4_delete"),
     path("manage/<int:news_id>/", views.edit, name="sdg4_edit"),
     path("<slug:faculty>/", views.faculty, name="sdg4_faculty"),
     path("<slug:faculty>/<slug:teacher>/", views.teacher, name="sdg4_teacher"),

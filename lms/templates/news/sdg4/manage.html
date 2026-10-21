@@ -5,24 +5,25 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 %>
 <header class="sdg4-manage-header">
-  <div><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Editorial workspace")}</p><h1>${_("Moderation queue") if can_moderate_sdg4 else _("My publications")}</h1>
-    <p>${_("Review submitted publications and decide what appears in the public feed.") if can_moderate_sdg4 else _("Create materials, save drafts and follow their moderation status.")}</p></div>
+  <div><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Editorial workspace")}</p><h1>${_("My publications")}</h1>
+    <p>${_("Create materials, save drafts and follow their moderation status.")}</p></div>
   % if can_create:
     <a class="sdg4-button" href="${reverse('sdg4_create')}">+ ${_("Create a publication")}</a>
   % endif
 </header>
-% if can_moderate_sdg4 and pending_count:
-  <p class="sdg4-review-alert" role="status"><strong>${_('{count} waiting for review').format(count=pending_count)}</strong> · ${_("Pending publications are shown first.")}</p>
+% if request.GET.get('deleted'):
+  <p class="sdg4-saved" role="status">${_("The publication has been deleted.")}</p>
 % endif
 % if teachers:
   <div class="sdg4-manage-list">
     % for teacher in teachers:
       <article class="sdg4-manage-card">
         <div><span class="sdg4-status sdg4-status-${teacher['moderation_status']}">${teacher['status_label']}</span><h2><a href="${teacher['edit_url']}">${teacher['name']}</a></h2><p>${teacher['faculty']}</p></div>
-        <div class="sdg4-manage-actions"><a href="${teacher['edit_url']}">${_("Review") if can_moderate_sdg4 and teacher['moderation_status'] == 'pending' else _("Edit")}</a>
+        <div class="sdg4-manage-actions"><a href="${teacher['edit_url']}">${_("Edit")}</a>
           % if teacher['published']:
             <a href="${teacher['url']}">${_("Open public page")} <span aria-hidden="true">↗</span></a>
           % endif
+          <a class="sdg4-danger-link" href="${teacher['delete_url']}">${_("Delete")}</a>
         </div>
       </article>
     % endfor

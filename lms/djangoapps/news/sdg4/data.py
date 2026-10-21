@@ -19,7 +19,7 @@ from django.utils.translation import get_language
 from django.utils.translation import gettext as _
 
 from ..models import News
-from .constants import FACULTIES, NEWS_PREFIX
+from .constants import FACULTIES, NEWS_PREFIX, PUBLISHERS_GROUP
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +136,13 @@ def can_manage(user):
 
 def can_moderate(user):
     return can_manage(user) and user.is_staff
+
+
+def can_publish(user):
+    """Trusted authors may publish directly; everybody else uses moderation."""
+    return can_moderate(user) or (
+        can_manage(user) and user.groups.filter(name=PUBLISHERS_GROUP).exists()
+    )
 
 
 def can_edit(user, row):

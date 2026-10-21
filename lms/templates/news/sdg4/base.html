@@ -21,7 +21,12 @@ from django.utils.translation import gettext as _
     </form>
   </div>
   % if can_manage_sdg4:
-    <p class="sdg4-editor-link"><a href="${reverse('sdg4_manage')}">${_("Moderation queue") if can_moderate_sdg4 else _("My publications")}</a><a class="sdg4-editor-create" href="${reverse('sdg4_create')}">+ ${_("Create")}</a></p>
+    <p class="sdg4-editor-link"><a href="${reverse('sdg4_manage')}">${_("My publications")}</a>
+      % if can_moderate_sdg4:
+        <a href="${reverse('sdg4_moderation')}">${_("Moderation and access")}</a>
+      % endif
+      <a class="sdg4-editor-create" href="${reverse('sdg4_create')}">+ ${_("Create")}</a>
+    </p>
   % endif
   ${next.body()}
 </main>

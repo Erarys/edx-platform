@@ -3,6 +3,7 @@
 from django.utils.translation import gettext_lazy as _
 
 NEWS_PREFIX = "__sdg4__:"
+PUBLISHERS_GROUP = "sdg4_publishers"
 LANGUAGES = (("kk", "KZ"), ("ru", "RU"), ("en", "EN"))
 FACULTIES = (
     ("information-technology-ai", _("Faculty of Information Technology and Artificial Intelligence")),

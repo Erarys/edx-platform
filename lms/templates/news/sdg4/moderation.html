@@ -1,0 +1,77 @@
+<%page expression_filter="h"/>
+<%inherit file="base.html" />
+<%!
+from django.urls import reverse
+from django.utils.translation import gettext as _
+%>
+<header class="sdg4-manage-header">
+  <div><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Administration")}</p><h1>${_("Moderation and access")}</h1>
+    <p>${_("Review submitted publications or allow a trusted author to publish without waiting for approval.")}</p></div>
+  <a class="sdg4-button" href="${reverse('sdg4_create')}">+ ${_("Create a publication")}</a>
+</header>
+
+% if request.GET.get('approved'):
+  <p class="sdg4-saved" role="status">${_("The publication has been approved and published.")}</p>
+% elif request.GET.get('deleted'):
+  <p class="sdg4-saved" role="status">${_("The publication has been deleted.")}</p>
+% elif request.GET.get('access') == 'granted':
+  <p class="sdg4-saved" role="status">${_("Direct publishing access has been granted.")}</p>
+% elif request.GET.get('access') == 'revoked':
+  <p class="sdg4-saved" role="status">${_("Direct publishing access has been revoked.")}</p>
+% endif
+
+<div class="sdg4-moderation-layout">
+  <section aria-labelledby="sdg4-review-title">
+    <div class="sdg4-feed-heading"><div><p class="sdg4-eyebrow">${_("Approval requests")}</p><h2 id="sdg4-review-title">${_("Waiting for review")}</h2></div><span>${_('{count} publications').format(count=len(pending))}</span></div>
+    % if pending:
+      <div class="sdg4-manage-list">
+        % for item in pending:
+          <article class="sdg4-manage-card sdg4-review-card">
+            <div><span class="sdg4-status sdg4-status-pending">${item['status_label']}</span><h2>${item['title']}</h2>
+              <p><strong>${item['author']}</strong>
+                % if item['author_username']:
+                  · ${item['author_username']}
+                % endif
+                % if item['author_email']:
+                  · ${item['author_email']}
+                % endif
+              </p>
+              <p>${item['faculty']}</p>
+              % if item['summary']:
+                <p class="sdg4-review-summary">${item['summary']}</p>
+              % endif
+            </div>
+            <div class="sdg4-manage-actions">
+              <a href="${item['edit_url']}">${_("Review")}</a>
+              <form method="post" action="${reverse('sdg4_approve', args=[item['id']])}"><input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}" /><button class="sdg4-inline-action" type="submit">${_("Approve and publish")}</button></form>
+              <a class="sdg4-danger-link" href="${item['delete_url']}?from=moderation">${_("Delete")}</a>
+            </div>
+          </article>
+        % endfor
+      </div>
+    % else:
+      <div class="sdg4-empty sdg4-empty-feed"><strong>${_("The moderation queue is empty")}</strong><p>${_("New submissions will appear here.")}</p></div>
+    % endif
+  </section>
+
+  <aside class="sdg4-access-panel" aria-labelledby="sdg4-access-title">
+    <p class="sdg4-eyebrow">${_("Author access")}</p><h2 id="sdg4-access-title">${_("Trusted publishers")}</h2>
+    <p>${_("Find an account by exact login or email. Trusted publishers can publish immediately; all other users can still create drafts and submit them for approval.")}</p>
+    % if access_error:
+      <p class="sdg4-errors" role="alert">${access_error}</p>
+    % endif
+    <form method="post" class="sdg4-access-form">
+      <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}" />
+      <label for="sdg4-user-identifier">${_("Login or email")}</label>
+      <input id="sdg4-user-identifier" name="identifier" type="text" autocomplete="off" required />
+      <div class="sdg4-actions"><button class="sdg4-button" type="submit" name="action" value="grant">${_("Grant access")}</button><button type="submit" name="action" value="revoke">${_("Revoke access")}</button></div>
+    </form>
+    % if publishers:
+      <h3>${_("Access granted")}</h3><ul class="sdg4-publisher-list">
+        % for publisher in publishers:
+          <li><strong>${publisher.get_username()}</strong><span>${publisher.email}</span></li>
+        % endfor
+      </ul>
+    % endif
+  </aside>
+</div>

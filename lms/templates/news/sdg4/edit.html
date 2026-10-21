@@ -87,26 +87,6 @@ from django.utils.translation import gettext as _
       </section>
     </template>
   </fieldset>
-  <fieldset><legend>03 · ${_("External link or quick presentation upload")}</legend>
-    <p class="helptext">${_("You do not need to create a course. Paste a link to any course or educational material, or select presentation files.")}</p>
-    ${field(teacher_form['resource_url'])}
-    ${field(teacher_form['resource_title'])}
-    <div class="sdg4-upload-box">${field(teacher_form['presentations'])}<p id="sdg4-upload-help">${_("PDF, PPT or PPTX. You can select several files at once; titles come from file names.")}</p><p id="sdg4-file-list" role="status" aria-live="polite"></p></div>
-    % if existing_resources or document.get('courses'):
-      <details><summary>${_("Previously added materials")}</summary><p class="helptext">${_("Existing presentations and courses are kept. New files will be added to them.")}</p>
-        <ul>
-          % for item in existing_resources:
-            <li>${item['title']} ${item['format']}</li>
-          % endfor
-          % for course in document.get('courses', []):
-            % for item in course.get('materials', []):
-              <li>${item['title']}</li>
-            % endfor
-          % endfor
-        </ul>
-      </details>
-    % endif
-  </fieldset>
   <details class="sdg4-translations"><summary>${_("Add translations later (KZ / EN)")}</summary>
     % for code in ('kk', 'en'):
       <h2>${'KZ' if code == 'kk' else 'EN'}</h2>
@@ -117,18 +97,20 @@ from django.utils.translation import gettext as _
       </div>
     % endfor
   </details>
-  <p class="helptext">${_("A permanent link is created automatically and will not change.")}</p>
   <div class="sdg4-save-actions">
-    % if can_moderate_sdg4:
+    % if can_publish_sdg4:
       % if moderation_status == 'published':
         <button class="sdg4-button" type="submit" name="action" value="save">${_("Save published changes")}</button>
       % else:
-        <button class="sdg4-button" type="submit" name="action" value="approve">${_("Approve and publish")}</button>
+        <button class="sdg4-button" type="submit" name="action" value="publish">${_("Publish")}</button>
       % endif
     % else:
       <button class="sdg4-button" type="submit" name="action" value="submit">${_("Submit for moderation")}</button>
     % endif
     <button type="submit" name="action" value="draft">${_("Save draft")}</button>
+    % if row:
+      <a class="sdg4-danger-link" href="${reverse('sdg4_delete', args=[row.pk])}">${_("Delete")}</a>
+    % endif
   </div>
 </form>
 <script src="${static.url('js/sdg4-editor.js')}" defer></script>

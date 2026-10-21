@@ -8,9 +8,13 @@ from pathlib import PurePosixPath
 from uuid import uuid4
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
 from django.db import transaction
+from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponseBadRequest
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect
@@ -29,6 +33,7 @@ from .constants import (
     LICENSES,
     NEWS_PREFIX,
     PREAMBLE,
+    PUBLISHERS_GROUP,
     TARGET_43,
     TARGET_44,
 )
@@ -37,6 +42,7 @@ from .data import (
     can_edit,
     can_manage,
     can_moderate,
+    can_publish,
     document_key,
     documents,
     file_url,
@@ -91,6 +97,7 @@ def render(request, template, context):
         sdg4_language=language_code(),
         can_manage_sdg4=can_manage(request.user),
         can_moderate_sdg4=can_moderate(request.user),
+        can_publish_sdg4=can_publish(request.user),
         csrf_token=get_token(request),
     )
     return render_to_response(f"news/sdg4/{template}.html", context, request=request)
@@ -102,6 +109,7 @@ def teacher_card(row, document):
         and row.moderation_status == News.ModerationStatus.PUBLISHED
     )
     return {
+        "id": row.pk,
         "name": localized(document["profile"].get("name")),
         "position": localized(document["profile"].get("position")),
         "url": public_url(document),
@@ -110,6 +118,7 @@ def teacher_card(row, document):
         "moderation_status": row.moderation_status,
         "status_label": row.get_moderation_status_display(),
         "faculty": str(dict(FACULTIES)[document["faculty"]]),
+        "delete_url": reverse("sdg4_delete", args=[row.pk]),
     }
 
 
@@ -495,17 +504,33 @@ def cover_image(request, faculty, teacher):
 
 
 def require_editor(request):
+    if not request.user.is_authenticated:
+        return redirect_to_login(request.get_full_path(), settings.LOGIN_URL)
     if not can_manage(request.user):
         raise PermissionDenied
+    return None
+
+
+def require_moderator(request):
+    response = require_editor(request)
+    if response is not None:
+        return response
+    if not can_moderate(request.user):
+        raise PermissionDenied
+    return None
 
 
 @never_cache
 @require_GET
 def manage(request):
-    require_editor(request)
-    catalogue = documents(include_drafts=True)
-    if not can_moderate(request.user):
-        catalogue = ((row, doc) for row, doc in catalogue if row.author_id == request.user.id)
+    response = require_editor(request)
+    if response is not None:
+        return response
+    catalogue = (
+        (row, doc)
+        for row, doc in documents(include_drafts=True)
+        if row.author_id == request.user.id
+    )
     teachers = sorted(
         (teacher_card(row, doc) for row, doc in catalogue),
         key=lambda card: (
@@ -519,9 +544,161 @@ def manage(request):
         {
             "teachers": teachers,
             "can_create": True,
-            "pending_count": sum(
-                card["moderation_status"] == News.ModerationStatus.PENDING for card in teachers
-            ),
+        },
+    )
+
+
+def moderation_card(row, document):
+    card = teacher_card(row, document)
+    metadata = publication_context(row, document)
+    text = next(
+        (
+            block.get("text", "")
+            for block in document.get("article", [])
+            if block.get("kind") == "text" and block.get("text", "").strip()
+        ),
+        "",
+    )
+    card.update(
+        title=publication_title(document),
+        author=metadata["article_author"],
+        author_username=row.author.get_username() if row.author_id else "",
+        author_email=row.author.email if row.author_id else "",
+        summary=re.sub(r"\s+", " ", text).strip()[:280],
+    )
+    return card
+
+
+def user_by_login_or_email(identifier):
+    """Resolve one exact account without guessing when an email is shared."""
+    user_model = get_user_model()
+    username_field = user_model.USERNAME_FIELD
+    matches = list(
+        user_model._default_manager.filter(
+            Q(**{f"{username_field}__iexact": identifier}) | Q(email__iexact=identifier)
+        ).order_by("pk")[:3]
+    )
+    exact_login = [
+        user for user in matches
+        if str(getattr(user, username_field, "")).casefold() == identifier.casefold()
+    ]
+    if len(exact_login) == 1:
+        return exact_login[0], ""
+    if not matches:
+        return None, str(_("No user with this login or email was found."))
+    if len(matches) > 1:
+        return None, str(_("More than one user has this email. Enter the exact login."))
+    return matches[0], ""
+
+
+@never_cache
+@require_http_methods(["GET", "POST"])
+def moderation(request):
+    response = require_moderator(request)
+    if response is not None:
+        return response
+    access_error = ""
+    if request.method == "POST":
+        action = request.POST.get("action")
+        identifier = request.POST.get("identifier", "").strip()
+        if action not in {"grant", "revoke"}:
+            return HttpResponseBadRequest()
+        if not identifier:
+            access_error = str(_("Enter a login or email address."))
+        else:
+            user, access_error = user_by_login_or_email(identifier)
+            if user is not None:
+                group, _created = Group.objects.get_or_create(name=PUBLISHERS_GROUP)
+                if action == "grant":
+                    user.groups.add(group)
+                else:
+                    user.groups.remove(group)
+                return redirect(
+                    reverse("sdg4_moderation")
+                    + ("?access=granted" if action == "grant" else "?access=revoked")
+                )
+    pending = [
+        moderation_card(row, document)
+        for row, document in documents(include_drafts=True)
+        if row.moderation_status == News.ModerationStatus.PENDING
+    ]
+    publisher_group = Group.objects.filter(name=PUBLISHERS_GROUP).first()
+    publishers = (
+        list(publisher_group.user_set.all().order_by("username"))
+        if publisher_group is not None
+        else []
+    )
+    return render(
+        request,
+        "moderation",
+        {
+            "pending": pending,
+            "publishers": publishers,
+            "access_error": access_error,
+        },
+    )
+
+
+@require_POST
+def approve(request, news_id):
+    response = require_moderator(request)
+    if response is not None:
+        return response
+    with transaction.atomic():
+        row = get_object_or_404(sdg4_queryset().select_for_update(), pk=news_id)
+        if row.moderation_status != News.ModerationStatus.PENDING:
+            return HttpResponseBadRequest()
+        document = read_document(row)
+        document["published"] = True
+        row.content = json.dumps(document, ensure_ascii=False)
+        row.moderation_status = News.ModerationStatus.PUBLISHED
+        row.published_at = timezone.now()
+        row.save(update_fields=["content", "moderation_status", "published_at", "updated_at"])
+    return redirect(reverse("sdg4_moderation") + "?approved=1")
+
+
+def owned_upload_paths(row, document):
+    """Return only files stored below this publication's private upload prefix."""
+    prefix = f"sdg4/{row.pk}/"
+    candidates = [row.image.name if row.image else "", row.cover_image.name if row.cover_image else ""]
+    candidates.extend(item.get("file_path", "") for item in document.get("resources", []))
+    candidates.extend(item.get("file_path", "") for item in document.get("article", []))
+    for course in document.get("courses", []):
+        for item in course.get("materials", []):
+            candidates.extend((item.get("file_path", ""), item.get("captions_path", "")))
+    return sorted({path for path in candidates if path.startswith(prefix)})
+
+
+@never_cache
+@require_http_methods(["GET", "POST"])
+def delete_publication(request, news_id):
+    response = require_editor(request)
+    if response is not None:
+        return response
+    row = get_object_or_404(sdg4_queryset(), pk=news_id)
+    if not can_edit(request.user, row):
+        raise PermissionDenied
+    document = read_document(row)
+    return_to_moderation = can_moderate(request.user) and (
+        request.GET.get("from") == "moderation" or request.POST.get("from") == "moderation"
+    )
+    if request.method == "POST":
+        if request.POST.get("confirm") != "yes":
+            return HttpResponseBadRequest()
+        paths = owned_upload_paths(row, document)
+        with transaction.atomic():
+            row.delete()
+            for path in paths:
+                transaction.on_commit(lambda file_path=path: default_storage.delete(file_path))
+        target = "sdg4_moderation" if return_to_moderation else "sdg4_manage"
+        return redirect(reverse(target) + "?deleted=1")
+    return render(
+        request,
+        "delete",
+        {
+            "row": row,
+            "publication_title": publication_title(document),
+            "return_to_moderation": return_to_moderation,
         },
     )
 
@@ -642,7 +819,9 @@ def save_page(row, original, form, moderation_status, article_formset=None, auth
 @never_cache
 @require_http_methods(["GET", "POST"])
 def edit(request, news_id=None):
-    require_editor(request)
+    response = require_editor(request)
+    if response is not None:
+        return response
     row = get_object_or_404(sdg4_queryset(), pk=news_id) if news_id else None
     if row and not can_edit(request.user, row):
         raise PermissionDenied
@@ -656,7 +835,7 @@ def edit(request, news_id=None):
         action = bound_data.get("action", "save")
         if action == "draft":
             moderation_status = News.ModerationStatus.DRAFT
-        elif can_moderate(request.user):
+        elif can_publish(request.user):
             if action in {"approve", "publish"}:
                 moderation_status = News.ModerationStatus.PUBLISHED
             elif action == "submit":

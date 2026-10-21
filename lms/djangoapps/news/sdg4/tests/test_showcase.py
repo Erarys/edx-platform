@@ -53,6 +53,7 @@ def template_renderer(request, template, context):
         sdg4_language=language_code(),
         can_manage_sdg4=views.can_manage(request.user),
         can_moderate_sdg4=views.can_moderate(request.user),
+        can_publish_sdg4=views.can_publish(request.user),
         LANGUAGE_CODE=translation.get_language(),
     )
     # Match edxmako's flattened Django context, including True/False/None.
@@ -454,11 +455,11 @@ class ShowcaseTests(TestCase):
             **payload(),
             "presentations": [pdf(), SimpleUploadedFile("bad.pdf", b"bad")],
         }
-        self.assertContains(self.client.post(reverse("sdg4_create"), data), "valid PDF")
+        self.assertEqual(self.client.post(reverse("sdg4_create"), data).status_code, 200)
         with override_settings(SDG4_MAX_UPLOAD_BYTES=2):
-            self.assertContains(
-                self.client.post(reverse("sdg4_create"), {**payload(), "presentations": [pdf()]}),
-                "upload limit",
+            self.assertEqual(
+                self.client.post(reverse("sdg4_create"), {**payload(), "presentations": [pdf()]}).status_code,
+                200,
             )
         self.assertFalse(News.objects.exists())
         form = SimpleTeacherForm(payload(), {"presentations": [pdf() for _ in range(201)]})
@@ -531,11 +532,134 @@ class ShowcaseTests(TestCase):
         self.assertFalse(read_document(pending)["published"])
         self.assertEqual(self.client.get(public_url).status_code, 404)
 
+    def test_separate_moderation_page_grants_direct_publishing_and_approves(self):
+        contributor = get_user_model().objects.create_user(
+            "trusted-author",
+            email="trusted@example.com",
+        )
+        self.client.force_login(contributor)
+        response = self.client.post(
+            reverse("sdg4_create"),
+            {**payload(), "name_ru": "Первая заявка", "action": "publish"},
+        )
+        self.assertIn("submitted=1", response.url)
+        pending = News.objects.get()
+        self.assertEqual(pending.moderation_status, News.ModerationStatus.PENDING)
+        self.assertEqual(self.client.get(reverse("sdg4_moderation")).status_code, 403)
+
+        self.client.force_login(self.editor)
+        moderation = self.client.get(reverse("sdg4_moderation"))
+        self.assertContains(moderation, "Первая заявка")
+        self.assertContains(moderation, "trusted@example.com")
+        access = self.client.post(
+            reverse("sdg4_moderation"),
+            {"identifier": "trusted@example.com", "action": "grant"},
+        )
+        self.assertRedirects(
+            access,
+            reverse("sdg4_moderation") + "?access=granted",
+            fetch_redirect_response=False,
+        )
+        self.assertTrue(views.can_publish(contributor))
+        approval = self.client.post(reverse("sdg4_approve", args=[pending.pk]))
+        self.assertRedirects(
+            approval,
+            reverse("sdg4_moderation") + "?approved=1",
+            fetch_redirect_response=False,
+        )
+        pending.refresh_from_db()
+        self.assertEqual(pending.moderation_status, News.ModerationStatus.PUBLISHED)
+        self.assertTrue(read_document(pending)["published"])
+
+        self.client.force_login(contributor)
+        direct = self.client.post(
+            reverse("sdg4_create"),
+            {**payload(), "name_ru": "Доверенный автор", "action": "publish"},
+        )
+        directly_published = News.objects.exclude(pk=pending.pk).get()
+        self.assertEqual(direct.status_code, 302)
+        self.assertEqual(directly_published.moderation_status, News.ModerationStatus.PUBLISHED)
+        self.assertTrue(read_document(directly_published)["published"])
+
+        self.client.force_login(self.editor)
+        self.client.post(
+            reverse("sdg4_moderation"),
+            {"identifier": "trusted-author", "action": "revoke"},
+        )
+        contributor.refresh_from_db()
+        self.assertFalse(views.can_publish(contributor))
+
+    def test_author_or_staff_can_delete_with_confirmation_and_files_are_removed(self):
+        author = get_user_model().objects.create_user("article-owner")
+        stranger = get_user_model().objects.create_user("not-the-owner")
+        self.client.force_login(author)
+        response = self.client.post(
+            reverse("sdg4_create"),
+            {
+                **payload(False),
+                "name_ru": "Удаляемая публикация",
+                "cover_image": png("cover.png"),
+                **article_payload(),
+            },
+        )
+        row = News.objects.get()
+        document = read_document(row)
+        paths = views.owned_upload_paths(row, document)
+        self.assertTrue(paths)
+        self.assertTrue(all(default_storage.exists(path) for path in paths))
+        self.assertEqual(response.status_code, 302)
+
+        self.client.force_login(stranger)
+        self.assertEqual(self.client.get(reverse("sdg4_delete", args=[row.pk])).status_code, 403)
+
+        self.client.force_login(author)
+        confirmation = self.client.get(reverse("sdg4_delete", args=[row.pk]))
+        self.assertContains(confirmation, "Delete publication?")
+        self.assertEqual(
+            self.client.post(reverse("sdg4_delete", args=[row.pk]), {}).status_code,
+            400,
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            deleted = self.client.post(
+                reverse("sdg4_delete", args=[row.pk]),
+                {"confirm": "yes"},
+            )
+        self.assertRedirects(
+            deleted,
+            reverse("sdg4_manage") + "?deleted=1",
+            fetch_redirect_response=False,
+        )
+        self.assertFalse(News.objects.filter(pk=row.pk).exists())
+        self.assertTrue(all(not default_storage.exists(path) for path in paths))
+
+        staff_row, _document, _url = self.publish(name_ru="Удаляет администратор")
+        self.client.force_login(stranger)
+        self.assertEqual(self.client.get(reverse("sdg4_delete", args=[staff_row.pk])).status_code, 403)
+        self.client.force_login(self.editor)
+        self.assertEqual(
+            self.client.get(reverse("sdg4_delete", args=[staff_row.pk]) + "?from=moderation").status_code,
+            200,
+        )
+        self.client.post(
+            reverse("sdg4_delete", args=[staff_row.pk]),
+            {"confirm": "yes", "from": "moderation"},
+        )
+        self.assertFalse(News.objects.filter(pk=staff_row.pk).exists())
+
+    def test_filters_are_narrow_and_mobile_safe(self):
+        css = (Path(__file__).resolve().parents[4] / "static/sdg4/showcase.css").read_text()
+        self.assertIn("max-width: 716px", css)
+        self.assertIn("width: 100% !important", css)
+        self.assertIn("width: min(100%, 520px)", css)
+
     def test_guests_cannot_write_or_view_editor_and_csrf_required(self):
         self.client.logout()
         for name in ("sdg4_create", "sdg4_manage"):
-            self.assertEqual(self.client.get(reverse(name)).status_code, 403)
-        self.assertEqual(self.client.post(reverse("sdg4_create"), payload()).status_code, 403)
+            response = self.client.get(reverse(name))
+            self.assertEqual(response.status_code, 302)
+            self.assertIn("next=", response.url)
+        self.assertEqual(self.client.post(reverse("sdg4_create"), payload()).status_code, 302)
+        self.assertContains(self.client.get(reverse("sdg4_index")), reverse("sdg4_create"))
         secured = Client(enforce_csrf_checks=True)
         secured.force_login(self.editor)
         self.assertEqual(secured.post(reverse("sdg4_create"), payload()).status_code, 403)
@@ -543,11 +667,10 @@ class ShowcaseTests(TestCase):
     def test_editor_has_no_course_fields_and_translations_are_collapsed(self):
         response = self.client.get(reverse("sdg4_create"))
         self.assertContains(response, 'name="name_ru"')
-        self.assertContains(response, 'name="resource_url"')
-        self.assertRegex(
-            response.content.decode(),
-            r'<input[^>]*name="presentations"[^>]*\bmultiple\b',
-        )
+        self.assertNotContains(response, 'name="resource_url"')
+        self.assertNotContains(response, 'name="presentations"')
+        self.assertNotContains(response, "External link or quick presentation upload")
+        self.assertNotContains(response, "A permanent link is created automatically")
         self.assertContains(response, 'class="sdg4-translations"')
         self.assertNotContains(response, 'class="sdg4-translations" open')
         for value in (
@@ -701,12 +824,12 @@ class ShowcaseTests(TestCase):
         ):
             with self.assertRaises(ValidationError):
                 validate_media_url(url)
-        self.assertContains(
+        self.assertEqual(
             self.client.post(
                 reverse("sdg4_create"),
                 {**payload(), "resource_url": "javascript:alert(1)"},
-            ),
-            "HTTPS URL",
+            ).status_code,
+            200,
         )
         self.assertEqual(youtube_embed("https://evil.example/embed/abcdefghijk"), "")
         self.assertEqual(youtube_embed("https://youtube.com/watch?v=bad"), "")
