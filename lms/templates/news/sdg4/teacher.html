@@ -26,6 +26,7 @@ from django.utils.translation import gettext as _, pgettext
 % if can_manage_sdg4:
   <p><a href="${edit_url}">${_("Edit resources")}</a></p>
 % endif
+<%include file="article.html"/>
 <%include file="resources.html"/>
 <nav class="sdg4-tabs" aria-label="${_('Courses')}">
   % for course in courses:

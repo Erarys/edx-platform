@@ -24,6 +24,22 @@ urlpatterns = [
         name="sdg4_resource_download",
     ),
     path(
+        "<slug:faculty>/<slug:teacher>/article/<slug:block_id>/",
+        views.article_block,
+        name="sdg4_article_block",
+    ),
+    path(
+        "<slug:faculty>/<slug:teacher>/article/<slug:block_id>/download/",
+        views.article_block,
+        {"download": True},
+        name="sdg4_article_block_download",
+    ),
+    path(
+        "<slug:faculty>/<slug:teacher>/cover/",
+        views.cover_image,
+        name="sdg4_cover",
+    ),
+    path(
         "<slug:faculty>/<slug:teacher>/<int:course>/<slug:material_id>/",
         views.material,
         name="sdg4_material",

@@ -2,6 +2,8 @@
 
 import copy
 import json
+import math
+import re
 from pathlib import PurePosixPath
 from uuid import uuid4
 
@@ -13,6 +15,8 @@ from django.http import FileResponse, Http404, HttpResponseBadRequest
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.timesince import timesince
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
@@ -40,10 +44,41 @@ from .data import (
     localized,
     public_url,
     read_document,
+    sdg4_queryset,
     teacher_slug,
     youtube_embed,
 )
-from .forms import SimpleTeacherForm, material_title, translations
+from .forms import (
+    ARTICLE_EXTENSIONS,
+    ArticleBlocks,
+    SimpleTeacherForm,
+    material_title,
+    translations,
+)
+
+ARTICLE_CONTENT_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".pdf": "application/pdf",
+    ".ppt": "application/vnd.ms-powerpoint",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".mp3": "audio/mpeg",
+    ".m4a": "audio/mp4",
+    ".ogg": "audio/ogg",
+    ".wav": "audio/wav",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".ogv": "video/ogg",
+}
+COVER_CONTENT_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+}
 
 
 def render(request, template, context):
@@ -104,6 +139,17 @@ def index(request):
     cards = []
     for row, document in documents():
         card = teacher_card(row, document)
+        if document.get("article"):
+            cards.append(
+                {
+                    "id": f"article-{row.pk}",
+                    "title": localized(document.get("article_title")) or _("Article by {name}").format(name=card["name"]),
+                    "kind": "article",
+                    "format": "",
+                    "teacher": card,
+                    "url": public_url(document) + "#sdg4-article",
+                }
+            )
         for resource in resource_cards(document):
             cards.append({**resource, "teacher": card})
         for number, course in enumerate(document["courses"], 1):
@@ -182,12 +228,50 @@ def resource_cards(document):
     return result
 
 
+def article_blocks(document):
+    """Build safe, application-controlled media URLs for article rendering."""
+    result = []
+    for item in document.get("article", []):
+        block = dict(item)
+        if item.get("kind") != "text":
+            args = [document["faculty"], document["slug"], item["id"]]
+            block["url"] = reverse("sdg4_article_block", args=args)
+            block["download_url"] = reverse("sdg4_article_block_download", args=args)
+            block["format"] = PurePosixPath(item.get("file_path", "")).suffix.lstrip(".").upper()
+            block["is_pdf"] = block["format"] == "PDF"
+        result.append(block)
+    return result
+
+
+def publication_context(row, document):
+    """Metadata displayed above a publication, similar to a conventional article card."""
+    author_name = localized(document.get("profile", {}).get("name"))
+    if row.author_id:
+        author_name = row.author.get_full_name().strip() or row.author.get_username()
+    published_at = row.published_at or row.created_at
+    age = timesince(published_at, timezone.now()).split(",", maxsplit=1)[0]
+    words = sum(
+        len(re.findall(r"\w+", block.get("text", ""), flags=re.UNICODE))
+        for block in document.get("article", [])
+        if block.get("kind") == "text"
+    )
+    return {
+        "article_author": author_name,
+        "article_published_at": published_at,
+        "article_published_ago": _("{age} ago").format(age=age),
+        "article_reading_minutes": max(1, math.ceil(words / 200)) if document.get("article") else 0,
+        "article_view_count": row.view_count,
+        "cover_url": reverse("sdg4_cover", args=[document["faculty"], document["slug"]]) if row.cover_image else "",
+    }
+
+
 @never_cache
 @require_GET
 def teacher(request, faculty, teacher):
     row, document = find_page(faculty, teacher)
     if not document["courses"]:
-        document = increment(row.pk, "page", "views")
+        document = increment(row.pk, "page", "views", count_page_view=True)
+        row.refresh_from_db(fields=["view_count"])
         return render(
             request,
             "profile",
@@ -200,12 +284,16 @@ def teacher(request, faculty, teacher):
                 "faculty_name": dict(FACULTIES)[faculty],
                 "faculty_slug": faculty,
                 "resources": resource_cards(document),
+                "article_title": localized(document.get("article_title")),
+                "article_blocks": article_blocks(document),
                 "edit_url": reverse("sdg4_edit", args=[row.pk]),
                 "permanent_url": request.build_absolute_uri(public_url(document)),
+                **publication_context(row, document),
             },
         )
     number = course_number(request)
-    document = increment(row.pk, number, "views")
+    document = increment(row.pk, number, "views", count_page_view=True)
+    row.refresh_from_db(fields=["view_count"])
     profile = document["profile"]
     courses = []
     for index, course in enumerate(document["courses"], 1):
@@ -255,6 +343,9 @@ def teacher(request, faculty, teacher):
             "edit_url": reverse("sdg4_edit", args=[row.pk]),
             "permanent_url": request.build_absolute_uri(public_url(document)),
             "resources": resource_cards(document),
+            "article_title": localized(document.get("article_title")),
+            "article_blocks": article_blocks(document),
+            **publication_context(row, document),
         },
     )
 
@@ -329,6 +420,53 @@ def resource(request, faculty, teacher, material_id, download=False):
     return response
 
 
+@never_cache
+@require_GET
+def article_block(request, faculty, teacher, block_id, download=False):
+    """Serve uploaded article media only after the containing page is published."""
+    _row, document = find_page(faculty, teacher)
+    item = next((block for block in document.get("article", []) if block.get("id") == block_id), None)
+    if item is None or item.get("kind") == "text" or not item.get("file_path"):
+        raise Http404
+    extension = PurePosixPath(item["file_path"].lower()).suffix
+    if extension not in ARTICLE_CONTENT_TYPES or extension not in ARTICLE_EXTENSIONS.get(item.get("kind"), set()):
+        raise Http404
+    try:
+        stream = default_storage.open(item["file_path"], "rb")
+    except FileNotFoundError:
+        raise Http404 from None
+    title = item.get("title") or str(_("Material"))
+    response = FileResponse(
+        stream,
+        as_attachment=download or (item["kind"] == "presentation" and extension != ".pdf"),
+        filename=title + extension,
+        content_type=ARTICLE_CONTENT_TYPES[extension],
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    response["X-Frame-Options"] = "SAMEORIGIN"
+    return response
+
+
+@never_cache
+@require_GET
+def cover_image(request, faculty, teacher):
+    """Serve a cover only when its SDG 4 publication is public."""
+    row, _document = find_page(faculty, teacher)
+    if not row.cover_image:
+        raise Http404
+    extension = PurePosixPath(row.cover_image.name.lower()).suffix
+    if extension not in COVER_CONTENT_TYPES:
+        raise Http404
+    try:
+        stream = default_storage.open(row.cover_image.name, "rb")
+    except FileNotFoundError:
+        raise Http404 from None
+    response = FileResponse(stream, content_type=COVER_CONTENT_TYPES[extension])
+    response["X-Content-Type-Options"] = "nosniff"
+    response["X-Frame-Options"] = "SAMEORIGIN"
+    return response
+
+
 def require_editor(request):
     if not can_manage(request.user):
         raise PermissionDenied
@@ -352,20 +490,25 @@ def save_upload(upload, row_id, slot, saved):
     return path
 
 
-def save_page(row, original, form):
-    """Append presentations without touching legacy lessons, counters or fixed URLs."""
+def save_page(row, original, form, article_formset=None, author=None):
+    """Save an ordered article while retaining legacy lessons, counters and URLs."""
     saved = []
     try:
         with transaction.atomic():
             if row:
-                row = News.objects.select_for_update().get(pk=row.pk, title__startswith=NEWS_PREFIX)
+                row = sdg4_queryset().select_for_update().get(pk=row.pk)
                 document = copy.deepcopy(read_document(row))
                 if original["revision"] != row.updated_at.isoformat():
                     raise ValueError(_("This page was edited elsewhere. Reload it before saving."))
             else:
-                row = News.objects.create(title=NEWS_PREFIX + "draft", content="{}")
+                row = News.objects.create(
+                    title=NEWS_PREFIX + "draft",
+                    content="{}",
+                    content_type=News.ContentType.SDG4,
+                    author=author,
+                )
                 document = {
-                    "schema": 2,
+                    "schema": 3,
                     "faculty": form.cleaned_data["faculty"],
                     "slug": f"{teacher_slug(form.cleaned_data['name_ru'])}-{row.pk}",
                     "profile": {},
@@ -374,8 +517,10 @@ def save_page(row, original, form):
                     "stats": {},
                 }
             cleaned = form.cleaned_data
-            document["schema"] = 2
+            was_published = bool(document.get("published"))
+            document["schema"] = 3
             document["published"] = cleaned["published"]
+            document["article_title"] = translations(cleaned, "article_title")
             document["profile"].update(
                 {key: translations(cleaned, key) for key in ("name", "position", "degree", "department")}
             )
@@ -401,10 +546,43 @@ def save_page(row, original, form):
                         "file_path": save_upload(upload, row.pk, "presentations", saved),
                     }
                 )
+            if article_formset is not None:
+                existing_blocks = {item.get("id"): item for item in document.get("article", [])}
+                article = []
+                for block_form in article_formset.ordered_forms:
+                    block_cleaned = block_form.cleaned_data
+                    old = copy.deepcopy(existing_blocks.get(block_cleaned.get("block_id"), {}))
+                    kind = block_cleaned["kind"]
+                    block = {
+                        "id": old.get("id") or uuid4().hex,
+                        "kind": kind,
+                    }
+                    if kind == "text":
+                        block["text"] = block_cleaned["text"].strip()
+                    else:
+                        upload = block_cleaned.get("file")
+                        block["file_path"] = (
+                            save_upload(upload, row.pk, f"article/{kind}", saved)
+                            if upload
+                            else old["file_path"]
+                        )
+                        block["title"] = block_cleaned.get("title") or old.get("title") or str(_("Material"))
+                        block["caption"] = block_cleaned.get("caption", "")
+                    article.append(block)
+                document["article"] = article
             if cleaned.get("photo"):
                 row.image = save_upload(cleaned["photo"], row.pk, "photo", saved)
+            if cleaned.get("cover_image"):
+                row.cover_image = save_upload(cleaned["cover_image"], row.pk, "cover", saved)
+            if not row.author_id and author is not None:
+                row.author = author
+            if cleaned["published"] and not was_published:
+                row.published_at = timezone.now()
+            elif not cleaned["published"]:
+                row.published_at = None
             row.title = document_key(document)
             row.content = json.dumps(document, ensure_ascii=False)
+            row.content_type = News.ContentType.SDG4
             row.save()
             return row, document
     except Exception:
@@ -417,7 +595,7 @@ def save_page(row, original, form):
 @require_http_methods(["GET", "POST"])
 def edit(request, news_id=None):
     require_editor(request)
-    row = get_object_or_404(News, pk=news_id, title__startswith=NEWS_PREFIX) if news_id else None
+    row = get_object_or_404(sdg4_queryset(), pk=news_id) if news_id else None
     document = read_document(row) if row else {}
     if row:
         document["revision"] = row.updated_at.isoformat()
@@ -434,14 +612,46 @@ def edit(request, news_id=None):
         document=document or None,
         publishing=publishing,
     )
+    article_submitted = request.method == "POST" and "article-TOTAL_FORMS" in request.POST
+    article_formset = ArticleBlocks(
+        request.POST if article_submitted else None,
+        request.FILES if article_submitted else None,
+        blocks=document.get("article", []),
+        prefix="article",
+    )
     if request.method == "POST":
-        valid = form.is_valid()
+        form_valid = form.is_valid()
+        article_valid = article_formset.is_valid() if article_submitted else True
+        valid = form_valid and article_valid
+        if valid and publishing:
+            article_has_content = bool(
+                article_formset.ordered_forms if article_submitted else document.get("article")
+            )
+            resources_have_content = bool(
+                form.cleaned_data.get("resource_url")
+                or form.cleaned_data.get("presentations")
+                or any(item.get("kind") != "link" for item in document.get("resources", []))
+                or document.get("profile", {}).get("mooc_url")
+                or any(course.get("materials") for course in document.get("courses", []))
+            )
+            if not (article_has_content or resources_have_content):
+                form.add_error(
+                    None,
+                    _("Add an article block, a link, or a presentation to publish. You can also save a draft."),
+                )
+                valid = False
         if row and request.POST.get("revision") != document["revision"]:
             form.add_error(None, _("This page was edited elsewhere. Reload it before saving."))
             valid = False
         if valid:
             try:
-                saved_row, result = save_page(row, document, form)
+                saved_row, result = save_page(
+                    row,
+                    document,
+                    form,
+                    article_formset if article_submitted else None,
+                    request.user,
+                )
             except ValueError as exc:
                 form.add_error(None, str(exc))
             else:
@@ -458,5 +668,6 @@ def edit(request, news_id=None):
             "document": document,
             "row": row,
             "existing_resources": resource_cards(document) if document else [],
+            "article_formset": article_formset,
         },
     )

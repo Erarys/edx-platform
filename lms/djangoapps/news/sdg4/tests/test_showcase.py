@@ -1,5 +1,6 @@
 """Exercise real ORM, forms, multipart uploads, permissions and public routes."""
 
+import base64
 import io
 import json
 import tempfile
@@ -10,8 +11,8 @@ from zipfile import ZipFile
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.storage import default_storage
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
 from django.middleware.csrf import get_token
 from django.template import Context
@@ -80,6 +81,38 @@ def pptx(macro=False):
         if macro:
             archive.writestr("ppt/vbaProject.bin", b"macro")
     return SimpleUploadedFile("Лекция.pptx", stream.getvalue())
+
+
+def png(name="Иллюстрация.png"):
+    content = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    )
+    return SimpleUploadedFile(name, content, "image/png")
+
+
+def article_payload():
+    return {
+        "article-TOTAL_FORMS": "5",
+        "article-INITIAL_FORMS": "0",
+        "article-MIN_NUM_FORMS": "0",
+        "article-MAX_NUM_FORMS": "1000",
+        "article-0-kind": "text",
+        "article-0-text": "Первый абзац\nВторая строка",
+        "article-0-ORDER": "1",
+        "article-1-kind": "image",
+        "article-1-file": png(),
+        "article-1-caption": "Подпись к изображению",
+        "article-1-ORDER": "2",
+        "article-2-kind": "presentation",
+        "article-2-file": pdf("Слайды.pdf"),
+        "article-2-ORDER": "3",
+        "article-3-kind": "audio",
+        "article-3-file": SimpleUploadedFile("Лекция.mp3", b"ID3" + b"audio"),
+        "article-3-ORDER": "4",
+        "article-4-kind": "video",
+        "article-4-file": SimpleUploadedFile("Видео.mp4", b"\x00\x00\x00\x18ftypisom" + b"video"),
+        "article-4-ORDER": "5",
+    }
 
 
 class ShowcaseTests(TestCase):
@@ -176,7 +209,8 @@ class ShowcaseTests(TestCase):
 
     def test_link_only_publication_requires_no_course_or_teacher_metadata(self):
         _row, document, url = self.publish()
-        self.assertEqual(document["schema"], 2)
+        self.assertEqual(document["schema"], 3)
+        self.assertEqual(_row.content_type, News.ContentType.SDG4)
         self.assertEqual(document["courses"], [])
         self.assertEqual(document["profile"]["position"]["ru"], "")
         self.client.logout()
@@ -205,6 +239,165 @@ class ShowcaseTests(TestCase):
         b"".join(response.streaming_content)
         row.refresh_from_db()
         self.assertEqual(read_document(row)["stats"][item["id"]], {"views": 1, "downloads": 1})
+
+    def test_mixed_article_blocks_are_ordered_rendered_and_served(self):
+        data = {
+            **payload(),
+            "resource_url": "",
+            "article_title_ru": "Новая статья",
+            "cover_image": png("Обложка.png"),
+            **article_payload(),
+        }
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        row = News.objects.get()
+        document = read_document(row)
+        self.assertEqual(document["schema"], 3)
+        self.assertEqual([block["kind"] for block in document["article"]], [
+            "text", "image", "presentation", "audio", "video",
+        ])
+        self.assertEqual(document["article_title"]["ru"], "Новая статья")
+        self.assertTrue(all(block.get("id") for block in document["article"]))
+        self.assertEqual(row.author, self.editor)
+        self.assertIsNotNone(row.published_at)
+        self.assertEqual(row.view_count, 0)
+        self.assertTrue(row.cover_image.name.startswith(f"sdg4/{row.pk}/cover/"))
+
+        self.client.logout()
+        page = self.client.get(response.url)
+        self.assertContains(page, "Новая статья")
+        self.assertContains(page, "Первый абзац")
+        self.assertContains(page, "Подпись к изображению")
+        self.assertContains(page, "<audio", html=False)
+        self.assertContains(page, "<video", html=False)
+        self.assertContains(page, "editor")
+        self.assertContains(page, "ago")
+        self.assertContains(page, "1 view")
+        row.refresh_from_db()
+        self.assertEqual(row.view_count, 1)
+        self.client.get(response.url)
+        row.refresh_from_db()
+        self.assertEqual(row.view_count, 2)
+
+        cover = self.client.get(
+            reverse("sdg4_cover", args=[document["faculty"], document["slug"]])
+        )
+        self.assertEqual(cover.status_code, 200)
+        self.assertEqual(cover["Content-Type"], "image/png")
+        self.assertEqual(cover["X-Content-Type-Options"], "nosniff")
+        b"".join(cover.streaming_content)
+        for block, content_type in zip(
+            document["article"][1:],
+            ("image/png", "application/pdf", "audio/mpeg", "video/mp4"),
+        ):
+            route = reverse(
+                "sdg4_article_block",
+                args=[document["faculty"], document["slug"], block["id"]],
+            )
+            media = self.client.get(route)
+            self.assertEqual(media.status_code, 200)
+            self.assertEqual(media["Content-Type"], content_type)
+            self.assertEqual(media["X-Content-Type-Options"], "nosniff")
+            b"".join(media.streaming_content)
+
+    def test_article_text_is_escaped_and_can_publish_without_legacy_resource(self):
+        data = {
+            **payload(),
+            "resource_url": "",
+            "article-TOTAL_FORMS": "1",
+            "article-INITIAL_FORMS": "0",
+            "article-MIN_NUM_FORMS": "0",
+            "article-MAX_NUM_FORMS": "1000",
+            "article-0-kind": "text",
+            "article-0-text": '<img src=x onerror="alert(1)">',
+            "article-0-ORDER": "1",
+        }
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        page = self.client.get(response.url)
+        self.assertNotContains(page, '<img src=x onerror="alert(1)">')
+        self.assertContains(page, "&lt;img")
+
+    def test_existing_article_blocks_can_be_reordered_and_removed_without_reupload(self):
+        response = self.client.post(
+            reverse("sdg4_create"),
+            {**payload(), "resource_url": "", **article_payload()},
+        )
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        row = News.objects.get()
+        document = read_document(row)
+        data = self.edit_payload(row, document)
+        data.update(
+            {
+                "resource_url": "",
+                "article-TOTAL_FORMS": "5",
+                "article-INITIAL_FORMS": "5",
+                "article-MIN_NUM_FORMS": "0",
+                "article-MAX_NUM_FORMS": "1000",
+            }
+        )
+        for index, block in enumerate(document["article"]):
+            data.update(
+                {
+                    f"article-{index}-block_id": block["id"],
+                    f"article-{index}-kind": block["kind"],
+                    f"article-{index}-text": block.get("text", ""),
+                    f"article-{index}-title": block.get("title", ""),
+                    f"article-{index}-caption": block.get("caption", ""),
+                    f"article-{index}-ORDER": str(5 - index),
+                }
+            )
+        data["article-2-DELETE"] = "on"
+        response = self.client.post(reverse("sdg4_edit", args=[row.pk]), data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        row.refresh_from_db()
+        updated = read_document(row)
+        self.assertEqual([block["kind"] for block in updated["article"]], ["video", "audio", "image", "text"])
+        self.assertEqual(updated["article"][1]["file_path"], document["article"][3]["file_path"])
+
+    def test_article_rejects_renamed_media_and_unpublished_file_routes(self):
+        bad = {
+            **payload(),
+            "resource_url": "",
+            "article-TOTAL_FORMS": "1",
+            "article-INITIAL_FORMS": "0",
+            "article-MIN_NUM_FORMS": "0",
+            "article-MAX_NUM_FORMS": "1000",
+            "article-0-kind": "audio",
+            "article-0-file": SimpleUploadedFile("not-audio.mp3", b"not audio"),
+            "article-0-ORDER": "1",
+        }
+        self.assertContains(self.client.post(reverse("sdg4_create"), bad), "not valid")
+        self.assertFalse(News.objects.exists())
+
+        draft = {
+            **payload(False),
+            "resource_url": "",
+            "cover_image": png("Черновик.png"),
+            **article_payload(),
+        }
+        response = self.client.post(reverse("sdg4_create"), draft)
+        row = News.objects.get()
+        document = read_document(row)
+        block = document["article"][1]
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            self.client.get(
+                reverse("sdg4_article_block", args=[document["faculty"], document["slug"], block["id"]])
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(reverse("sdg4_cover", args=[document["faculty"], document["slug"]])).status_code,
+            404,
+        )
+
+    def test_article_editor_exposes_all_block_types(self):
+        response = self.client.get(reverse("sdg4_create"))
+        for kind in ("text", "image", "presentation", "audio", "video"):
+            self.assertContains(response, f'data-add-kind="{kind}"')
+        self.assertContains(response, 'id="id_article-TOTAL_FORMS"')
+        self.assertContains(response, "sdg4-empty-article-block")
 
     def test_powerpoint_supported_as_download_only(self):
         _row, doc, url = self.publish(
@@ -250,7 +443,7 @@ class ShowcaseTests(TestCase):
 
     def test_draft_can_have_no_resources_but_publication_cannot(self):
         data = {**payload(), "resource_url": ""}
-        self.assertContains(self.client.post(reverse("sdg4_create"), data), "Add a link or upload")
+        self.assertContains(self.client.post(reverse("sdg4_create"), data), "Add an article block")
         self.assertFalse(News.objects.exists())
         data["action"] = "draft"
         response = self.client.post(reverse("sdg4_create"), data)
@@ -361,7 +554,7 @@ class ShowcaseTests(TestCase):
         updated = read_document(row)
         self.assertEqual(updated["courses"], doc["courses"])
         self.assertEqual(updated["stats"], doc["stats"])
-        self.assertEqual(updated["schema"], 2)
+        self.assertEqual(updated["schema"], 3)
         self.assertContains(self.client.get(url), "Новая")
         self.client.logout()
         for number in range(1, 4):

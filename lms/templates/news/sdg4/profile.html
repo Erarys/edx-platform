@@ -21,5 +21,6 @@ from django.utils.translation import gettext as _
 % if can_manage_sdg4:
   <p><a class="sdg4-button" href="${edit_url}">${_("Edit resources")}</a></p>
 % endif
+<%include file="article.html"/>
 <%include file="resources.html"/>
 <div class="sdg4-permalink"><label for="sdg4-permalink">${_("Permanent link for the application")}</label><input id="sdg4-permalink" type="url" value="${permanent_url}" readonly /></div>

@@ -13,8 +13,8 @@ from django.utils.translation import gettext as _
   </div>
 </%def>
 <nav class="sdg4-breadcrumb"><a href="${reverse('sdg4_manage')}">${_("Manage SDG 4 resources")}</a></nav>
-<header class="sdg4-edit-intro"><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Open educational resources")}</p><h1>${_("Edit resources") if row else _("Add material")}</h1>
-  <p>${_("Enter the teacher's name and faculty, then add a link or a presentation. Everything else is optional.")}</p>
+<header class="sdg4-edit-intro"><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Open educational resources")}</p><h1>${_("Edit article") if row else _("Add article")}</h1>
+  <p>${_("Build an article from text, images, presentations, audio and video. Blocks are displayed in the order shown below.")}</p>
 </header>
 % if request.GET.get('saved'):
   <p class="sdg4-saved" role="status">${_("Draft saved. You can return to it and continue later.")}</p>
@@ -35,7 +35,53 @@ from django.utils.translation import gettext as _
       </div>
     </details>
   </fieldset>
-  <fieldset><legend>02 · ${_("Link or presentation")}</legend>
+  <fieldset><legend>02 · ${_("Article content")}</legend>
+    ${field(teacher_form['article_title_ru'])}
+    ${field(teacher_form['cover_image'])}
+    % if row and row.cover_image:
+      <p class="helptext">${_("A cover is already uploaded. Choose another image only if you want to replace it.")}</p>
+    % endif
+    ${article_formset.management_form}
+    % if article_formset.non_form_errors():
+      <div class="sdg4-errors" role="alert">${article_formset.non_form_errors()}</div>
+    % endif
+    <div id="sdg4-article-blocks" class="sdg4-article-editor">
+      % for block in article_formset:
+        <section class="sdg4-article-editor-block" data-article-block>
+          <div class="sdg4-article-block-bar"><strong data-block-label>${_("Article block")}</strong><div><button type="button" data-move="up" aria-label="${_('Move block up')}">↑</button><button type="button" data-move="down" aria-label="${_('Move block down')}">↓</button><button type="button" data-remove>${_("Remove")}</button></div></div>
+          ${block.non_field_errors()}
+          ${block['block_id']}${block['ORDER']}<span hidden>${block['DELETE']}</span>
+          ${field(block['kind'])}
+          <div data-fields="text">${field(block['text'])}</div>
+          <div data-fields="file">
+            ${field(block['file'])}${field(block['title'])}${field(block['caption'])}
+            % if block.block.get('file_path'):
+              <p class="helptext">${_("Current file")}: ${block.block.get('title') or block.block.get('file_path')}</p>
+            % endif
+          </div>
+        </section>
+      % endfor
+    </div>
+    <div class="sdg4-add-blocks" aria-label="${_('Add article block')}">
+      <button type="button" data-add-kind="text">+ ${_("Text")}</button>
+      <button type="button" data-add-kind="image">+ ${_("Image")}</button>
+      <button type="button" data-add-kind="presentation">+ ${_("Presentation")}</button>
+      <button type="button" data-add-kind="audio">+ ${_("Audio")}</button>
+      <button type="button" data-add-kind="video">+ ${_("Video")}</button>
+    </div>
+    <p class="helptext">${_("You can add and reorder as many blocks as the configured server upload limits allow. Text is stored safely as plain text.")}</p>
+    <template id="sdg4-empty-article-block">
+      <% block = article_formset.empty_form %>
+      <section class="sdg4-article-editor-block" data-article-block>
+        <div class="sdg4-article-block-bar"><strong data-block-label>${_("Article block")}</strong><div><button type="button" data-move="up" aria-label="${_('Move block up')}">↑</button><button type="button" data-move="down" aria-label="${_('Move block down')}">↓</button><button type="button" data-remove>${_("Remove")}</button></div></div>
+        ${block['block_id']}${block['ORDER']}<span hidden>${block['DELETE']}</span>
+        ${field(block['kind'])}
+        <div data-fields="text">${field(block['text'])}</div>
+        <div data-fields="file">${field(block['file'])}${field(block['title'])}${field(block['caption'])}</div>
+      </section>
+    </template>
+  </fieldset>
+  <fieldset><legend>03 · ${_("External link or quick presentation upload")}</legend>
     <p class="helptext">${_("You do not need to create a course. Paste a link to any course or educational material, or select presentation files.")}</p>
     ${field(teacher_form['resource_url'])}
     ${field(teacher_form['resource_title'])}
@@ -59,7 +105,7 @@ from django.utils.translation import gettext as _
     % for code in ('kk', 'en'):
       <h2>${'KZ' if code == 'kk' else 'EN'}</h2>
       <div class="sdg4-form-grid">
-        % for name in ('name', 'position', 'degree', 'department'):
+        % for name in ('name', 'position', 'degree', 'department', 'article_title'):
           ${field(teacher_form[f'{name}_{code}'])}
         % endfor
       </div>

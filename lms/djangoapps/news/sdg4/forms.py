@@ -13,6 +13,21 @@ from django.utils.translation import gettext_lazy as _
 from .constants import COURSE_TYPES, FACULTIES, LANGUAGES, LICENSES
 from .data import validate_media_url, youtube_embed
 
+ARTICLE_BLOCK_TYPES = (
+    ("text", _("Text")),
+    ("image", _("Image")),
+    ("presentation", _("Presentation")),
+    ("audio", _("Audio")),
+    ("video", _("Video")),
+)
+
+ARTICLE_EXTENSIONS = {
+    "image": {".jpg", ".jpeg", ".png", ".webp", ".gif"},
+    "presentation": {".pdf", ".ppt", ".pptx"},
+    "audio": {".mp3", ".m4a", ".ogg", ".wav"},
+    "video": {".mp4", ".webm", ".ogv"},
+}
+MAX_ARTICLE_BLOCKS = max(1, int(getattr(settings, "SDG4_MAX_ARTICLE_BLOCKS", 1000)))
 
 def translated_fields(form, names, initial, publishing=True):
     for name, label, limit, multiline in names:
@@ -110,6 +125,11 @@ class SimpleTeacherForm(TeacherForm):
         validators=[validate_media_url],
     )
     resource_title = forms.CharField(label=_("Link title (optional)"), max_length=250, required=False)
+    cover_image = forms.ImageField(
+        label=_("Article cover (optional)"),
+        required=False,
+        widget=forms.ClearableFileInput(attrs={"accept": ".jpg,.jpeg,.png,.webp"}),
+    )
     presentations = MultipleFileField(
         label=_("Upload presentations"),
         required=False,
@@ -125,6 +145,12 @@ class SimpleTeacherForm(TeacherForm):
         resources = self.document.get("resources", [])
         link = next((item for item in resources if item.get("kind") == "link"), {})
         self.initial.update(resource_url=link.get("file_url", ""), resource_title=link.get("title", ""))
+        translated_fields(
+            self,
+            (("article_title", _("Article title (optional)"), 250, False),),
+            self.document,
+            publishing=False,
+        )
 
     def clean_presentations(self):
         uploads = self.cleaned_data["presentations"]
@@ -132,41 +158,158 @@ class SimpleTeacherForm(TeacherForm):
         if len(uploads) + existing > 200:
             raise ValidationError(_("You can upload up to 200 presentations per teacher."))
         for upload in uploads:
-            MaterialForm.validate_upload(upload, {".pdf", ".ppt", ".pptx"})
-            extension = PurePosixPath(upload.name.lower()).suffix
-            try:
-                if extension == ".ppt":
-                    if upload.read(8) != b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
-                        raise ValidationError(_("Upload a valid PowerPoint presentation."))
-                elif extension == ".pptx":
-                    # Inspect the directory only; never extract or execute an Office file.
-                    with ZipFile(upload) as archive:
-                        names = set(archive.namelist())
-                        if not {
-                            "[Content_Types].xml",
-                            "ppt/presentation.xml",
-                        } <= names or any("vbaproject" in name.lower() for name in names):
-                            raise ValidationError(_("Upload a valid PowerPoint presentation."))
-            except (BadZipFile, OSError):
-                raise ValidationError(_("Upload a valid PowerPoint presentation.")) from None
-            finally:
-                upload.seek(0)
+            validate_presentation_upload(upload)
         return uploads
+
+    def clean_cover_image(self):
+        cover = self.cleaned_data["cover_image"]
+        if cover and (cover.size > 20 * 1024 * 1024 or cover.image.format not in {"JPEG", "PNG", "WEBP"}):
+            raise ValidationError(_("Upload a JPEG, PNG or WebP cover up to 20 MB."))
+        return cover
 
     def clean(self):
         cleaned = super().clean()
-        legacy = self.document.get("courses", [])
-        existing = any(item.get("kind") != "link" for item in self.document.get("resources", []))
-        has_legacy = self.document.get("profile", {}).get("mooc_url") or any(
-            course.get("materials") for course in legacy
-        )
-        if (
-            self.publishing
-            and not self.errors
-            and not (cleaned.get("resource_url") or cleaned.get("presentations") or existing or has_legacy)
-        ):
-            raise ValidationError(_("Add a link or upload a presentation to publish. You can also save a draft."))
         return cleaned
+
+
+def validate_presentation_upload(upload):
+    MaterialForm.validate_upload(upload, ARTICLE_EXTENSIONS["presentation"])
+    extension = PurePosixPath(upload.name.lower()).suffix
+    try:
+        if extension == ".ppt":
+            if upload.read(8) != b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+                raise ValidationError(_("Upload a valid PowerPoint presentation."))
+        elif extension == ".pptx":
+            with ZipFile(upload) as archive:
+                names = set(archive.namelist())
+                if not {"[Content_Types].xml", "ppt/presentation.xml"} <= names or any(
+                    "vbaproject" in name.lower() for name in names
+                ):
+                    raise ValidationError(_("Upload a valid PowerPoint presentation."))
+    except (BadZipFile, OSError):
+        raise ValidationError(_("Upload a valid PowerPoint presentation.")) from None
+    finally:
+        upload.seek(0)
+
+
+def validate_article_upload(upload, kind):
+    """Validate enough of each browser-served format to reject renamed files."""
+    extensions = ARTICLE_EXTENSIONS[kind]
+    MaterialForm.validate_upload(upload, extensions)
+    extension = PurePosixPath(upload.name.lower()).suffix
+    if kind == "presentation":
+        validate_presentation_upload(upload)
+        return
+    if kind == "image":
+        try:
+            forms.ImageField().clean(upload)
+        except ValidationError:
+            raise ValidationError(_("Upload a valid image file.")) from None
+        finally:
+            upload.seek(0)
+        return
+    header = upload.read(64)
+    upload.seek(0)
+    valid = {
+        ".mp3": header.startswith(b"ID3") or (len(header) > 1 and header[0] == 0xFF and header[1] & 0xE0 == 0xE0),
+        ".m4a": len(header) >= 12 and header[4:8] == b"ftyp",
+        ".ogg": header.startswith(b"OggS"),
+        ".wav": header.startswith(b"RIFF") and header[8:12] == b"WAVE",
+        ".mp4": len(header) >= 12 and header[4:8] == b"ftyp",
+        ".webm": header.startswith(b"\x1aE\xdf\xa3"),
+        ".ogv": header.startswith(b"OggS"),
+    }.get(extension, False)
+    if not valid:
+        raise ValidationError(_("The uploaded media file is not valid."))
+
+
+class ArticleBlockForm(forms.Form):
+    """One ordered article block; existing file paths always come from the database."""
+
+    block_id = forms.CharField(required=False, widget=forms.HiddenInput())
+    kind = forms.ChoiceField(label=_("Block type"), choices=ARTICLE_BLOCK_TYPES)
+    text = forms.CharField(
+        label=_("Text"),
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 6, "placeholder": _("Write the article text here…")}),
+    )
+    title = forms.CharField(label=_("File title (optional)"), max_length=250, required=False)
+    caption = forms.CharField(label=_("Caption (optional)"), max_length=500, required=False)
+    file = forms.FileField(label=_("File"), required=False)
+
+    def __init__(self, *args, block=None, **kwargs):
+        self.block = block or {}
+        if self.block:
+            kwargs["initial"] = {
+                "block_id": self.block.get("id", ""),
+                "kind": self.block.get("kind", "text"),
+                "text": self.block.get("text", ""),
+                "title": self.block.get("title", ""),
+                "caption": self.block.get("caption", ""),
+                **kwargs.get("initial", {}),
+            }
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.errors:
+            return cleaned
+        block_id = cleaned.get("block_id", "")
+        expected_id = self.block.get("id", "")
+        if block_id != expected_id:
+            raise ValidationError(_("The article block is no longer current. Reload the page."))
+        kind = cleaned.get("kind")
+        upload = cleaned.get("file")
+        if kind == "text":
+            if not cleaned.get("text", "").strip():
+                self.add_error("text", _("Enter text for this block."))
+            if upload:
+                self.add_error("file", _("A text block cannot contain a file."))
+            return cleaned
+        existing_path = self.block.get("file_path", "")
+        if not upload and not existing_path:
+            self.add_error("file", _("Choose a file for this block."))
+            return cleaned
+        if not upload:
+            extension = PurePosixPath(existing_path.lower()).suffix
+            if kind != self.block.get("kind") or extension not in ARTICLE_EXTENSIONS[kind]:
+                self.add_error("file", _("Choose a file that matches the selected block type."))
+            return cleaned
+        try:
+            validate_article_upload(upload, kind)
+        except ValidationError as exc:
+            self.add_error("file", exc)
+            return cleaned
+        if not cleaned.get("title"):
+            cleaned["title"] = material_title(upload.name)
+        return cleaned
+
+
+class ArticleBlockFormSet(BaseFormSet):
+    ordering_widget = forms.HiddenInput
+
+    def __init__(self, *args, blocks=None, **kwargs):
+        self.blocks = blocks or []
+        kwargs["initial"] = self.blocks
+        super().__init__(*args, **kwargs)
+
+    def get_form_kwargs(self, index):
+        kwargs = super().get_form_kwargs(index)
+        if index is not None and index < len(self.blocks):
+            kwargs["block"] = self.blocks[index]
+        return kwargs
+
+
+ArticleBlocks = formset_factory(
+    ArticleBlockForm,
+    formset=ArticleBlockFormSet,
+    extra=0,
+    can_delete=True,
+    can_order=True,
+    max_num=MAX_ARTICLE_BLOCKS,
+    validate_max=True,
+    absolute_max=MAX_ARTICLE_BLOCKS,
+)
 
 
 class CourseForm(forms.Form):

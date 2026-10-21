@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlsplit
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import transaction
+from django.db.models import Q
 from django.http import Http404
 from django.urls import reverse
 from django.utils.text import slugify
@@ -21,6 +22,13 @@ from ..models import News
 from .constants import FACULTIES, NEWS_PREFIX
 
 logger = logging.getLogger(__name__)
+
+
+def sdg4_queryset():
+    """Use the explicit type while retaining rows from pre-migration imports."""
+    return News.objects.filter(
+        Q(content_type=News.ContentType.SDG4) | Q(title__startswith=NEWS_PREFIX)
+    )
 
 
 def language_code(value=None):
@@ -49,9 +57,10 @@ def alphabetical_key(name):
 def read_document(row):
     try:
         document = json.loads(row.content)
+        article = document.get("article", []) if isinstance(document, dict) else []
         if (
             not isinstance(document, dict)
-            or document.get("schema") not in {1, 2}
+            or document.get("schema") not in {1, 2, 3}
             or document.get("faculty") not in dict(FACULTIES)
             or not isinstance(document.get("profile"), dict)
             or not isinstance(document.get("courses"), list)
@@ -59,6 +68,19 @@ def read_document(row):
             or not all(isinstance(course, dict) for course in document["courses"])
             or not isinstance(document.get("resources", []), list)
             or not all(isinstance(item, dict) for item in document.get("resources", []))
+            or not isinstance(article, list)
+            or not all(
+                isinstance(item, dict)
+                and isinstance(item.get("id"), str)
+                and item.get("kind") in {"text", "image", "presentation", "audio", "video"}
+                and (
+                    isinstance(item.get("text"), str)
+                    if item.get("kind") == "text"
+                    else isinstance(item.get("file_path"), str)
+                )
+                for item in article
+            )
+            or ("article_title" in document and not isinstance(document["article_title"], dict))
             or row.title != document_key(document)
         ):
             raise ValueError("Invalid SDG 4 document")
@@ -82,7 +104,7 @@ def public_url(document):
 def documents(include_drafts=False):
     """Small editorial catalogue; do not mix the reserved rows with ordinary news."""
     result = []
-    for row in News.objects.filter(title__startswith=NEWS_PREFIX):
+    for row in sdg4_queryset():
         try:
             document = read_document(row)
         except Http404:
@@ -93,7 +115,7 @@ def documents(include_drafts=False):
 
 
 def find_page(faculty, teacher):
-    row = News.objects.filter(title=f"{NEWS_PREFIX}{faculty}/{teacher}").first()
+    row = sdg4_queryset().filter(title=f"{NEWS_PREFIX}{faculty}/{teacher}").first()
     if row is None:
         raise Http404
     document = read_document(row)
@@ -205,10 +227,10 @@ def file_url(material, kind="file"):
 
 
 @transaction.atomic
-def increment(row_id, course_number, metric):
+def increment(row_id, course_number, metric, count_page_view=False):
     if metric not in {"views", "downloads"}:
         raise ValueError("Invalid counter")
-    row = News.objects.select_for_update().get(pk=row_id, title__startswith=NEWS_PREFIX)
+    row = sdg4_queryset().select_for_update().get(pk=row_id)
     document = read_document(row)
     if not document.get("published"):
         raise Http404
@@ -219,6 +241,10 @@ def increment(row_id, course_number, metric):
     stats = document.setdefault("stats", {}).setdefault(str(course_number), {})
     stats[metric] = int(stats.get(metric, 0)) + 1
     row.content = json.dumps(document, ensure_ascii=False)
+    update_fields = ["content"]
+    if count_page_view:
+        row.view_count += 1
+        update_fields.append("view_count")
     # A public visit must not change the editorial update timestamp.
-    row.save(update_fields=["content"])
+    row.save(update_fields=update_fields)
     return document
