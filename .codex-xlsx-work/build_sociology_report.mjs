@@ -1,10 +1,10 @@
 import fs from "node:fs/promises";
 import { FileBlob, SpreadsheetFile, Workbook } from "@oai/artifact-tool";
 
-const inputPath = "C:/Users/Erarys/Desktop/edx-platform/.codex-xlsx-work/sociology_grades_after_august_20261016.tsv";
+const inputPath = "C:/Users/Erarys/Desktop/edx-platform/.codex-xlsx-work/sociology_grades_after_august_20261019.tsv";
 const outputDir = "C:/Users/Erarys/Desktop/edx-platform/outputs/01a13534-4201-71a2-bb04-cf122a6fdf80";
-const outputPath = `${outputDir}/Sociology_оценки_16.10.2026.xlsx`;
-const previewPath = "C:/Users/Erarys/Desktop/edx-platform/.codex-xlsx-work/Sociology_оценки_16.10.2026.png";
+const outputPath = `${outputDir}/Sociology_оценки_19.10.2026.xlsx`;
+const previewPath = "C:/Users/Erarys/Desktop/edx-platform/.codex-xlsx-work/Sociology_оценки_19.10.2026.png";
 
 const text = await fs.readFile(inputPath, "utf8");
 const lines = text.replace(/^\uFEFF/, "").trimEnd().split(/\r?\n/);
@@ -24,7 +24,7 @@ const rows = lines.map((line, index) => {
   return [n, cells[1], cells[2], grade];
 });
 
-if (rows.length !== 289) throw new Error(`Expected 289 learners, got ${rows.length}`);
+if (rows.length === 0) throw new Error("No learners found");
 if (new Set(rows.map(row => row[1])).size !== rows.length) throw new Error("Duplicate logins found");
 
 const workbook = Workbook.create();
@@ -33,7 +33,7 @@ sheet.showGridLines = false;
 sheet.tabColor = "#17365D";
 
 const matrix = [
-  ["N", "Логин", "ФИО", "Оценка курса (16.10)"],
+  ["N", "Логин", "ФИО", "Оценка курса (19.10)"],
   ...rows,
 ];
 const lastRow = matrix.length;
@@ -119,7 +119,8 @@ const savedSheet = saved.worksheets.getItem("Sociology");
 const savedValues = savedSheet.getRange(`A1:D${lastRow}`).values;
 const savedGrades = savedSheet.getRange(`D2:D${lastRow}`).values.flat();
 const nonzero = savedGrades.filter(value => typeof value === "number" && value > 0).length;
-if (savedValues.length !== 290 || nonzero !== 212) {
+const expectedNonzero = rows.filter(row => row[3] > 0).length;
+if (savedValues.length !== rows.length + 1 || nonzero !== expectedNonzero) {
   throw new Error(`Saved verification failed: rows=${savedValues.length}, nonzero=${nonzero}`);
 }
 
