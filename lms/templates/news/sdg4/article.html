@@ -36,12 +36,16 @@ from django.utils.translation import ngettext
         </figure>
       % elif block['kind'] == 'presentation':
         <section class="sdg4-article-attachment"><h3>${block.get('title') or _('Presentation')}</h3>
-          <div class="sdg4-actions"><a href="${block['url']}" target="_blank" rel="noopener">${_("Open presentation")}</a><a href="${block['download_url']}" download>${_("Download")}</a></div>
+          <div class="sdg4-actions"><a href="${block['preview_url'] if block['preview_available'] else block['url']}" target="_blank" rel="noopener">${_("Open presentation")}</a><a href="${block['download_url']}" download>${_("Download")}</a></div>
           % if block.get('caption'):
             <p>${block['caption']}</p>
           % endif
-          % if block['is_pdf']:
-            <details><summary>${_("View PDF on this page")}</summary><object data="${block['url']}" type="application/pdf" class="sdg4-pdf" aria-label="${block.get('title') or _('Presentation')}"><a href="${block['url']}">${_("Open PDF")}</a></object></details>
+          % if block['preview_available']:
+            <div class="sdg4-document-preview">
+              <iframe class="sdg4-document-viewer" src="${block['preview_url']}" title="${block.get('title') or _('Presentation')}" loading="lazy" allowfullscreen></iframe>
+            </div>
+          % else:
+            <p class="sdg4-preview-unavailable">${_("Presentation preview is temporarily unavailable. Download the original file to view it.")}</p>
           % endif
         </section>
       % elif block['kind'] == 'audio':

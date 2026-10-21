@@ -162,7 +162,10 @@
 .sdg4-article-media figcaption { margin-top: 12px; color: #506074; font-size: .9rem; }
 .sdg4-article-attachment { padding: 22px; border: 1px solid var(--sdg4-line); border-radius: 5px; background: #f6f8fa; }
 .sdg4-article-attachment h3 { margin-top: 0; }
-@media (max-width: 600px) { .sdg4-article-block-bar { align-items: flex-start; flex-direction: column; } .sdg4-article { padding: 20px; } }
+.sdg4-document-preview { width: 100%; margin-top: 18px; overflow: hidden; border: 1px solid #c5d0dc; border-radius: 8px; background: #e9eef3; box-shadow: 0 10px 30px #102c4d12; }
+.sdg4-document-viewer { display: block; width: 100%; height: min(78vh, 760px); min-height: 520px; border: 0; background: #fff; }
+.sdg4-preview-unavailable { margin: 18px 0 0; padding: 14px 16px; border-left: 4px solid #d08a16; background: #fff8e6; color: #5f491e; }
+@media (max-width: 600px) { .sdg4-article-block-bar { align-items: flex-start; flex-direction: column; } .sdg4-article { padding: 20px; } .sdg4-document-viewer { height: 68vh; min-height: 380px; } }
 
 /* 2026 publication feed: compact editorial rhythm inspired by article platforms,
    with an original Open KazNU blue/green identity. */

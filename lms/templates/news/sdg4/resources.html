@@ -8,13 +8,17 @@ from django.utils.translation import gettext as _
       % for item in resources:
         <li><span class="sdg4-file-badge" aria-hidden="true">${item['format'] or '↗'}</span><div><h3>${item['title']}</h3>
           <div class="sdg4-actions">
-            <a href="${item['url']}" target="_blank" rel="noopener noreferrer">${_("Open material")}</a>
+            <a href="${item['preview_url'] if item['preview_available'] else item['url']}" target="_blank" rel="noopener noreferrer">${_("Open material")}</a>
             % if item['kind'] != 'link':
               <a href="${item['download_url']}" download>${_("Download presentation")}</a>
             % endif
           </div>
-          % if item['is_pdf']:
-            <details><summary>${_("View PDF on this page")}</summary><object data="${item['url']}" type="application/pdf" class="sdg4-pdf" aria-label="${item['title']}"><a href="${item['url']}">${_("Open PDF")}</a></object></details>
+          % if item['preview_available']:
+            <div class="sdg4-document-preview">
+              <iframe class="sdg4-document-viewer" src="${item['preview_url']}" title="${item['title']}" loading="lazy" allowfullscreen></iframe>
+            </div>
+          % elif item['kind'] == 'presentation':
+            <p class="sdg4-preview-unavailable">${_("Presentation preview is temporarily unavailable. Download the original file to view it.")}</p>
           % endif
         </div></li>
       % endfor

@@ -2,9 +2,13 @@
 
 import copy
 import json
+import logging
 import math
 import re
-from pathlib import PurePosixPath
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path, PurePosixPath
 from uuid import uuid4
 
 from django.conf import settings
@@ -12,10 +16,11 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
+from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Q
-from django.http import FileResponse, Http404, HttpResponseBadRequest
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -87,6 +92,90 @@ COVER_CONTENT_TYPES = {
     ".png": "image/png",
     ".webp": "image/webp",
 }
+PRESENTATION_EXTENSIONS = {".pdf", ".ppt", ".pptx"}
+logger = logging.getLogger(__name__)
+
+
+class PresentationPreviewUnavailable(Exception):
+    """The original is valid, but a browser-safe PDF preview cannot be made."""
+
+
+def presentation_converter():
+    """Return an explicitly configured or system LibreOffice executable."""
+    if not getattr(settings, "SDG4_PRESENTATION_PREVIEW_ENABLED", True):
+        return ""
+    configured = str(getattr(settings, "SDG4_PRESENTATION_CONVERTER", "")).strip()
+    candidates = [configured] if configured else ["libreoffice", "soffice"]
+    for candidate in candidates:
+        executable = shutil.which(candidate)
+        if executable:
+            return executable
+    return ""
+
+
+def presentation_preview_path(row_id, item_id):
+    """Use a deterministic path so legacy presentations need no data migration."""
+    return f"sdg4/{row_id}/previews/{item_id}.pdf"
+
+
+def ensure_presentation_preview(row, item):
+    """Return a PDF path, converting PPT/PPTX once through a shell-free command."""
+    source_path = item.get("file_path", "")
+    extension = PurePosixPath(source_path.lower()).suffix
+    if extension == ".pdf":
+        return source_path
+    if extension not in {".ppt", ".pptx"}:
+        raise PresentationPreviewUnavailable
+    target_path = presentation_preview_path(row.pk, item["id"])
+    if default_storage.exists(target_path):
+        return target_path
+    converter = presentation_converter()
+    if not converter:
+        raise PresentationPreviewUnavailable
+
+    timeout = max(10, min(int(getattr(settings, "SDG4_PRESENTATION_PREVIEW_TIMEOUT", 120)), 600))
+    try:
+        with tempfile.TemporaryDirectory(prefix="sdg4-presentation-") as temporary_directory:
+            temporary_path = Path(temporary_directory)
+            source_file = temporary_path / f"presentation{extension}"
+            output_file = temporary_path / "presentation.pdf"
+            profile_directory = temporary_path / "libreoffice-profile"
+            profile_directory.mkdir()
+            with default_storage.open(source_path, "rb") as source, source_file.open("wb") as destination:
+                shutil.copyfileobj(source, destination)
+            result = subprocess.run(
+                [
+                    converter,
+                    "--headless",
+                    "--nologo",
+                    "--nodefault",
+                    "--nolockcheck",
+                    "--nofirststartwizard",
+                    f"-env:UserInstallation={profile_directory.as_uri()}",
+                    "--convert-to",
+                    "pdf",
+                    "--outdir",
+                    str(temporary_path),
+                    str(source_file),
+                ],
+                check=False,
+                capture_output=True,
+                timeout=timeout,
+            )
+            if result.returncode or not output_file.exists():
+                raise PresentationPreviewUnavailable
+            with output_file.open("rb") as preview:
+                if preview.read(5) != b"%PDF-":
+                    raise PresentationPreviewUnavailable
+                preview.seek(0)
+                stored_path = default_storage.save(target_path, File(preview))
+            if stored_path != target_path and default_storage.exists(target_path):
+                default_storage.delete(stored_path)
+                stored_path = target_path
+            return stored_path
+    except (OSError, subprocess.SubprocessError, PresentationPreviewUnavailable) as exc:
+        logger.warning("Could not create SDG 4 presentation preview for News %s: %s", row.pk, exc)
+        raise PresentationPreviewUnavailable from exc
 
 
 def render(request, template, context, status=200):
@@ -199,11 +288,16 @@ def course_number(request):
     return number
 
 
-def resource_cards(document):
+def resource_cards(row, document):
     result = []
+    converter_available = bool(presentation_converter())
     for item in document.get("resources", []):
         args = [document["faculty"], document["slug"], item["id"]]
         extension = PurePosixPath(item.get("file_path", "")).suffix.lower()
+        converted_preview = extension in {".ppt", ".pptx"} and (
+            converter_available
+            or default_storage.exists(presentation_preview_path(row.pk, item["id"]))
+        )
         result.append(
             {
                 **item,
@@ -211,14 +305,17 @@ def resource_cards(document):
                 "is_pdf": extension == ".pdf",
                 "url": reverse("sdg4_resource", args=args),
                 "download_url": reverse("sdg4_resource_download", args=args),
+                "preview_url": reverse("sdg4_resource_preview", args=args),
+                "preview_available": extension == ".pdf" or converted_preview,
             }
         )
     return result
 
 
-def article_blocks(document):
+def article_blocks(row, document):
     """Build safe, application-controlled media URLs for article rendering."""
     result = []
+    converter_available = bool(presentation_converter())
     for item in document.get("article", []):
         block = dict(item)
         if item.get("kind") != "text":
@@ -227,6 +324,16 @@ def article_blocks(document):
             block["download_url"] = reverse("sdg4_article_block_download", args=args)
             block["format"] = PurePosixPath(item.get("file_path", "")).suffix.lstrip(".").upper()
             block["is_pdf"] = block["format"] == "PDF"
+            if item.get("kind") == "presentation":
+                extension = PurePosixPath(item.get("file_path", "")).suffix.lower()
+                block["preview_url"] = reverse("sdg4_article_block_preview", args=args)
+                block["preview_available"] = block["is_pdf"] or (
+                    extension in {".ppt", ".pptx"}
+                    and (
+                        converter_available
+                        or default_storage.exists(presentation_preview_path(row.pk, item["id"]))
+                    )
+                )
         result.append(block)
     return result
 
@@ -321,9 +428,9 @@ def teacher(request, faculty, teacher):
                 "photo_url": row.image.url if row.image else "",
                 "faculty_name": dict(FACULTIES)[faculty],
                 "faculty_slug": faculty,
-                "resources": resource_cards(document),
+                "resources": resource_cards(row, document),
                 "article_title": publication_title(document),
-                "article_blocks": article_blocks(document),
+                "article_blocks": article_blocks(row, document),
                 "edit_url": reverse("sdg4_edit", args=[row.pk]),
                 "can_edit_sdg4": can_edit(request.user, row),
                 **publication_context(row, document),
@@ -379,9 +486,9 @@ def teacher(request, faculty, teacher):
             "duration": sum(material.get("duration") or 0 for material in course["materials"]),
             "stats": document.get("stats", {}).get(str(number), {}),
             "edit_url": reverse("sdg4_edit", args=[row.pk]),
-            "resources": resource_cards(document),
+            "resources": resource_cards(row, document),
             "article_title": publication_title(document),
-            "article_blocks": article_blocks(document),
+            "article_blocks": article_blocks(row, document),
             "can_edit_sdg4": can_edit(request.user, row),
             **publication_context(row, document),
         },
@@ -458,6 +565,50 @@ def resource(request, faculty, teacher, material_id, download=False):
     return response
 
 
+def presentation_preview_response(row, item):
+    """Serve a same-origin PDF suitable for an embedded, scrollable viewer."""
+    source_path = item.get("file_path", "")
+    if item.get("kind") != "presentation" or PurePosixPath(source_path.lower()).suffix not in PRESENTATION_EXTENSIONS:
+        raise Http404
+    try:
+        preview_path = ensure_presentation_preview(row, item)
+        stream = default_storage.open(preview_path, "rb")
+    except (FileNotFoundError, PresentationPreviewUnavailable):
+        return HttpResponse(
+            _("Presentation preview is temporarily unavailable. Download the original file to view it."),
+            status=503,
+            content_type="text/plain; charset=utf-8",
+        )
+    response = FileResponse(
+        stream,
+        as_attachment=False,
+        filename=(item.get("title") or str(_("Presentation"))) + ".pdf",
+        content_type="application/pdf",
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    response["X-Frame-Options"] = "SAMEORIGIN"
+    return response
+
+
+@never_cache
+@require_GET
+def resource_preview(request, faculty, teacher, material_id):
+    """Preview a legacy resource presentation, including existing PPT/PPTX files."""
+    row, _document = find_page(faculty, teacher)
+    with transaction.atomic():
+        row = sdg4_queryset().select_for_update().get(pk=row.pk)
+        document = read_document(row)
+        if not document.get("published") or row.moderation_status != News.ModerationStatus.PUBLISHED:
+            raise Http404
+        item = next(
+            (candidate for candidate in document.get("resources", []) if candidate.get("id") == material_id),
+            None,
+        )
+        if item is None:
+            raise Http404
+        return presentation_preview_response(row, item)
+
+
 @never_cache
 @require_GET
 def article_block(request, faculty, teacher, block_id, download=False):
@@ -483,6 +634,25 @@ def article_block(request, faculty, teacher, block_id, download=False):
     response["X-Content-Type-Options"] = "nosniff"
     response["X-Frame-Options"] = "SAMEORIGIN"
     return response
+
+
+@never_cache
+@require_GET
+def article_block_preview(request, faculty, teacher, block_id):
+    """Preview an article presentation without exposing draft uploads."""
+    row, _document = find_page(faculty, teacher)
+    with transaction.atomic():
+        row = sdg4_queryset().select_for_update().get(pk=row.pk)
+        document = read_document(row)
+        if not document.get("published") or row.moderation_status != News.ModerationStatus.PUBLISHED:
+            raise Http404
+        item = next(
+            (candidate for candidate in document.get("article", []) if candidate.get("id") == block_id),
+            None,
+        )
+        if item is None:
+            raise Http404
+        return presentation_preview_response(row, item)
 
 
 @never_cache
@@ -700,8 +870,13 @@ def owned_upload_paths(row, document):
     """Return only files stored below this publication's private upload prefix."""
     prefix = f"sdg4/{row.pk}/"
     candidates = [row.image.name if row.image else "", row.cover_image.name if row.cover_image else ""]
-    candidates.extend(item.get("file_path", "") for item in document.get("resources", []))
-    candidates.extend(item.get("file_path", "") for item in document.get("article", []))
+    uploaded_items = [*document.get("resources", []), *document.get("article", [])]
+    candidates.extend(item.get("file_path", "") for item in uploaded_items)
+    for item in uploaded_items:
+        if item.get("kind") == "presentation" and item.get("id"):
+            preview_path = presentation_preview_path(row.pk, item["id"])
+            if default_storage.exists(preview_path):
+                candidates.append(preview_path)
     for course in document.get("courses", []):
         for item in course.get("materials", []):
             candidates.extend((item.get("file_path", ""), item.get("captions_path", "")))
@@ -949,7 +1124,7 @@ def edit(request, news_id=None):
             "document": document,
             "row": row,
             "moderation_status": moderation_status,
-            "existing_resources": resource_cards(document) if document else [],
+            "existing_resources": resource_cards(row, document) if document else [],
             "article_formset": article_formset,
         },
     )

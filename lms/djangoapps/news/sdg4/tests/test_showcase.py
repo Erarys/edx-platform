@@ -236,6 +236,14 @@ class ShowcaseTests(TestCase):
         self.assertContains(self.client.get(url), "01 Введение")
         item = doc["resources"][0]
         args = [doc["faculty"], doc["slug"], item["id"]]
+        preview_url = reverse("sdg4_resource_preview", args=args)
+        page = self.client.get(url)
+        self.assertContains(page, preview_url)
+        self.assertContains(page, 'class="sdg4-document-viewer"')
+        preview = self.client.get(preview_url)
+        self.assertEqual(preview["Content-Type"], "application/pdf")
+        self.assertEqual(preview["X-Frame-Options"], "SAMEORIGIN")
+        self.assertTrue(b"".join(preview.streaming_content).startswith(b"%PDF-"))
         response = self.client.get(reverse("sdg4_resource", args=args))
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertEqual(response["X-Frame-Options"], "SAMEORIGIN")
@@ -277,6 +285,7 @@ class ShowcaseTests(TestCase):
         self.assertContains(page, "Подпись к изображению")
         self.assertContains(page, "<audio", html=False)
         self.assertContains(page, "<video", html=False)
+        self.assertContains(page, 'class="sdg4-document-viewer"')
         self.assertContains(page, "editor")
         self.assertContains(page, "ago")
         self.assertContains(page, "1 view")
@@ -427,7 +436,8 @@ class ShowcaseTests(TestCase):
         self.assertContains(response, 'id="id_article-TOTAL_FORMS"')
         self.assertContains(response, "sdg4-empty-article-block")
 
-    def test_powerpoint_supported_as_download_only(self):
+    @patch.object(views, "presentation_converter", return_value="libreoffice")
+    def test_powerpoint_has_embedded_pdf_preview_and_original_download(self, _converter):
         _row, doc, url = self.publish(
             resource_url="",
             presentations=[
@@ -435,11 +445,36 @@ class ShowcaseTests(TestCase):
                 SimpleUploadedFile("Слайды.ppt", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"data"),
             ],
         )
-        self.assertNotContains(self.client.get(url), "<object")
+        page = self.client.get(url)
+        self.assertContains(page, 'class="sdg4-document-viewer"', count=2)
         for item in doc["resources"]:
+            args = [doc["faculty"], doc["slug"], item["id"]]
+            preview_path = default_storage.save(
+                f"sdg4/test-previews/{item['id']}.pdf",
+                pdf(),
+            )
+            with patch.object(views, "ensure_presentation_preview", return_value=preview_path):
+                preview = self.client.get(reverse("sdg4_resource_preview", args=args))
+                self.assertEqual(preview.status_code, 200)
+                self.assertEqual(preview["Content-Type"], "application/pdf")
+                self.assertTrue(b"".join(preview.streaming_content).startswith(b"%PDF-"))
             response = self.client.get(reverse("sdg4_resource", args=[doc["faculty"], doc["slug"], item["id"]]))
             self.assertIn("attachment", response["Content-Disposition"])
             b"".join(response.streaming_content)
+
+    @override_settings(SDG4_PRESENTATION_PREVIEW_ENABLED=False)
+    def test_powerpoint_explains_when_converter_is_not_installed(self):
+        _row, doc, url = self.publish(resource_url="", presentations=[pptx()])
+        page = self.client.get(url)
+        self.assertContains(page, "Presentation preview is temporarily unavailable")
+        item = doc["resources"][0]
+        response = self.client.get(
+            reverse(
+                "sdg4_resource_preview",
+                args=[doc["faculty"], doc["slug"], item["id"]],
+            )
+        )
+        self.assertEqual(response.status_code, 503)
 
     def test_invalid_pdf_powerpoint_and_macro_rejected(self):
         for upload in (

@@ -27,6 +27,11 @@ urlpatterns = [
         name="sdg4_resource_download",
     ),
     path(
+        "<slug:faculty>/<slug:teacher>/resource/<slug:material_id>/preview/",
+        views.resource_preview,
+        name="sdg4_resource_preview",
+    ),
+    path(
         "<slug:faculty>/<slug:teacher>/article/<slug:block_id>/",
         views.article_block,
         name="sdg4_article_block",
@@ -36,6 +41,11 @@ urlpatterns = [
         views.article_block,
         {"download": True},
         name="sdg4_article_block_download",
+    ),
+    path(
+        "<slug:faculty>/<slug:teacher>/article/<slug:block_id>/preview/",
+        views.article_block_preview,
+        name="sdg4_article_block_preview",
     ),
     path(
         "<slug:faculty>/<slug:teacher>/cover/",
