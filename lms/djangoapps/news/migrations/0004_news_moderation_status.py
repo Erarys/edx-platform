@@ -36,9 +36,9 @@ class Migration(migrations.Migration):
             name="moderation_status",
             field=models.CharField(
                 choices=[
-                    ("draft", "Черновик"),
-                    ("pending", "На модерации"),
-                    ("published", "Опубликовано"),
+                    ("draft", "Draft"),
+                    ("pending", "Pending review"),
+                    ("published", "Published"),
                 ],
                 db_index=True,
                 default="draft",

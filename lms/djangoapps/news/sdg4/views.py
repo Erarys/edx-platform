@@ -239,6 +239,14 @@ def publication_context(row, document):
     }
 
 
+def publication_title(document):
+    title = localized(document.get("article_title"))
+    if title:
+        return title
+    teacher_name = localized(document.get("profile", {}).get("name"))
+    return _("Educational materials by {name}").format(name=teacher_name)
+
+
 def publication_card(row, document):
     """One feed card per publication, regardless of how many files it contains."""
     teacher = teacher_card(row, document)
@@ -256,10 +264,20 @@ def publication_card(row, document):
         summary = summary[:417].rstrip() + "…"
     courses = sum(bool(course.get("materials")) for course in document.get("courses", []))
     attachments = sum(block.get("kind") != "text" for block in document.get("article", []))
+    cover_url = metadata["cover_url"]
+    if not cover_url:
+        first_image = next(
+            (block for block in document.get("article", []) if block.get("kind") == "image"),
+            None,
+        )
+        if first_image:
+            cover_url = reverse(
+                "sdg4_article_block",
+                args=[document["faculty"], document["slug"], first_image["id"]],
+            )
     return {
         "id": row.pk,
-        "title": localized(document.get("article_title"))
-        or _("Educational materials by {name}").format(name=teacher["name"]),
+        "title": publication_title(document),
         "summary": summary or localized(document.get("profile", {}).get("position")),
         "url": public_url(document),
         "teacher": teacher,
@@ -268,7 +286,7 @@ def publication_card(row, document):
         "published_ago": metadata["article_published_ago"],
         "reading_minutes": metadata["article_reading_minutes"],
         "view_count": metadata["article_view_count"],
-        "cover_url": metadata["cover_url"],
+        "cover_url": cover_url,
         "photo_url": row.image.url if row.image else "",
         "material_count": len(document.get("resources", [])) + courses + attachments,
     }
@@ -293,11 +311,10 @@ def teacher(request, faculty, teacher):
                 "faculty_name": dict(FACULTIES)[faculty],
                 "faculty_slug": faculty,
                 "resources": resource_cards(document),
-                "article_title": localized(document.get("article_title")),
+                "article_title": publication_title(document),
                 "article_blocks": article_blocks(document),
                 "edit_url": reverse("sdg4_edit", args=[row.pk]),
                 "can_edit_sdg4": can_edit(request.user, row),
-                "permanent_url": request.build_absolute_uri(public_url(document)),
                 **publication_context(row, document),
             },
         )
@@ -351,9 +368,8 @@ def teacher(request, faculty, teacher):
             "duration": sum(material.get("duration") or 0 for material in course["materials"]),
             "stats": document.get("stats", {}).get(str(number), {}),
             "edit_url": reverse("sdg4_edit", args=[row.pk]),
-            "permanent_url": request.build_absolute_uri(public_url(document)),
             "resources": resource_cards(document),
-            "article_title": localized(document.get("article_title")),
+            "article_title": publication_title(document),
             "article_blocks": article_blocks(document),
             "can_edit_sdg4": can_edit(request.user, row),
             **publication_context(row, document),

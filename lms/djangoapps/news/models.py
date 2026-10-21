@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class News(models.Model):
@@ -8,9 +9,9 @@ class News(models.Model):
         SDG4 = "sdg4", "Материал ЦУР 4"
 
     class ModerationStatus(models.TextChoices):
-        DRAFT = "draft", "Черновик"
-        PENDING = "pending", "На модерации"
-        PUBLISHED = "published", "Опубликовано"
+        DRAFT = "draft", _("Draft")
+        PENDING = "pending", _("Pending review")
+        PUBLISHED = "published", _("Published")
 
     title = models.CharField(max_length=200, verbose_name="Заголовок")
     content = models.TextField(verbose_name="Содержание")

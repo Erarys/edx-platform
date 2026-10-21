@@ -303,6 +303,27 @@ class ShowcaseTests(TestCase):
             self.assertEqual(media["X-Content-Type-Options"], "nosniff")
             b"".join(media.streaming_content)
 
+    def test_first_article_image_is_the_feed_cover_when_no_cover_is_uploaded(self):
+        response = self.client.post(
+            reverse("sdg4_create"),
+            {**payload(), "resource_url": "", **article_payload()},
+        )
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        row = News.objects.get()
+        document = read_document(row)
+        first_image = next(block for block in document["article"] if block["kind"] == "image")
+        image_url = reverse(
+            "sdg4_article_block",
+            args=[document["faculty"], document["slug"], first_image["id"]],
+        )
+        landing = self.client.get(reverse("sdg4_index"))
+        self.assertContains(landing, 'class="sdg4-feed-cover"')
+        self.assertContains(landing, image_url)
+
+        detail = self.client.get(response.url)
+        self.assertNotContains(detail, "Permanent link for the application")
+        self.assertNotContains(detail, 'class="sdg4-profile')
+
     def test_article_text_is_escaped_and_can_publish_without_legacy_resource(self):
         data = {
             **payload(),

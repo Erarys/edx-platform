@@ -1,30 +1,11 @@
 <%page expression_filter="h"/>
 <%inherit file="base.html" />
 <%!
-from django.urls import reverse
-from django.utils.translation import gettext as _, pgettext
+from django.utils.translation import gettext as _
 %>
 <%def name="pagetitle()">${_('E-learning resources — {name}').format(name=teacher_name)}</%def>
-<nav class="sdg4-breadcrumb" aria-label="${_('Breadcrumbs')}">
-  <a href="${reverse('sdg4_index')}">${pgettext("SDG 4 showcase", "Faculties")}</a><span aria-hidden="true"> / </span>
-  <a href="${reverse('sdg4_faculty', args=[faculty_slug])}">${faculty_name}</a>
-</nav>
-<header class="sdg4-profile">
-  % if photo_url:
-    <img class="sdg4-photo" src="${photo_url}" alt="${teacher_name}" width="144" height="144" />
-  % endif
-  <div>
-    <h1>${_('E-learning resources — {name}').format(name=teacher_name)}</h1>
-    <p>${profile['position']} · ${profile['degree']}</p>
-    <p>${profile['department']}<br />${faculty_name}</p>
-    % if mooc_url:
-      <p><a href="${mooc_url}">${_("Teacher's MOOC on Open KazNU")}</a></p>
-    % endif
-  </div>
-</header>
-<div class="sdg4-permalink"><label for="sdg4-permalink">${_("Permanent link for the application")}</label><input id="sdg4-permalink" type="url" value="${permanent_url}" readonly /></div>
 % if can_edit_sdg4:
-  <p><a href="${edit_url}">${_("Edit resources")}</a></p>
+  <p class="sdg4-article-edit"><a href="${edit_url}">${_("Edit publication")}</a></p>
 % endif
 <%include file="article.html"/>
 <%include file="resources.html"/>
