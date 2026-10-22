@@ -64,7 +64,7 @@ from django.utils.translation import gettext as _
       <li>
         <h3>${item.get('title') or _("Material")}</h3>
         % if item['kind'] == 'presentation':
-          <% open_url = item.get('view_url') or item.get('url') %>
+          <% open_url = item.get('preview_url') if item.get('preview_available') else item.get('view_url') or item.get('url') %>
           <div class="sdg4-actions"><a href="${open_url}" target="_blank" rel="noopener">${_("Open presentation")}</a><a class="sdg4-button" href="${item['download_url']}" download>${_("Download")}</a></div>
           % if item.get('preview_available'):
             <div class="sdg4-document-preview"><object data="${item['preview_url']}" type="application/pdf" class="sdg4-document-viewer" aria-label="${item.get('title') or _('Presentation')}"><a href="${open_url}">${_("Open presentation")}</a></object></div>

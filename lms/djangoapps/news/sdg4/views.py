@@ -1093,6 +1093,10 @@ def owned_upload_paths(row, document):
     for course in document.get("courses", []):
         for item in course.get("materials", []):
             candidates.extend((item.get("file_path", ""), item.get("captions_path", "")))
+            if course.get("type") == "lecture" and item.get("id"):
+                preview_path = presentation_preview_path(row.pk, item["id"])
+                if default_storage.exists(preview_path):
+                    candidates.append(preview_path)
     return sorted({path for path in candidates if path.startswith(prefix)})
 
 

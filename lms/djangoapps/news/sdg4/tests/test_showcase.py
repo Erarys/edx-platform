@@ -255,7 +255,28 @@ class ShowcaseTests(TestCase):
             "sdg4_material_preview",
             args=[document["faculty"], document["slug"], 1, item["id"]],
         )
-        self.assertContains(page, preview_url)
+        download_url = reverse(
+            "sdg4_download",
+            args=[document["faculty"], document["slug"], 1, item["id"]],
+        )
+        self.assertContains(page, f'href="{preview_url}" target="_blank"')
+        self.assertContains(page, f'href="{download_url}" download')
+
+        cached_preview = views.presentation_preview_path(row.pk, item["id"])
+        default_storage.save(cached_preview, pdf("preview.pdf"))
+        preview = self.client.get(preview_url)
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview["Content-Type"], "application/pdf")
+        preview.close()
+        original = self.client.get(download_url)
+        self.assertEqual(original.status_code, 200)
+        self.assertIn("attachment", original["Content-Disposition"])
+        self.assertIn(".pptx", original["Content-Disposition"])
+        original.close()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(reverse("sdg4_delete", args=[row.pk]), {"confirm": "yes"})
+        self.assertFalse(default_storage.exists(cached_preview))
 
     def test_one_gigabyte_limit_is_the_default(self):
         class LargeUpload:
