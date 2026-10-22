@@ -27,6 +27,16 @@
 
     function prepareMaterial(material, editor) {
         var remove = material.querySelector('[data-remove-material]');
+        var file = material.querySelector('input[type="file"][name$="-file"]');
+        var url = material.querySelector('input[name$="-file_url"]');
+        if (file && url) {
+            file.addEventListener('change', function () {
+                if (file.files && file.files.length) { url.value = ''; }
+            });
+            url.addEventListener('input', function () {
+                if (url.value.trim()) { file.value = ''; }
+            });
+        }
         if (remove) {
             remove.addEventListener('click', function () {
                 var deleted = material.querySelector('input[name$="-DELETE"]');

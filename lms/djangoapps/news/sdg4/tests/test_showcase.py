@@ -324,6 +324,34 @@ class ShowcaseTests(TestCase):
         self.assertContains(response, "does not belong to this account")
         self.assertFalse(News.objects.exists())
 
+    @override_settings(SDG4_UPLOAD_CHUNK_BYTES=256 * 1024)
+    def test_chunked_video_is_attached_to_a_material_form(self):
+        content = b"video-data" * (40 * 1024)
+        staged = self.stage_upload(
+            "materials-1-0-file",
+            "video",
+            "lecture.mp4",
+            content,
+        )
+        data = course_payload(tab_count=1)
+        data.pop("course-1-lecture_files")
+        data.update(
+            {
+                "course-1-type": "video",
+                "materials-1-TOTAL_FORMS": "1",
+                "materials-1-INITIAL_FORMS": "0",
+                "materials-1-0-title": "Видео 1",
+                "materials-1-0-file_url": "",
+                "materials-1-0-duration": "60",
+                views.STAGED_UPLOAD_FIELD: staged["token"],
+            }
+        )
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        material = read_document(News.objects.get())["courses"][0]["materials"][0]
+        with default_storage.open(material["file_path"], "rb") as stored:
+            self.assertEqual(stored.read(), content)
+
     def test_chunk_api_accepts_csrf_header_without_parsing_a_multipart_form(self):
         client = Client(enforce_csrf_checks=True)
         client.force_login(self.staff)
@@ -365,6 +393,21 @@ class ShowcaseTests(TestCase):
         page = self.client.get(response.url)
         self.assertContains(page, "youtube-nocookie.com/embed/abcdefghijk")
         self.assertContains(page, "2 min 5 sec")
+
+    def test_new_video_upload_replaces_url_in_the_same_material(self):
+        form = MaterialForm(
+            {
+                "title": "Видео 1",
+                "file_url": "https://youtu.be/abcdefghijk",
+                "duration": "60",
+            },
+            {"file": SimpleUploadedFile("lecture.mp4", b"video-data", "video/mp4")},
+            course_type="video",
+            publishing=True,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["file_url"], "")
+        self.assertEqual(form.cleaned_data["file"].name, "lecture.mp4")
 
     def test_pptx_is_saved_and_public_page_uses_preview_route(self):
         data = course_payload()

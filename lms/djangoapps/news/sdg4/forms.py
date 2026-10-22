@@ -415,7 +415,11 @@ class MaterialForm(forms.Form):
         else:
             self.validate_upload(upload, {".mp4", ".webm", ".ogv"})
         if upload and url:
-            raise ValidationError(_("Choose either an uploaded file or an existing URL."))
+            # Selecting a new local file is an explicit replacement action.  In
+            # particular, this lets an author replace a previously saved URL
+            # without having to notice and clear the URL field first.
+            url = ""
+            cleaned["file_url"] = ""
         if self.publishing and not (upload or url or self.material.get("file_path")):
             raise ValidationError(_("Add a file or a link for every lesson."))
         if not cleaned.get("title"):
