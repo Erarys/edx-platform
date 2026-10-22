@@ -1,9 +1,14 @@
 """
 Tests of the instructor dashboard spoc gradebook
 """
+import io
+import xml.etree.ElementTree as ET
+from zipfile import ZipFile
+
 from django.urls import reverse
 
 from xmodule.capa.tests.response_xml_factory import StringResponseXMLFactory
+from common.djangoapps.student.models import CourseEnrollment
 from common.djangoapps.student.tests.factories import AdminFactory, CourseEnrollmentFactory, UserFactory
 from lms.djangoapps.courseware.tests.factories import StudentModuleFactory
 from lms.djangoapps.grades.api import task_compute_all_grades_for_course
@@ -88,6 +93,56 @@ class TestDefaultGradingPolicy(TestGradebook):
     def test_all_users_listed(self):
         for user in self.users:
             assert user.username in str(self.response.content, 'utf-8')
+
+    def test_excel_export_lists_all_active_users(self):
+        inactive_user = self.users[-1]
+        CourseEnrollment.objects.filter(
+            user=inactive_user,
+            course_id=self.course.id,
+        ).update(is_active=False)
+
+        response = self.client.get(reverse(
+            'spoc_gradebook_excel',
+            args=(str(self.course.id),),
+        ))
+
+        assert response.status_code == 200
+        assert response['Content-Type'] == (
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        assert response['Content-Disposition'].endswith('.xlsx"')
+
+        with ZipFile(io.BytesIO(response.content)) as archive:
+            assert {
+                '[Content_Types].xml',
+                'xl/workbook.xml',
+                'xl/worksheets/sheet1.xml',
+                'xl/styles.xml',
+            }.issubset(archive.namelist())
+            workbook = ET.fromstring(archive.read('xl/workbook.xml'))
+            worksheet = ET.fromstring(archive.read('xl/worksheets/sheet1.xml'))
+
+        namespace = {'xlsx': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+        sheet = workbook.find('xlsx:sheets/xlsx:sheet', namespace)
+        assert sheet.attrib['name'] == self.course.display_name
+        rows = worksheet.findall('xlsx:sheetData/xlsx:row', namespace)
+        assert len(rows) == USER_COUNT
+
+        text = ''.join(node.text or '' for node in worksheet.findall('.//xlsx:t', namespace))
+        for user in self.users[:-1]:
+            assert user.username in text
+        assert inactive_user.username not in text
+
+    def test_excel_export_requires_course_staff_permission(self):
+        learner = self.users[0]
+        self.client.login(username=learner.username, password=self.TEST_PASSWORD)
+
+        response = self.client.get(reverse(
+            'spoc_gradebook_excel',
+            args=(str(self.course.id),),
+        ))
+
+        assert response.status_code == 403
 
     def test_default_policy(self):
         # Default >= 50% passes, so Users 5-10 should be passing for Homework 1 [6]

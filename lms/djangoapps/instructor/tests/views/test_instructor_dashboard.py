@@ -386,6 +386,11 @@ class TestInstructorDashboard(ModuleStoreTestCase, LoginEnrollmentTestCase, XssT
             self.GRADEBOOK_LEARNER_COUNT_MESSAGE,
         )
         self.assertContains(response, 'View Gradebook')
+        self.assertContains(response, reverse(
+            'spoc_gradebook_excel',
+            kwargs={'course_id': self.course.id},
+        ))
+        self.assertContains(response, 'Download student grades')
 
     @patch(
         'lms.djangoapps.instructor.views.instructor_dashboard.settings.WRITABLE_GRADEBOOK_URL',

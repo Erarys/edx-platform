@@ -13,6 +13,12 @@
         <br><br>
         <span name="gradebook-link"><a href="${ section_data['spoc_gradebook_url'] }" class="gradebook-link"> ${_("View Gradebook")} </a></span>
     %endif
+        <span class="gradebook-download-separator" aria-hidden="true"> | </span>
+        <span name="gradebook-excel-link">
+            <a href="${ section_data['spoc_gradebook_excel_url'] }" class="gradebook-excel-link">
+                ${_("Download student grades")} (.xlsx)
+            </a>
+        </span>
         <br><br>
         <hr>
     %endif

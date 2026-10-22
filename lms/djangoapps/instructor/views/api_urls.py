@@ -74,6 +74,7 @@ urlpatterns = [
 
     # spoc gradebook
     path('gradebook', gradebook_api.spoc_gradebook, name='spoc_gradebook'),
+    path('gradebook.xlsx', gradebook_api.spoc_gradebook_excel, name='spoc_gradebook_excel'),
 
     path('gradebook/<int:offset>', gradebook_api.spoc_gradebook, name='spoc_gradebook'),
 
