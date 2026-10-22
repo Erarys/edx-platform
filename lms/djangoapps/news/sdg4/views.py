@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path, PurePosixPath
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 from uuid import uuid4
 
 from django.conf import settings
@@ -703,14 +703,9 @@ def course_number(request):
 
 def resource_cards(row, document):
     result = []
-    converter_available = bool(presentation_converter())
     for item in document.get("resources", []):
         args = [document["faculty"], document["slug"], item["id"]]
         extension = PurePosixPath(item.get("file_path", "")).suffix.lower()
-        converted_preview = extension in {".ppt", ".pptx"} and (
-            converter_available
-            or default_storage.exists(presentation_preview_path(row.pk, item["id"]))
-        )
         result.append(
             {
                 **item,
@@ -718,8 +713,7 @@ def resource_cards(row, document):
                 "is_pdf": extension == ".pdf",
                 "url": reverse("sdg4_resource", args=args),
                 "download_url": reverse("sdg4_resource_download", args=args),
-                "preview_url": reverse("sdg4_resource_preview", args=args),
-                "preview_available": extension == ".pdf" or converted_preview,
+                "download_label": material_download_label(item),
             }
         )
     return result
@@ -728,7 +722,6 @@ def resource_cards(row, document):
 def article_blocks(row, document):
     """Build safe, application-controlled media URLs for article rendering."""
     result = []
-    converter_available = bool(presentation_converter())
     for item in document.get("article", []):
         block = dict(item)
         if item.get("kind") != "text":
@@ -738,17 +731,23 @@ def article_blocks(row, document):
             block["format"] = PurePosixPath(item.get("file_path", "")).suffix.lstrip(".").upper()
             block["is_pdf"] = block["format"] == "PDF"
             if item.get("kind") == "presentation":
-                extension = PurePosixPath(item.get("file_path", "")).suffix.lower()
-                block["preview_url"] = reverse("sdg4_article_block_preview", args=args)
-                block["preview_available"] = block["is_pdf"] or (
-                    extension in {".ppt", ".pptx"}
-                    and (
-                        converter_available
-                        or default_storage.exists(presentation_preview_path(row.pk, item["id"]))
-                    )
-                )
+                block["download_label"] = material_download_label(item)
         result.append(block)
     return result
+
+
+def material_download_label(item):
+    """Return a human-readable filename for a direct presentation download."""
+    title = unquote(str(item.get("title") or "")).strip()
+    if "block@" in title:
+        title = title.rsplit("block@", maxsplit=1)[1]
+    source = item.get("file_path") or urlsplit(item.get("file_url", "")).path
+    extension = PurePosixPath(source).suffix.lower()
+    if not title:
+        title = PurePosixPath(unquote(source)).stem or str(_("Presentation"))
+    if extension and not title.lower().endswith(extension):
+        title += extension
+    return title
 
 
 def publication_context(row, document):
@@ -868,16 +867,10 @@ def teacher(request, faculty, teacher):
             if course["type"] == "lecture":
                 args = [document["faculty"], document["slug"], selected_source["course_number"], item["id"]]
                 view_url = reverse("sdg4_material", args=args)
-                stored_file = bool(item.get("file_path"))
                 material_item.update(
                     view_url=view_url,
                     download_url=reverse("sdg4_download", args=args),
-                    preview_url=reverse("sdg4_material_preview", args=args) if stored_file else view_url,
-                    preview_available=extension == ".pdf" or (
-                        stored_file
-                        and extension in {".ppt", ".pptx"}
-                        and (presentation_converter() or default_storage.exists(presentation_preview_path(row.pk, item["id"])))
-                    ),
+                    download_label=material_download_label(item),
                 )
             material_context.append(material_item)
     else:
@@ -921,7 +914,6 @@ def teacher(request, faculty, teacher):
             "annotation": localized(course.get("annotation")) if course else "",
             "material_language": dict(LANGUAGES).get(course.get("language"), "") if course else "",
             "license_name": dict(LICENSES).get(course.get("license"), "") if course else "",
-            "duration": sum(material.get("duration") or 0 for material in material_context),
             "stats": selected_stats,
             "edit_url": reverse("sdg4_edit", args=[_canonical_row.pk]),
             "can_edit_sdg4": can_edit(request.user, _canonical_row),
@@ -1448,7 +1440,8 @@ def save_page(row, original, teacher_form, bundles, moderation_status, author=No
                     if not values or values.get("DELETE"):
                         continue
                     item = copy.deepcopy(material_form.material)
-                    item.update({key: values.get(key) for key in ("title", "duration")})
+                    item["title"] = values.get("title")
+                    item.pop("duration", None)
                     item.setdefault("id", uuid4().hex)
                     upload = values.get("file")
                     url = values.get("file_url", "")
@@ -1467,7 +1460,6 @@ def save_page(row, original, teacher_form, bundles, moderation_status, author=No
                             "id": uuid4().hex,
                             "title": material_title(upload.name),
                             "file_path": save_upload(upload, row.pk, f"courses/{slot}", saved),
-                            "duration": None,
                         }
                     )
                 courses.append(course)

@@ -6,19 +6,11 @@ from django.utils.translation import gettext as _
   <section class="sdg4-profile-resources" aria-label="${_("Attached materials")}">
     <ul class="sdg4-presentation-list">
       % for item in resources:
-        <li><span class="sdg4-file-badge" aria-hidden="true">${item['format'] or '↗'}</span><div><h3>${item['title']}</h3>
-          <div class="sdg4-actions">
-            <a href="${item['preview_url'] if item['preview_available'] else item['url']}" target="_blank" rel="noopener noreferrer">${_("Open material")}</a>
-            % if item['kind'] != 'link':
-              <a href="${item['download_url']}" download>${_("Download presentation")}</a>
-            % endif
-          </div>
-          % if item['preview_available']:
-            <div class="sdg4-document-preview">
-              <iframe class="sdg4-document-viewer" src="${item['preview_url']}" title="${item['title']}" loading="lazy" allowfullscreen></iframe>
-            </div>
-          % elif item['kind'] == 'presentation':
-            <p class="sdg4-preview-unavailable">${_("Presentation preview is temporarily unavailable. Download the original file to view it.")}</p>
+        <li><span class="sdg4-file-badge" aria-hidden="true">${item['format'] or '↗'}</span><div>
+          % if item['kind'] == 'presentation':
+            <h3><a href="${item['download_url']}" download>${item.get('download_label') or item['title']}</a></h3>
+          % else:
+            <h3><a href="${item['url']}" target="_blank" rel="noopener noreferrer">${item['title']}</a></h3>
           % endif
         </div></li>
       % endfor

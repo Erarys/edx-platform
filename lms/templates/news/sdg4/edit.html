@@ -41,7 +41,6 @@ from django.utils.translation import gettext as _
               <p class="helptext">${_("An uploaded file is already attached. Leave the upload field empty to keep it.")}</p>
             % endif
             ${material.non_field_errors()}${field(material['title'])}${field(material['file'])}${field(material['file_url'])}
-            <div data-video-only>${field(material['duration'])}</div>
             <span hidden>${material['DELETE']}</span>
             <button type="button" data-remove-material>${_("Remove")}</button>
           </fieldset>
@@ -49,7 +48,7 @@ from django.utils.translation import gettext as _
       </div>
       <template class="sdg4-empty-form">
         <% material = formset.empty_form %>
-        <fieldset class="sdg4-material-form" data-material-form><legend>${_("Material")}</legend>${field(material['title'])}${field(material['file'])}${field(material['file_url'])}<div data-video-only>${field(material['duration'])}</div><span hidden>${material['DELETE']}</span><button type="button" data-remove-material>${_("Remove")}</button></fieldset>
+        <fieldset class="sdg4-material-form" data-material-form><legend>${_("Material")}</legend>${field(material['title'])}${field(material['file'])}${field(material['file_url'])}<span hidden>${material['DELETE']}</span><button type="button" data-remove-material>${_("Remove")}</button></fieldset>
       </template>
       <button type="button" class="sdg4-add-material">+ ${_("Add material")}</button>
     </div>

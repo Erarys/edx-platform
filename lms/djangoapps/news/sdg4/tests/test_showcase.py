@@ -201,7 +201,7 @@ class ShowcaseTests(TestCase):
         self.assertContains(response, "Tab 2")
         self.assertContains(response, "Tab 3")
         self.assertNotContains(response, "Тема 1")
-        self.assertContains(response, "Open presentation")
+        self.assertNotContains(response, "Open presentation")
         self.assertContains(response, "Иванова Алия Сергеевна")
 
     def test_one_completed_tab_can_be_published_and_more_added_later(self):
@@ -376,7 +376,7 @@ class ShowcaseTests(TestCase):
         )
         self.assertEqual(accepted.status_code, 200, accepted.content.decode())
 
-    def test_video_tab_renders_player_and_requires_accessible_metadata(self):
+    def test_video_tab_renders_player_without_manual_duration(self):
         data = course_payload()
         data.pop("course-1-lecture_files")
         data["course-1-type"] = "video"
@@ -385,14 +385,14 @@ class ShowcaseTests(TestCase):
             {
                 "materials-1-0-title": "Видео 1",
                 "materials-1-0-file_url": "https://youtu.be/abcdefghijk",
-                "materials-1-0-duration": "125",
             }
         )
         response = self.client.post(reverse("sdg4_create"), data)
         self.assertEqual(response.status_code, 302, response.content.decode())
         page = self.client.get(response.url)
         self.assertContains(page, "youtube-nocookie.com/embed/abcdefghijk")
-        self.assertContains(page, "2 min 5 sec")
+        self.assertNotContains(page, "Video duration in seconds")
+        self.assertNotContains(page, "Total video duration")
 
     def test_new_video_upload_replaces_url_in_the_same_material(self):
         form = MaterialForm(
@@ -409,7 +409,7 @@ class ShowcaseTests(TestCase):
         self.assertEqual(form.cleaned_data["file_url"], "")
         self.assertEqual(form.cleaned_data["file"].name, "lecture.mp4")
 
-    def test_pptx_is_saved_and_public_page_uses_preview_route(self):
+    def test_pptx_is_saved_and_public_page_uses_direct_filename_download(self):
         data = course_payload()
         data["course-1-lecture_files"] = pptx()
         response = self.client.post(reverse("sdg4_create"), data)
@@ -417,8 +417,7 @@ class ShowcaseTests(TestCase):
         row = News.objects.get()
         document = read_document(row)
         item = document["courses"][0]["materials"][0]
-        with patch.object(views, "presentation_converter", return_value="soffice"):
-            page = self.client.get(response.url)
+        page = self.client.get(response.url)
         preview_url = reverse(
             "sdg4_material_preview",
             args=[document["faculty"], document["slug"], 1, item["id"]],
@@ -427,8 +426,10 @@ class ShowcaseTests(TestCase):
             "sdg4_download",
             args=[document["faculty"], document["slug"], 1, item["id"]],
         )
-        self.assertContains(page, f'href="{preview_url}" target="_blank"')
-        self.assertContains(page, f'href="{download_url}" download')
+        self.assertNotContains(page, f'href="{preview_url}"')
+        self.assertContains(page, f'<a href="{download_url}" download>slides.pptx</a>', html=True)
+        self.assertNotContains(page, "Open presentation")
+        self.assertNotContains(page, "browser preview")
 
         cached_preview = views.presentation_preview_path(row.pk, item["id"])
         default_storage.save(cached_preview, pdf("preview.pdf"))

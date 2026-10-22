@@ -380,7 +380,6 @@ class MaterialForm(forms.Form):
         required=False,
         validators=[validate_media_url],
     )
-    duration = forms.IntegerField(label=_("Video duration in seconds"), required=False, min_value=1)
 
     def __init__(self, *args, material=None, course_type="lecture", publishing=True, **kwargs):
         self.material = material or {}
@@ -441,8 +440,6 @@ class MaterialForm(forms.Form):
             if source and PurePosixPath(urlsplit(source).path.lower()).suffix not in ARTICLE_EXTENSIONS["presentation"]:
                 raise ValidationError(_("Presentation materials must be PDF, PPT or PPTX files."))
         else:
-            if self.publishing and not cleaned.get("duration"):
-                self.add_error("duration", _("Enter the video duration."))
             if youtube_host:
                 if not youtube_embed(source):
                     raise ValidationError(_("Use a valid university YouTube video."))

@@ -49,9 +49,6 @@ from django.utils.translation import gettext as _
       <div><dt>${_("Educational programme code")}</dt><dd>${selected['programme']}</dd></div>
     % endif
     <div><dt>${_("Number of lessons")}</dt><dd>${len(selected['materials'])}</dd></div>
-    % if duration:
-      <div><dt>${_("Total video duration")}</dt><dd>${_('{minutes} min {seconds} sec').format(minutes=duration // 60, seconds=duration % 60)}</dd></div>
-    % endif
     <div><dt>${_("Publication date")}</dt><dd><time datetime="${selected['published_at']}">${selected['published_at']}</time></dd></div>
     % if selected.get('license'):
       <div><dt>${_("Creative Commons license")}</dt><dd><a href="https://creativecommons.org/licenses/${selected['license']}/4.0/" rel="license">${license_name}</a></dd></div>
@@ -62,18 +59,13 @@ from django.utils.translation import gettext as _
   <ol class="sdg4-materials">
     % for item in selected['materials']:
       <li>
-        <h3>${item.get('title') or _("Material")}</h3>
         % if item['kind'] == 'presentation':
-          <% open_url = item.get('preview_url') if item.get('preview_available') else item.get('view_url') or item.get('url') %>
-          <div class="sdg4-actions"><a href="${open_url}" target="_blank" rel="noopener">${_("Open presentation")}</a><a class="sdg4-button" href="${item['download_url']}" download>${_("Download")}</a></div>
-          % if item.get('preview_available'):
-            <div class="sdg4-document-preview"><object data="${item['preview_url']}" type="application/pdf" class="sdg4-document-viewer" aria-label="${item.get('title') or _('Presentation')}"><a href="${open_url}">${_("Open presentation")}</a></object></div>
-          % else:
-            <p class="sdg4-preview-unavailable">${_("A browser preview is not available for this file. Open or download the presentation.")}</p>
-          % endif
+          <h3><a href="${item['download_url']}" download>${item.get('download_label') or item.get('title') or _("Presentation")}</a></h3>
         % elif item.get('embed'):
+          <h3>${item.get('title') or _("Material")}</h3>
           <iframe class="sdg4-video" src="${item['embed']}" title="${item.get('title') or _('Video')}" loading="lazy" allow="fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
         % else:
+          <h3>${item.get('title') or _("Material")}</h3>
           <% video_url = item.get('source') or item.get('url') %>
           <video class="sdg4-video" controls preload="metadata" aria-label="${item.get('title') or _('Video')}" crossorigin="anonymous">
             <source src="${video_url}" />
