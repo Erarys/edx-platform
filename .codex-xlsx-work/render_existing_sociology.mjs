@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { FileBlob, SpreadsheetFile } from "@oai/artifact-tool";
 
-const inputPath = "C:/Users/Erarys/Desktop/edx-platform/outputs/01a13534-4201-71a2-bb04-cf122a6fdf80/Sociology_оценки_16.10.2026.xlsx";
+const inputPath = "C:/Users/Erarys/Desktop/edx-platform/outputs/01a13534-4201-71a2-bb04-cf122a6fdf80/Sociology_оценки_22.10.2026.xlsx";
 const previewPath = "C:/Users/Erarys/Desktop/edx-platform/.codex-xlsx-work/Sociology_existing.png";
 const workbook = await SpreadsheetFile.importXlsx(await FileBlob.load(inputPath));
 const summary = await workbook.inspect({

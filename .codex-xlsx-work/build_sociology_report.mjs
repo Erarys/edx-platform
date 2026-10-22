@@ -1,10 +1,10 @@
 import fs from "node:fs/promises";
 import { FileBlob, SpreadsheetFile, Workbook } from "@oai/artifact-tool";
 
-const inputPath = "C:/Users/Erarys/Desktop/edx-platform/.codex-xlsx-work/sociology_grades_after_august_20261019.tsv";
+const inputPath = "C:/Users/Erarys/Desktop/edx-platform/.codex-xlsx-work/sociology_grades_after_august_20261022.tsv";
 const outputDir = "C:/Users/Erarys/Desktop/edx-platform/outputs/01a13534-4201-71a2-bb04-cf122a6fdf80";
-const outputPath = `${outputDir}/Sociology_оценки_19.10.2026.xlsx`;
-const previewPath = "C:/Users/Erarys/Desktop/edx-platform/.codex-xlsx-work/Sociology_оценки_19.10.2026.png";
+const outputPath = `${outputDir}/Sociology_оценки_22.10.2026.xlsx`;
+const previewPath = "C:/Users/Erarys/Desktop/edx-platform/.codex-xlsx-work/Sociology_оценки_22.10.2026.png";
 
 const text = await fs.readFile(inputPath, "utf8");
 const lines = text.replace(/^\uFEFF/, "").trimEnd().split(/\r?\n/);
@@ -33,7 +33,7 @@ sheet.showGridLines = false;
 sheet.tabColor = "#17365D";
 
 const matrix = [
-  ["N", "Логин", "ФИО", "Оценка курса (19.10)"],
+  ["N", "Логин", "ФИО", "Оценка курса (22.10)"],
   ...rows,
 ];
 const lastRow = matrix.length;
@@ -102,14 +102,6 @@ const errors = await workbook.inspect({
 });
 if (errors.records.some(record => record.kind === "match")) throw new Error("Formula errors found");
 
-const preview = await workbook.render({
-  sheetName: "Sociology",
-  range: "A1:D22",
-  scale: 1.2,
-  format: "png",
-});
-await fs.writeFile(previewPath, new Uint8Array(await preview.arrayBuffer()));
-
 await fs.mkdir(outputDir, { recursive: true });
 const output = await SpreadsheetFile.exportXlsx(workbook);
 await output.save(outputPath);
@@ -126,7 +118,6 @@ if (savedValues.length !== rows.length + 1 || nonzero !== expectedNonzero) {
 
 console.log(JSON.stringify({
   outputPath,
-  previewPath,
   learners: rows.length,
   nonzeroGrades: nonzero,
   zeroGrades: rows.length - nonzero,

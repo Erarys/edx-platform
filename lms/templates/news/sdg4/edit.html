@@ -114,9 +114,6 @@ from django.utils.translation import gettext as _
       <button class="sdg4-button" type="submit" name="action" value="submit">${_("Submit for moderation")}</button>
     % endif
     <button type="submit" name="action" value="draft">${_("Save draft")}</button>
-    % if row:
-      <a class="sdg4-danger-link" href="${reverse('sdg4_delete', args=[row.pk])}">${_("Delete")}</a>
-    % endif
   </div>
 </form>
 <script src="${static.url('js/sdg4-editor.js')}" defer></script>
