@@ -25,17 +25,6 @@ FACULTIES = (
     ("al-farabi-business-school", _("Al-Farabi Business School")),
 )
 COURSE_TYPES = (("lecture", _("Presentation course")), ("video", _("Video course")))
-LICENSES = tuple(
-    (key, label)
-    for key, label in (
-        ("by", "CC BY 4.0"),
-        ("by-sa", "CC BY-SA 4.0"),
-        ("by-nd", "CC BY-ND 4.0"),
-        ("by-nc", "CC BY-NC 4.0"),
-        ("by-nc-sa", "CC BY-NC-SA 4.0"),
-        ("by-nc-nd", "CC BY-NC-ND 4.0"),
-    )
-)
 PREAMBLE = _(
     "This section is part of NJSC Al-Farabi KazNU's contribution to UN Sustainable Development Goal 4, "
     "Quality Education. The University offers open access to its faculty's e-learning resources — lecture "

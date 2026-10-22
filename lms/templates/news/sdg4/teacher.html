@@ -7,7 +7,7 @@ from django.utils.translation import gettext as _
 <%def name="pagetitle()">${_('E-learning resources — {name}').format(name=teacher_name)}</%def>
 <nav class="sdg4-breadcrumb" aria-label="${_('Breadcrumbs')}"><a href="${reverse('sdg4_index')}">${_("Teachers")}</a><span aria-hidden="true"> / </span><a href="${reverse('sdg4_faculty', args=[faculty_slug])}">${faculty_name}</a><span aria-hidden="true"> / </span>${teacher_name}</nav>
 % if can_edit_sdg4:
-  <p class="sdg4-article-edit"><a href="${edit_url}">${_("Edit this tab")}</a></p>
+  <p class="sdg4-article-edit"><a href="${edit_url}">${_("Edit this course")}</a></p>
 % endif
 <header class="sdg4-teacher-hero">
   % if photo_url:
@@ -28,7 +28,7 @@ from django.utils.translation import gettext as _
     <p>${faculty_name}</p>
   </div>
 </header>
-<nav class="sdg4-tabs" aria-label="${_('Teacher resource tabs')}">
+<nav class="sdg4-tabs" aria-label="${_('Teacher courses')}">
   % for course in courses:
     <a href="${course['url']}" aria-current="${'page' if course['number'] == selected['number'] else 'false'}">${course['title']}</a>
   % endfor
@@ -50,9 +50,6 @@ from django.utils.translation import gettext as _
     % endif
     <div><dt>${_("Number of lessons")}</dt><dd>${len(selected['materials'])}</dd></div>
     <div><dt>${_("Publication date")}</dt><dd><time datetime="${selected['published_at']}">${selected['published_at']}</time></dd></div>
-    % if selected.get('license'):
-      <div><dt>${_("Creative Commons license")}</dt><dd><a href="https://creativecommons.org/licenses/${selected['license']}/4.0/" rel="license">${license_name}</a></dd></div>
-    % endif
     <div><dt>${_("Views")}</dt><dd>${stats.get('views', 0)}</dd></div>
     <div><dt>${_("Downloads")}</dt><dd>${stats.get('downloads', 0)}</dd></div>
   </dl>
@@ -61,6 +58,10 @@ from django.utils.translation import gettext as _
       <li>
         % if item['kind'] == 'presentation':
           <h3><a href="${item['download_url']}" download>${item.get('download_label') or item.get('title') or _("Presentation")}</a></h3>
+          % if item.get('format') == 'PDF':
+            <% view_url = item.get('view_url') or item.get('url') %>
+            <div class="sdg4-document-preview"><object data="${view_url}" type="application/pdf" class="sdg4-document-viewer" aria-label="${item.get('title') or _('Presentation')}"><a href="${view_url}" target="_blank" rel="noopener">${item.get('download_label') or item.get('title') or _("Presentation")}</a></object></div>
+          % endif
         % elif item.get('embed'):
           <h3>${item.get('title') or _("Material")}</h3>
           <iframe class="sdg4-video" src="${item['embed']}" title="${item.get('title') or _('Video')}" loading="lazy" allow="fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>

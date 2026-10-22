@@ -13,13 +13,13 @@ from django.utils.translation import gettext as _
   </div>
 </%def>
 <%def name="course_editor(slot, course_form, formset)">
-  <fieldset class="sdg4-tab-editor" data-course-editor><legend>${_('Tab {number}').format(number=slot)}</legend>
+  <fieldset class="sdg4-tab-editor" data-course-editor><legend>${_('Course {number}').format(number=slot)}</legend>
     <span hidden>${course_form['DELETE']}</span>
-    <button type="button" class="sdg4-remove-tab" data-remove-course>${_("Remove tab")}</button>
+    <button type="button" class="sdg4-remove-tab" data-remove-course>${_("Remove course")}</button>
     ${course_form.non_field_errors()}
-    <div class="sdg4-form-grid">${field(course_form['type'])}${field(course_form['language'])}${field(course_form['programme'])}${field(course_form['license'])}</div>
+    <div class="sdg4-form-grid">${field(course_form['type'])}${field(course_form['language'])}${field(course_form['programme'])}</div>
     ${field(course_form['topic_ru'])}${field(course_form['discipline_ru'])}${field(course_form['annotation_ru'])}
-    <details><summary>${_("Tab translations (KZ / EN)")}</summary>
+    <details><summary>${_("Course translations (KZ / EN)")}</summary>
       % for code in ('kk', 'en'):
         <h3>${'KZ' if code == 'kk' else 'EN'}</h3>
         <div class="sdg4-form-grid">${field(course_form[f'topic_{code}'])}${field(course_form[f'discipline_{code}'])}</div>
@@ -28,7 +28,7 @@ from django.utils.translation import gettext as _
     </details>
     <div class="sdg4-presentation-bulk" data-presentation-only>${field(course_form['lecture_files'])}</div>
     <h2>${_("Materials in display order")}</h2>
-    <p class="helptext">${_("Presentation tabs accept PDF, PPT and PPTX. Video tabs accept MP4, WebM, OGV or a university YouTube link. Each uploaded file may be up to 1 GB.")}</p>
+    <p class="helptext">${_("Presentation courses accept PDF files. Video courses accept MP4, WebM, OGV or a university YouTube link. Each uploaded file may be up to 1 GB.")}</p>
     ${formset.management_form}
     % if formset.non_form_errors():
       <div class="sdg4-errors" role="alert">${formset.non_form_errors()}</div>
@@ -56,7 +56,7 @@ from django.utils.translation import gettext as _
 </%def>
 <nav class="sdg4-breadcrumb"><a href="${reverse('sdg4_manage')}">${_("Manage SDG 4 resources")}</a></nav>
 <header class="sdg4-edit-intro"><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Open educational resources")}</p><h1>${_("Edit teacher resources") if row else _("Add teacher resources")}</h1>
-  <p>${_("Complete the teacher profile and add presentation or video tabs. You can publish one tab now and add more later.")}</p>
+  <p>${_("Complete the teacher profile and add presentation or video courses. You can publish one course now and add more later.")}</p>
   % if row:
     <p class="sdg4-status sdg4-status-${moderation_status}">${row.get_moderation_status_display()}</p>
   % endif
@@ -87,7 +87,7 @@ from django.utils.translation import gettext as _
     % endfor
   </div>
   <template id="sdg4-empty-course">${course_editor('__tab__', empty_course_form, empty_materials)}</template>
-  <button type="button" class="sdg4-add-tab" data-add-course data-max-tabs="${max_tabs}">+ ${_("Add tab")}</button>
+  <button type="button" class="sdg4-add-tab" data-add-course data-max-tabs="${max_tabs}">+ ${_("Add course")}</button>
   <details class="sdg4-translations"><summary>${_("Teacher profile translations (KZ / EN)")}</summary>
     % for code in ('kk', 'en'):
       <h2>${'KZ' if code == 'kk' else 'EN'}</h2>

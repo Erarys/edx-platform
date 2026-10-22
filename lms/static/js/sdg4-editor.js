@@ -21,7 +21,7 @@
         });
         activeMaterials(editor).forEach(function (material) {
             var input = material.querySelector('input[type="file"][name$="-file"]');
-            if (input) { input.accept = isVideo ? '.mp4,.ogv,.webm' : '.pdf,.ppt,.pptx'; }
+            if (input) { input.accept = isVideo ? '.mp4,.ogv,.webm' : '.pdf'; }
         });
     }
 

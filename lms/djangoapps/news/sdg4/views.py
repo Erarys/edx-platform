@@ -45,7 +45,6 @@ from ..models import News
 from .constants import (
     FACULTIES,
     LANGUAGES,
-    LICENSES,
     NEWS_PREFIX,
     PREAMBLE,
     PUBLISHERS_GROUP,
@@ -562,7 +561,6 @@ def legacy_editor_course(items, course_type):
         "type": course_type,
         "language": "ru",
         "programme": "",
-        "license": "by",
         "topic": {},
         "discipline": {},
         "annotation": {},
@@ -847,7 +845,7 @@ def teacher(request, faculty, teacher):
     courses = [
         {
             "number": index,
-            "title": _("Tab {number}").format(number=index),
+            "title": _("Course {number}").format(number=index),
             "url": f"{base_url}?tab={index}#course-panel",
         }
         for index, _source in enumerate(sources, 1)
@@ -856,7 +854,7 @@ def teacher(request, faculty, teacher):
     material_context = []
     if course:
         for item in course.get("materials", []):
-            extension = PurePosixPath(item.get("file_path", urlsplit(item.get("file_url", "")).path)).suffix.lower()
+            extension = PurePosixPath(item.get("file_path") or urlsplit(item.get("file_url", "")).path).suffix.lower()
             material_item = {
                 **item,
                 "kind": "presentation" if course["type"] == "lecture" else "video",
@@ -885,7 +883,7 @@ def teacher(request, faculty, teacher):
     selected = {
         **(course or {}),
         "number": number,
-        "title": _("Tab {number}").format(number=number),
+        "title": _("Course {number}").format(number=number),
         "materials": material_context,
         "type": course.get("type") if course else "mixed",
         "published_at": (row.published_at or row.created_at).date().isoformat(),
@@ -913,7 +911,6 @@ def teacher(request, faculty, teacher):
             "discipline": localized(course.get("discipline")) if course else "",
             "annotation": localized(course.get("annotation")) if course else "",
             "material_language": dict(LANGUAGES).get(course.get("language"), "") if course else "",
-            "license_name": dict(LICENSES).get(course.get("license"), "") if course else "",
             "stats": selected_stats,
             "edit_url": reverse("sdg4_edit", args=[_canonical_row.pk]),
             "can_edit_sdg4": can_edit(request.user, _canonical_row),
@@ -1428,7 +1425,6 @@ def save_page(row, original, teacher_form, bundles, moderation_status, author=No
                     "type": fields.get("type") or old_course.get("type", "lecture"),
                     "language": fields.get("language") or old_course.get("language", "ru"),
                     "programme": fields.get("programme", ""),
-                    "license": fields.get("license") or old_course.get("license", "by"),
                 }
                 course.update({key: translations(fields, key) for key in ("topic", "discipline", "annotation")})
                 course["published_at"] = old_course.get("published_at") or (
@@ -1609,10 +1605,10 @@ def edit(request, news_id=None):
             active_tabs += 1
             checks.extend((course_form.is_valid(), formset.is_valid()))
         if invalid_tab_count:
-            teacher_form.add_error(None, _("The number of tabs is invalid."))
+            teacher_form.add_error(None, _("The number of courses is invalid."))
             checks.append(False)
         if publishing and not active_tabs:
-            teacher_form.add_error(None, _("Add at least one tab before publishing."))
+            teacher_form.add_error(None, _("Add at least one course before publishing."))
             checks.append(False)
         valid = all(checks)
         if staged_error:

@@ -10,7 +10,7 @@ from django.utils.translation import gettext as _, pgettext
 % if teachers:
   <ul class="sdg4-teachers">
     % for teacher in teachers:
-      <li><a href="${teacher['url']}">${teacher['name']}</a><p>${teacher['position']}</p><p>${_('{count} tabs').format(count=teacher['tab_count'])}</p></li>
+      <li><a href="${teacher['url']}">${teacher['name']}</a><p>${teacher['position']}</p><p>${_('{count} courses').format(count=teacher['tab_count'])}</p></li>
     % endfor
   </ul>
 % else:

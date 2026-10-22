@@ -47,16 +47,15 @@ from django.utils.translation import gettext as _, pgettext
               % endif
               <div><a href="${item['url']}">${item['name']}</a><span>${item['department']}</span></div>
             </div>
-            <h3><a href="${item['url']}">${item['name']}</a></h3>
             <div class="sdg4-feed-meta" aria-label="${_('Teacher information')}">
               <span class="sdg4-feed-topic">${item['faculty']}</span>
-              <span>${_('{count} tabs').format(count=item['tab_count'])}</span>
+              <span>${_('{count} courses').format(count=item['tab_count'])}</span>
               <span aria-label="${_('Views')}">◉ ${item['view_count']}</span>
             </div>
             % if item['position']:
               <p class="sdg4-feed-summary">${item['position']}</p>
             % endif
-            <a class="sdg4-feed-more" href="${item['url']}">${_("Open teacher resources")} <span aria-hidden="true">→</span></a>
+            <a class="sdg4-feed-more" href="${item['url']}">${_("Open learning resources")} <span aria-hidden="true">→</span></a>
           </article>
         % endfor
       </div>

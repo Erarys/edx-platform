@@ -2,7 +2,6 @@
 
 from pathlib import PurePosixPath
 from urllib.parse import unquote, urlsplit
-from zipfile import BadZipFile, ZipFile
 
 from django import forms
 from django.conf import settings
@@ -10,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.forms import BaseFormSet, formset_factory
 from django.utils.translation import gettext_lazy as _
 
-from .constants import COURSE_TYPES, FACULTIES, LANGUAGES, LICENSES
+from .constants import COURSE_TYPES, FACULTIES, LANGUAGES
 from .data import validate_media_url, youtube_embed
 
 ARTICLE_BLOCK_TYPES = (
@@ -23,7 +22,7 @@ ARTICLE_BLOCK_TYPES = (
 
 ARTICLE_EXTENSIONS = {
     "image": {".jpg", ".jpeg", ".png", ".webp", ".gif"},
-    "presentation": {".pdf", ".ppt", ".pptx"},
+    "presentation": {".pdf"},
     "audio": {".mp3", ".m4a", ".ogg", ".wav"},
     "video": {".mp4", ".webm", ".ogv"},
 }
@@ -133,7 +132,7 @@ class SimpleTeacherForm(TeacherForm):
     presentations = MultipleFileField(
         label=_("Upload presentations"),
         required=False,
-        widget=MultipleFileInput(attrs={"accept": ".pdf,.ppt,.pptx", "aria-describedby": "sdg4-upload-help"}),
+        widget=MultipleFileInput(attrs={"accept": ".pdf", "aria-describedby": "sdg4-upload-help"}),
     )
 
     def __init__(self, *args, document=None, publishing=True, **kwargs):
@@ -174,22 +173,6 @@ class SimpleTeacherForm(TeacherForm):
 
 def validate_presentation_upload(upload):
     MaterialForm.validate_upload(upload, ARTICLE_EXTENSIONS["presentation"])
-    extension = PurePosixPath(upload.name.lower()).suffix
-    try:
-        if extension == ".ppt":
-            if upload.read(8) != b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
-                raise ValidationError(_("Upload a valid PowerPoint presentation."))
-        elif extension == ".pptx":
-            with ZipFile(upload) as archive:
-                names = set(archive.namelist())
-                if not {"[Content_Types].xml", "ppt/presentation.xml"} <= names or any(
-                    "vbaproject" in name.lower() for name in names
-                ):
-                    raise ValidationError(_("Upload a valid PowerPoint presentation."))
-    except (BadZipFile, OSError):
-        raise ValidationError(_("Upload a valid PowerPoint presentation.")) from None
-    finally:
-        upload.seek(0)
 
 
 def validate_article_upload(upload, kind):
@@ -317,12 +300,11 @@ class CourseForm(forms.Form):
     type = forms.ChoiceField(label=_("Course type"), choices=COURSE_TYPES)
     language = forms.ChoiceField(label=_("Language of materials"), choices=LANGUAGES)
     programme = forms.CharField(label=_("Educational programme code"), max_length=200)
-    license = forms.ChoiceField(label=_("Creative Commons license"), choices=LICENSES)
     lecture_files = MultipleFileField(
         label=_("Upload presentations"),
         required=False,
-        help_text=_("Select PDF, PPT or PPTX files. Lesson titles will use the file names."),
-        widget=MultipleFileInput(attrs={"accept": ".pdf,.ppt,.pptx"}),
+        help_text=_("Select PDF files. Lesson titles will use the file names."),
+        widget=MultipleFileInput(attrs={"accept": ".pdf"}),
     )
 
     def __init__(self, *args, course=None, publishing=True, **kwargs):
@@ -331,7 +313,6 @@ class CourseForm(forms.Form):
         kwargs["initial"] = {
             "type": "lecture",
             "language": "ru",
-            "license": "by",
             **course,
         }
         super().__init__(*args, **kwargs)
@@ -426,7 +407,13 @@ class MaterialForm(forms.Form):
         source = url or self.material.get("file_url", "")
         existing_path = self.material.get("file_path", "") if not (upload or url) else ""
         if existing_path:
-            expected = ARTICLE_EXTENSIONS["presentation"] if self.course_type == "lecture" else {".mp4", ".webm", ".ogv"}
+            # Keep existing legacy PowerPoint materials editable. New presentation
+            # uploads and links are restricted to PDF below.
+            expected = (
+                {".pdf", ".ppt", ".pptx"}
+                if self.course_type == "lecture"
+                else {".mp4", ".webm", ".ogv"}
+            )
             if PurePosixPath(existing_path.lower()).suffix not in expected:
                 raise ValidationError(_("The file type does not match this material."))
         host = (urlsplit(source).hostname or "").lower()
@@ -437,8 +424,8 @@ class MaterialForm(forms.Form):
             "www.youtube-nocookie.com",
         }
         if self.course_type == "lecture":
-            if source and PurePosixPath(urlsplit(source).path.lower()).suffix not in ARTICLE_EXTENSIONS["presentation"]:
-                raise ValidationError(_("Presentation materials must be PDF, PPT or PPTX files."))
+            if url and PurePosixPath(urlsplit(url).path.lower()).suffix not in ARTICLE_EXTENSIONS["presentation"]:
+                raise ValidationError(_("Presentation materials must be PDF files."))
         else:
             if youtube_host:
                 if not youtube_embed(source):
@@ -501,7 +488,7 @@ class MaterialFormSet(BaseFormSet):
         if count > self.max_num:
             raise ValidationError(_("A course can contain at most 200 lessons."))
         if self.publishing and not count:
-            raise ValidationError(_("Add at least one lesson to this tab."))
+            raise ValidationError(_("Add at least one lesson to this course."))
 
 
 Materials = formset_factory(

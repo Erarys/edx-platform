@@ -1,11 +1,9 @@
 """Regression coverage for the teacher-first Open лекториум showcase."""
 
-import io
 import json
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
-from zipfile import ZipFile
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -58,14 +56,6 @@ def pdf(name="lecture.pdf"):
     return SimpleUploadedFile(name, b"%PDF-1.4\n%%EOF", "application/pdf")
 
 
-def pptx(name="slides.pptx"):
-    stream = io.BytesIO()
-    with ZipFile(stream, "w") as archive:
-        archive.writestr("[Content_Types].xml", "<Types/>")
-        archive.writestr("ppt/presentation.xml", "<presentation/>")
-    return SimpleUploadedFile(name, stream.getvalue())
-
-
 def course_payload(action="publish", name="Иванова Алия Сергеевна", tab_count=3):
     data = {
         "name_ru": name,
@@ -84,7 +74,6 @@ def course_payload(action="publish", name="Иванова Алия Сергее�
                 f"{prefix}-type": "lecture",
                 f"{prefix}-language": "ru",
                 f"{prefix}-programme": "6B06102",
-                f"{prefix}-license": "by",
                 f"{prefix}-topic_ru": f"Тема {slot}",
                 f"{prefix}-discipline_ru": "Информатика",
                 f"{prefix}-annotation_ru": f"Аннотация {slot}",
@@ -180,8 +169,8 @@ class ShowcaseTests(TestCase):
 
     def test_editor_starts_with_one_tab_and_can_add_more(self):
         response = self.client.get(reverse("sdg4_create"))
-        self.assertContains(response, "Tab 1")
-        self.assertContains(response, "Add tab")
+        self.assertContains(response, "Course 1")
+        self.assertContains(response, "Add course")
         self.assertContains(response, 'name="course-TOTAL_FORMS" value="1"')
         self.assertNotContains(response, 'data-add-kind="text"')
         self.assertNotContains(response, 'data-add-kind="image"')
@@ -197,9 +186,9 @@ class ShowcaseTests(TestCase):
         self.assertEqual(len(document["courses"]), 3)
         self.assertEqual(row.moderation_status, News.ModerationStatus.PUBLISHED)
         response = self.client.get(url)
-        self.assertContains(response, "Tab 1")
-        self.assertContains(response, "Tab 2")
-        self.assertContains(response, "Tab 3")
+        self.assertContains(response, "Course 1")
+        self.assertContains(response, "Course 2")
+        self.assertContains(response, "Course 3")
         self.assertNotContains(response, "Тема 1")
         self.assertNotContains(response, "Open presentation")
         self.assertContains(response, "Иванова Алия Сергеевна")
@@ -212,12 +201,12 @@ class ShowcaseTests(TestCase):
         document = read_document(row)
         self.assertEqual(len(document["courses"]), 1)
         public_page = self.client.get(response.url)
-        self.assertContains(public_page, "Tab 1")
-        self.assertNotContains(public_page, "Tab 2")
+        self.assertContains(public_page, "Course 1")
+        self.assertNotContains(public_page, "Course 2")
 
         editor = self.client.get(reverse("sdg4_edit", args=[row.pk]))
         self.assertContains(editor, 'name="course-TOTAL_FORMS" value="1"')
-        self.assertContains(editor, "Add tab")
+        self.assertContains(editor, "Add course")
 
     def test_removed_tab_is_not_required_or_published(self):
         data = course_payload()
@@ -233,7 +222,7 @@ class ShowcaseTests(TestCase):
         self.create_media_publication("one")
         self.create_media_publication("two")
         response = self.client.get(reverse("sdg4_index"))
-        self.assertContains(response, "Один Автор", count=2)  # byline and heading in one author card
+        self.assertContains(response, "Один Автор", count=1)
         self.assertContains(response, "1 teachers")
         self.assertNotContains(response, "Скрытое название")
         self.assertContains(response, "Search teachers")
@@ -245,7 +234,7 @@ class ShowcaseTests(TestCase):
         document = read_document(rows[0])
         response = self.client.get(reverse("sdg4_teacher", args=[document["faculty"], document["slug"]]))
         for number in range(1, 5):
-            self.assertContains(response, f"Tab {number}")
+            self.assertContains(response, f"Course {number}")
         self.assertNotContains(response, "Скрытое название")
         second = self.client.get(response.request["PATH_INFO"] + "?tab=2")
         self.assertContains(second, "media-2")
@@ -409,43 +398,40 @@ class ShowcaseTests(TestCase):
         self.assertEqual(form.cleaned_data["file_url"], "")
         self.assertEqual(form.cleaned_data["file"].name, "lecture.mp4")
 
-    def test_pptx_is_saved_and_public_page_uses_direct_filename_download(self):
+    def test_pdf_is_downloadable_and_visible_in_the_browser(self):
         data = course_payload()
-        data["course-1-lecture_files"] = pptx()
+        data["course-1-lecture_files"] = pdf("slides.pdf")
         response = self.client.post(reverse("sdg4_create"), data)
         self.assertEqual(response.status_code, 302, response.content.decode())
         row = News.objects.get()
         document = read_document(row)
         item = document["courses"][0]["materials"][0]
         page = self.client.get(response.url)
-        preview_url = reverse(
-            "sdg4_material_preview",
-            args=[document["faculty"], document["slug"], 1, item["id"]],
-        )
+        view_url = reverse("sdg4_material", args=[document["faculty"], document["slug"], 1, item["id"]])
         download_url = reverse(
             "sdg4_download",
             args=[document["faculty"], document["slug"], 1, item["id"]],
         )
-        self.assertNotContains(page, f'href="{preview_url}"')
-        self.assertContains(page, f'<a href="{download_url}" download>slides.pptx</a>', html=True)
-        self.assertNotContains(page, "Open presentation")
-        self.assertNotContains(page, "browser preview")
-
-        cached_preview = views.presentation_preview_path(row.pk, item["id"])
-        default_storage.save(cached_preview, pdf("preview.pdf"))
-        preview = self.client.get(preview_url)
-        self.assertEqual(preview.status_code, 200)
-        self.assertEqual(preview["Content-Type"], "application/pdf")
-        preview.close()
+        self.assertContains(page, f'<a href="{download_url}" download>slides.pdf</a>', html=True)
+        self.assertContains(page, f'data="{view_url}"')
+        self.assertNotContains(page, "Creative Commons license")
+        browser_view = self.client.get(view_url)
+        self.assertEqual(browser_view.status_code, 200)
+        self.assertEqual(browser_view["Content-Type"], "application/pdf")
+        self.assertNotIn("attachment", browser_view.get("Content-Disposition", ""))
+        browser_view.close()
         original = self.client.get(download_url)
         self.assertEqual(original.status_code, 200)
         self.assertIn("attachment", original["Content-Disposition"])
-        self.assertIn(".pptx", original["Content-Disposition"])
+        self.assertIn(".pdf", original["Content-Disposition"])
         original.close()
 
-        with self.captureOnCommitCallbacks(execute=True):
-            self.client.post(reverse("sdg4_delete", args=[row.pk]), {"confirm": "yes"})
-        self.assertFalse(default_storage.exists(cached_preview))
+    def test_pptx_upload_is_rejected(self):
+        data = course_payload()
+        data["course-1-lecture_files"] = SimpleUploadedFile("slides.pptx", b"not-a-pdf")
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "file type does not match")
 
     def test_one_gigabyte_limit_is_the_default(self):
         class LargeUpload:
