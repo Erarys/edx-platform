@@ -25,7 +25,7 @@ from django.utils.translation import gettext as _
 % if request.GET.get('submitted'):
   <p class="sdg4-saved sdg4-submitted" role="status">${_("The resources have been sent for moderation. They will appear in the public catalogue after administrator approval.")}</p>
 % endif
-<form id="sdg4-course-form" method="post" enctype="multipart/form-data" class="sdg4-edit sdg4-course-editor-form" data-upload-limit="1073741824" data-size-error="${_("Each file must be no larger than 1 GB.")}" data-upload-error="${_("The upload could not be completed. Check your connection and try again.")}">
+<form id="sdg4-course-form" method="post" action="${reverse('sdg4_edit', args=[row.pk]) if row else reverse('sdg4_create')}" enctype="multipart/form-data" class="sdg4-edit sdg4-course-editor-form" data-upload-limit="1073741824" data-size-error="${_("Each file must be no larger than 1 GB.")}" data-upload-error="${_("The upload could not be completed. Check your connection and try again.")}">
   <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}" />
   <input type="hidden" name="revision" value="${document.get('revision', '')}" />
   % if teacher_form.errors or any(form.errors or formset.errors or formset.non_form_errors() for form, formset in bundles):

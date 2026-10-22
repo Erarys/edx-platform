@@ -267,11 +267,11 @@ def document_tab_sources(row, document):
     }]
 
 
-def author_entries(document):
+def author_entries(document, include_drafts=False):
     identity = author_identity(document)
     entries = [
         (row, candidate)
-        for row, candidate in documents()
+        for row, candidate in documents(include_drafts=include_drafts)
         if author_identity(candidate) == identity
     ]
     return sorted(entries, key=lambda item: (item[0].published_at or item[0].created_at, item[0].pk))
@@ -282,6 +282,80 @@ def author_tabs(entries):
     for row, document in entries:
         sources.extend(document_tab_sources(row, document))
     return sources[:3]
+
+
+def legacy_editor_course(items, course_type):
+    """Convert retained article media into an editable presentation or video tab."""
+    material_kind = "presentation" if course_type == "lecture" else "video"
+    materials = []
+    for item in items:
+        if item.get("kind") != material_kind:
+            continue
+        material = {
+            key: copy.deepcopy(item[key])
+            for key in (
+                "id",
+                "title",
+                "file_path",
+                "file_url",
+                "captions_path",
+                "captions_url",
+                "youtube_captions",
+                "duration",
+            )
+            if key in item
+        }
+        material.setdefault("title", material_title(item.get("file_path") or item.get("file_url", "")))
+        materials.append(material)
+    if not materials:
+        return None
+    return {
+        "type": course_type,
+        "language": "ru",
+        "programme": "",
+        "license": "by",
+        "topic": {},
+        "discipline": {},
+        "annotation": {},
+        "materials": materials,
+    }
+
+
+def editor_courses(row, document, user):
+    """Prefill all retained tabs for a teacher, including older multi-row data."""
+    entries = [
+        (candidate, candidate_document)
+        for candidate, candidate_document in author_entries(document, include_drafts=True)
+        if can_edit(user, candidate)
+    ]
+    if not any(candidate.pk == row.pk for candidate, _candidate_document in entries):
+        entries.insert(0, (row, document))
+    courses = []
+    for candidate, candidate_document in entries:
+        for source in document_tab_sources(candidate, candidate_document):
+            if source.get("course"):
+                courses.append(copy.deepcopy(source["course"]))
+            else:
+                media = source.get("legacy_media", [])
+                for course_type in ("lecture", "video"):
+                    course = legacy_editor_course(media, course_type)
+                    if course:
+                        courses.append(course)
+            if len(courses) >= 3:
+                return courses[:3]
+    return courses
+
+
+def owned_author_groups(user):
+    """Return a user's existing teacher resource sets in stable canonical order."""
+    groups = {}
+    for row, document in documents(include_drafts=True):
+        if row.author_id == user.id:
+            groups.setdefault(author_identity(document), []).append((row, document))
+    return [
+        sorted(entries, key=lambda item: (item[0].created_at, item[0].pk))
+        for entries in groups.values()
+    ]
 
 
 def author_card(entries):
@@ -604,8 +678,8 @@ def teacher(request, faculty, teacher):
             "license_name": dict(LICENSES).get(course.get("license"), "") if course else "",
             "duration": sum(material.get("duration") or 0 for material in material_context),
             "stats": selected_stats,
-            "edit_url": reverse("sdg4_edit", args=[row.pk]),
-            "can_edit_sdg4": can_edit(request.user, row),
+            "edit_url": reverse("sdg4_edit", args=[_canonical_row.pk]),
+            "can_edit_sdg4": can_edit(request.user, _canonical_row),
         },
     )
 
@@ -1175,10 +1249,26 @@ def edit(request, news_id=None):
     response = require_editor(request)
     if response is not None:
         return response
+    if news_id is None and request.method == "GET" and request.GET.get("new") != "1":
+        groups = owned_author_groups(request.user)
+        if len(groups) == 1:
+            return redirect("sdg4_edit", news_id=groups[0][0][0].pk)
+        if len(groups) > 1:
+            return redirect("sdg4_manage")
     row = get_object_or_404(sdg4_queryset(), pk=news_id) if news_id else None
     if row and not can_edit(request.user, row):
         raise PermissionDenied
     document = read_document(row) if row else {}
+    if row and request.method == "GET":
+        editable_entries = [
+            (candidate, candidate_document)
+            for candidate, candidate_document in author_entries(document, include_drafts=True)
+            if can_edit(request.user, candidate)
+        ]
+        if editable_entries and editable_entries[0][0].pk != row.pk:
+            return redirect("sdg4_edit", news_id=editable_entries[0][0].pk)
+    if row:
+        document["courses"] = editor_courses(row, document, request.user)
     if row:
         document["revision"] = row.updated_at.isoformat()
     bound_data = request.POST.copy() if request.method == "POST" else None

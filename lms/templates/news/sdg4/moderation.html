@@ -7,7 +7,7 @@ from django.utils.translation import gettext as _
 <header class="sdg4-manage-header">
   <div><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Administration")}</p><h1>${_("Moderation and access")}</h1>
     <p>${_("Review submitted publications or allow a trusted author to publish without waiting for approval.")}</p></div>
-  <a class="sdg4-button" href="${reverse('sdg4_create')}">+ ${_("Create a publication")}</a>
+  <a class="sdg4-button" href="${reverse('sdg4_create')}?new=1">+ ${_("Create a publication")}</a>
 </header>
 
 % if request.GET.get('approved'):

@@ -120,7 +120,7 @@ class ShowcaseTests(TestCase):
         row = News.objects.order_by("-pk").first()
         return row, read_document(row), response.url
 
-    def create_media_publication(self, slug, kind="presentation", name="Один Автор"):
+    def create_media_publication(self, slug, kind="presentation", name="Один Автор", author=None):
         extension = ".pdf" if kind == "presentation" else ".mp4"
         content = b"%PDF-1.4\n%%EOF" if kind == "presentation" else b"\x00\x00\x00\x18ftypisomvideo"
         path = default_storage.save(f"sdg4/legacy/{slug}{extension}", SimpleUploadedFile(slug + extension, content))
@@ -147,7 +147,7 @@ class ShowcaseTests(TestCase):
             content_type=News.ContentType.SDG4,
             moderation_status=News.ModerationStatus.PUBLISHED,
             published_at=timezone.now(),
-            author=self.staff,
+            author=author or self.staff,
         )
 
     def test_editor_exposes_three_tabs_and_only_presentation_or_video(self):
@@ -196,6 +196,31 @@ class ShowcaseTests(TestCase):
         self.assertNotContains(response, "Скрытое название")
         second = self.client.get(response.request["PATH_INFO"] + "?tab=2")
         self.assertContains(second, "media-2")
+
+    def test_add_resources_reopens_and_prefills_all_existing_teacher_tabs(self):
+        author = get_user_model().objects.create_user("lecturer")
+        rows = [
+            self.create_media_publication(f"existing-{number}", author=author)
+            for number in range(1, 4)
+        ]
+        self.client.force_login(author)
+
+        response = self.client.get(reverse("sdg4_create"))
+        self.assertRedirects(response, reverse("sdg4_edit", args=[rows[0].pk]), fetch_redirect_response=False)
+        sibling = self.client.get(reverse("sdg4_edit", args=[rows[1].pk]))
+        self.assertRedirects(sibling, reverse("sdg4_edit", args=[rows[0].pk]), fetch_redirect_response=False)
+
+        editor = self.client.get(response.url)
+        self.assertContains(editor, f'action="{reverse("sdg4_edit", args=[rows[0].pk])}"')
+        for number in range(1, 4):
+            self.assertContains(editor, f'value="existing-{number}"')
+
+    def test_upload_script_uses_unshadowed_form_action_attribute(self):
+        script = (Path(__file__).resolve().parents[4] / "static" / "js" / "sdg4-editor.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("form.getAttribute('action')", script)
+        self.assertNotIn("form.action || window.location.href", script)
 
     def test_video_tab_renders_player_and_requires_accessible_metadata(self):
         data = course_payload()

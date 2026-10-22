@@ -96,7 +96,7 @@
         buttons.forEach(function (button) { button.disabled = true; });
 
         var request = new XMLHttpRequest();
-        request.open('POST', form.action || window.location.href);
+        request.open('POST', form.getAttribute('action') || window.location.href);
         request.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
         request.upload.addEventListener('progress', function (uploadEvent) {
             if (!uploadEvent.lengthComputable) { return; }

@@ -8,7 +8,7 @@ from django.utils.translation import gettext as _
   <div><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Editorial workspace")}</p><h1>${_("My publications")}</h1>
     <p>${_("Create materials, save drafts and follow their moderation status.")}</p></div>
   % if can_create:
-    <a class="sdg4-button" href="${reverse('sdg4_create')}">+ ${_("Create a publication")}</a>
+    <a class="sdg4-button" href="${reverse('sdg4_create')}?new=1">+ ${_("Create a publication")}</a>
   % endif
 </header>
 % if request.GET.get('deleted'):
