@@ -259,6 +259,7 @@ def increment(row_id, course_number, metric, count_page_view=False):
         raise Http404
     keys = {"page", *(str(index) for index in range(1, len(document["courses"]) + 1))}
     keys.update(item["id"] for item in document.get("resources", []))
+    keys.update(item["id"] for item in document.get("article", []) if item.get("id"))
     if str(course_number) not in keys:
         raise ValueError("Invalid counter")
     stats = document.setdefault("stats", {}).setdefault(str(course_number), {})

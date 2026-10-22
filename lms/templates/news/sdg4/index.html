@@ -7,10 +7,10 @@ from django.utils.translation import gettext as _, pgettext
 <header class="sdg4-feed-hero">
   <div class="sdg4-feed-hero-copy">
     <p class="sdg4-eyebrow">OPEN KAZNU · ${_("Open educational resources")}</p>
-    <h1>${_("Ideas, experience and knowledge for quality education")}</h1>
-    <p>${_("Articles, lectures and practical materials from the university community — openly and in one place.")}</p>
+    <h1>${_("Open learning resources from KazNU teachers")}</h1>
+    <p>${_("Presentation courses and video courses in Kazakh, Russian and English — open to everyone.")}</p>
     <div class="sdg4-actions">
-      <a class="sdg4-button" href="${reverse('sdg4_create')}">+ ${_("Create a publication")}</a>
+      <a class="sdg4-button" href="${reverse('sdg4_create')}">+ ${_("Add teacher resources")}</a>
     </div>
   </div>
   <div class="sdg4-feed-hero-mark" aria-label="${_('Sustainable Development Goal 4')}">
@@ -23,51 +23,46 @@ from django.utils.translation import gettext as _, pgettext
 <div class="sdg4-feed-layout">
   <section id="sdg4-resources" class="sdg4-feed" aria-labelledby="sdg4-resources-title">
     <div class="sdg4-feed-heading">
-      <div><p class="sdg4-eyebrow">${_("Fresh from Open KazNU")}</p><h2 id="sdg4-resources-title">${_("Publications")}</h2></div>
-      <span>${_('{count} materials').format(count=len(publications))}</span>
+      <div><p class="sdg4-eyebrow">${_("OpenLektorium catalogue")}</p><h2 id="sdg4-resources-title">${_("Teachers")}</h2></div>
+      <span>${_('{count} teachers').format(count=len(authors))}</span>
     </div>
-    % if publications:
+    % if authors:
       <form class="sdg4-filters" role="search" hidden>
-        <div class="sdg4-search-field"><label for="sdg4-search">${_("Search publications")}</label><span class="sdg4-search-input"><span aria-hidden="true">⌕</span><input id="sdg4-search" type="search" placeholder="${_('Title, author or keyword')}" /></span></div>
+        <div class="sdg4-search-field"><label for="sdg4-search">${_("Search teachers")}</label><span class="sdg4-search-input"><span aria-hidden="true">⌕</span><input id="sdg4-search" type="search" placeholder="${_('Teacher name, position or department')}" /></span></div>
         <div class="sdg4-faculty-field"><label for="sdg4-faculty-filter">${_("Faculty")}</label><select id="sdg4-faculty-filter"><option value="">${_("All faculties")}</option>
           % for slug, name in faculties:
             <option value="${name}">${name}</option>
           % endfor
         </select></div>
       </form>
-      <p class="sdg4-result-count" role="status" aria-live="polite" data-result-label="${_('Publications found: {count}')}"></p>
+      <p class="sdg4-result-count" role="status" aria-live="polite" data-result-label="${_('Teachers found: {count}')}"></p>
       <div class="sdg4-feed-list">
-        % for item in publications:
-          <article class="sdg4-feed-card sdg4-reveal" data-resource-card data-faculty="${item['teacher']['faculty']}">
+        % for item in authors:
+          <article class="sdg4-feed-card sdg4-reveal" data-resource-card data-faculty="${item['faculty']}">
             <div class="sdg4-feed-byline">
               % if item['photo_url']:
                 <img src="${item['photo_url']}" alt="" width="36" height="36" loading="lazy" />
               % else:
-                <span class="sdg4-feed-avatar" aria-hidden="true">${item['author'][:1]}</span>
+                <span class="sdg4-feed-avatar" aria-hidden="true">${item['name'][:1]}</span>
               % endif
-              <div><a href="${item['teacher']['url']}">${item['author']}</a><time datetime="${item['published_at'].isoformat()}">${item['published_ago']}</time></div>
+              <div><a href="${item['url']}">${item['name']}</a><span>${item['department']}</span></div>
             </div>
-            <h3><a href="${item['url']}">${item['title']}</a></h3>
-            <div class="sdg4-feed-meta" aria-label="${_('Publication information')}">
-              <span class="sdg4-feed-topic">${item['teacher']['faculty']}</span>
-              % if item['reading_minutes']:
-                <span aria-label="${_('Reading time')}">◷ ${_('{minutes} min').format(minutes=item['reading_minutes'])}</span>
-              % endif
+            <h3><a href="${item['url']}">${item['name']}</a></h3>
+            <div class="sdg4-feed-meta" aria-label="${_('Teacher information')}">
+              <span class="sdg4-feed-topic">${item['faculty']}</span>
+              <span>${_('{count} tabs').format(count=item['tab_count'])}</span>
               <span aria-label="${_('Views')}">◉ ${item['view_count']}</span>
             </div>
-            % if item['cover_url']:
-              <a class="sdg4-feed-cover" href="${item['url']}" tabindex="-1" aria-hidden="true"><img src="${item['cover_url']}" alt="" loading="lazy" /></a>
+            % if item['position']:
+              <p class="sdg4-feed-summary">${item['position']}</p>
             % endif
-            % if item['summary']:
-              <p class="sdg4-feed-summary">${item['summary']}</p>
-            % endif
-            <a class="sdg4-feed-more" href="${item['url']}">${_("Read more")} <span aria-hidden="true">→</span></a>
+            <a class="sdg4-feed-more" href="${item['url']}">${_("Open teacher resources")} <span aria-hidden="true">→</span></a>
           </article>
         % endfor
       </div>
-      <p class="sdg4-empty" id="sdg4-no-results" hidden>${_("No publications match your search.")}</p>
+      <p class="sdg4-empty" id="sdg4-no-results" hidden>${_("No teachers match your search.")}</p>
     % else:
-      <div class="sdg4-empty sdg4-empty-feed"><strong>${_("The publication feed is being prepared")}</strong><p>${_("Materials will appear here after authors submit them and an administrator approves publication.")}</p></div>
+      <div class="sdg4-empty sdg4-empty-feed"><strong>${_("The teacher catalogue is being prepared")}</strong><p>${_("Teachers will appear here after their resources are approved by an administrator.")}</p></div>
     % endif
   </section>
 

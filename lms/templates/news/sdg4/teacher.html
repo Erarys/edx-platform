@@ -1,50 +1,86 @@
 <%page expression_filter="h"/>
 <%inherit file="base.html" />
 <%!
+from django.urls import reverse
 from django.utils.translation import gettext as _
 %>
 <%def name="pagetitle()">${_('E-learning resources — {name}').format(name=teacher_name)}</%def>
+<nav class="sdg4-breadcrumb" aria-label="${_('Breadcrumbs')}"><a href="${reverse('sdg4_index')}">${_("Teachers")}</a><span aria-hidden="true"> / </span><a href="${reverse('sdg4_faculty', args=[faculty_slug])}">${faculty_name}</a><span aria-hidden="true"> / </span>${teacher_name}</nav>
 % if can_edit_sdg4:
-  <p class="sdg4-article-edit"><a href="${edit_url}">${_("Edit publication")}</a></p>
+  <p class="sdg4-article-edit"><a href="${edit_url}">${_("Edit this tab")}</a></p>
 % endif
-<%include file="article.html"/>
-<%include file="resources.html"/>
-<nav class="sdg4-tabs" aria-label="${_('Courses')}">
+<header class="sdg4-teacher-hero">
+  % if photo_url:
+    <img class="sdg4-photo" src="${photo_url}" alt="${_('Photo of {name}').format(name=teacher_name)}" />
+  % endif
+  <div>
+    <p class="sdg4-eyebrow">${_("E-learning resources")}</p>
+    <h1>${teacher_name}</h1>
+    % if profile['position']:
+      <p>${profile['position']}</p>
+    % endif
+    % if profile['degree']:
+      <p>${profile['degree']}</p>
+    % endif
+    % if profile['department']:
+      <p>${profile['department']}</p>
+    % endif
+    <p>${faculty_name}</p>
+  </div>
+</header>
+<nav class="sdg4-tabs" aria-label="${_('Teacher resource tabs')}">
   % for course in courses:
     <a href="${course['url']}" aria-current="${'page' if course['number'] == selected['number'] else 'false'}">${course['title']}</a>
   % endfor
 </nav>
-<span id="legacy-${selected['number']}"></span>
 <section id="course-panel" class="sdg4-course" aria-labelledby="sdg4-course-title" tabindex="-1">
   <h2 id="sdg4-course-title">${selected['title']}</h2>
-  <p class="sdg4-annotation">${annotation}</p>
+  % if annotation:
+    <p class="sdg4-annotation">${annotation}</p>
+  % endif
   <dl class="sdg4-meta">
-    <div><dt>${_("Language of materials")}</dt><dd>${material_language}</dd></div>
-    <div><dt>${_("Discipline")}</dt><dd>${discipline}</dd></div>
-    <div><dt>${_("Educational programme code")}</dt><dd>${selected['programme']}</dd></div>
+    % if material_language:
+      <div><dt>${_("Language of materials")}</dt><dd>${material_language}</dd></div>
+    % endif
+    % if discipline:
+      <div><dt>${_("Discipline")}</dt><dd>${discipline}</dd></div>
+    % endif
+    % if selected.get('programme'):
+      <div><dt>${_("Educational programme code")}</dt><dd>${selected['programme']}</dd></div>
+    % endif
     <div><dt>${_("Number of lessons")}</dt><dd>${len(selected['materials'])}</dd></div>
-    % if selected['type'] == 'video':
+    % if duration:
       <div><dt>${_("Total video duration")}</dt><dd>${_('{minutes} min {seconds} sec').format(minutes=duration // 60, seconds=duration % 60)}</dd></div>
     % endif
     <div><dt>${_("Publication date")}</dt><dd><time datetime="${selected['published_at']}">${selected['published_at']}</time></dd></div>
-    <div><dt>${_("Creative Commons license")}</dt><dd><a href="https://creativecommons.org/licenses/${selected['license']}/4.0/" rel="license">${license_name}</a></dd></div>
+    % if selected.get('license'):
+      <div><dt>${_("Creative Commons license")}</dt><dd><a href="https://creativecommons.org/licenses/${selected['license']}/4.0/" rel="license">${license_name}</a></dd></div>
+    % endif
     <div><dt>${_("Views")}</dt><dd>${stats.get('views', 0)}</dd></div>
     <div><dt>${_("Downloads")}</dt><dd>${stats.get('downloads', 0)}</dd></div>
   </dl>
   <ol class="sdg4-materials">
     % for item in selected['materials']:
       <li>
-        <h3>${item['title']}</h3>
-        % if selected['type'] == 'lecture':
-          <div class="sdg4-actions"><a href="${item['view_url']}" target="_blank" rel="noopener">${_("Open PDF")}</a><a class="sdg4-button" href="${item['download_url']}" download>${_("Download PDF")}</a></div>
-          <details><summary>${_("View PDF on this page")}</summary><object data="${item['view_url']}" type="application/pdf" class="sdg4-pdf" aria-label="${item['title']}"><a href="${item['view_url']}">${_("Open PDF")}</a></object></details>
-        % elif item['embed']:
-          <iframe class="sdg4-video" src="${item['embed']}" title="${item['title']}" loading="lazy" allow="fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        <h3>${item.get('title') or _("Material")}</h3>
+        % if item['kind'] == 'presentation':
+          <% open_url = item.get('view_url') or item.get('url') %>
+          <div class="sdg4-actions"><a href="${open_url}" target="_blank" rel="noopener">${_("Open presentation")}</a><a class="sdg4-button" href="${item['download_url']}" download>${_("Download")}</a></div>
+          % if item.get('preview_available'):
+            <div class="sdg4-document-preview"><object data="${item['preview_url']}" type="application/pdf" class="sdg4-document-viewer" aria-label="${item.get('title') or _('Presentation')}"><a href="${open_url}">${_("Open presentation")}</a></object></div>
+          % else:
+            <p class="sdg4-preview-unavailable">${_("A browser preview is not available for this file. Open or download the presentation.")}</p>
+          % endif
+        % elif item.get('embed'):
+          <iframe class="sdg4-video" src="${item['embed']}" title="${item.get('title') or _('Video')}" loading="lazy" allow="fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
         % else:
-          <video class="sdg4-video" controls preload="metadata" aria-label="${item['title']}" crossorigin="anonymous">
-            <source src="${item['source']}" />
-            <track kind="captions" src="${item['captions']}" srclang="${selected['language']}" label="${material_language}" default />
-            <a href="${item['source']}">${_("Open video")}</a>
+          <% video_url = item.get('source') or item.get('url') %>
+          <video class="sdg4-video" controls preload="metadata" aria-label="${item.get('title') or _('Video')}" crossorigin="anonymous">
+            <source src="${video_url}" />
+            % if item.get('captions'):
+              <track kind="captions" src="${item['captions']}" srclang="${selected.get('language', 'ru')}" label="${material_language}" default />
+            % endif
+            <a href="${video_url}">${_("Open video")}</a>
           </video>
         % endif
       </li>

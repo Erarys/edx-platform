@@ -318,10 +318,10 @@ class CourseForm(forms.Form):
     programme = forms.CharField(label=_("Educational programme code"), max_length=200)
     license = forms.ChoiceField(label=_("Creative Commons license"), choices=LICENSES)
     lecture_files = MultipleFileField(
-        label=_("Upload PDF files"),
+        label=_("Upload presentations"),
         required=False,
-        help_text=_("Select several files at once. Lesson titles will use the file names."),
-        widget=MultipleFileInput(attrs={"accept": ".pdf"}),
+        help_text=_("Select PDF, PPT or PPTX files. Lesson titles will use the file names."),
+        widget=MultipleFileInput(attrs={"accept": ".pdf,.ppt,.pptx"}),
     )
 
     def __init__(self, *args, course=None, publishing=True, **kwargs):
@@ -334,6 +334,9 @@ class CourseForm(forms.Form):
         }
         super().__init__(*args, **kwargs)
         self.fields["programme"].required = publishing
+        if not publishing:
+            for name in ("type", "language", "license"):
+                self.fields[name].required = False
         translated_fields(
             self,
             (
@@ -350,7 +353,7 @@ class CourseForm(forms.Form):
         if files and self.cleaned_data.get("type") != "lecture":
             raise ValidationError(_("The file type does not match this material."))
         for upload in files:
-            MaterialForm.validate_upload(upload, {".pdf"})
+            validate_presentation_upload(upload)
         return files
 
 
@@ -360,7 +363,7 @@ def material_title(filename):
 
 class MaterialForm(forms.Form):
     title = forms.CharField(label=_("Lesson title"), max_length=250, required=False)
-    file = forms.FileField(label=_("PDF or video file"), required=False)
+    file = forms.FileField(label=_("Presentation or video file"), required=False)
     file_url = forms.CharField(
         label=_("Existing file URL or YouTube link"),
         max_length=2000,
@@ -396,8 +399,8 @@ class MaterialForm(forms.Form):
         extension = PurePosixPath(upload.name.lower()).suffix
         if extension not in extensions:
             raise ValidationError(_("The file type does not match this material."))
-        if upload.size > getattr(settings, "SDG4_MAX_UPLOAD_BYTES", 512 * 1024 * 1024):
-            raise ValidationError(_("The file exceeds the configured upload limit."))
+        if upload.size > getattr(settings, "SDG4_MAX_UPLOAD_BYTES", 1024 * 1024 * 1024):
+            raise ValidationError(_("The file exceeds the 1 GB upload limit."))
         header = upload.read(1024)
         upload.seek(0)
         if extension == ".pdf" and not header.startswith(b"%PDF-"):
@@ -410,10 +413,10 @@ class MaterialForm(forms.Form):
         if self.errors:
             return cleaned
         upload, url = cleaned.get("file"), cleaned.get("file_url", "")
-        self.validate_upload(
-            upload,
-            {".pdf"} if self.course_type == "lecture" else {".mp4", ".webm", ".ogv"},
-        )
+        if self.course_type == "lecture" and upload:
+            validate_presentation_upload(upload)
+        else:
+            self.validate_upload(upload, {".mp4", ".webm", ".ogv"})
         self.validate_upload(cleaned.get("captions"), {".vtt"})
         if upload and url:
             raise ValidationError(_("Choose either an uploaded file or an existing URL."))
@@ -426,7 +429,7 @@ class MaterialForm(forms.Form):
         source = url or self.material.get("file_url", "")
         existing_path = self.material.get("file_path", "") if not (upload or url) else ""
         if existing_path:
-            expected = {".pdf"} if self.course_type == "lecture" else {".mp4", ".webm", ".ogv"}
+            expected = ARTICLE_EXTENSIONS["presentation"] if self.course_type == "lecture" else {".mp4", ".webm", ".ogv"}
             if PurePosixPath(existing_path.lower()).suffix not in expected:
                 raise ValidationError(_("The file type does not match this material."))
         host = (urlsplit(source).hostname or "").lower()
@@ -437,8 +440,8 @@ class MaterialForm(forms.Form):
             "www.youtube-nocookie.com",
         }
         if self.course_type == "lecture":
-            if source and PurePosixPath(urlsplit(source).path.lower()).suffix != ".pdf":
-                raise ValidationError(_("Lecture materials must be PDF files."))
+            if source and PurePosixPath(urlsplit(source).path.lower()).suffix not in ARTICLE_EXTENSIONS["presentation"]:
+                raise ValidationError(_("Presentation materials must be PDF, PPT or PPTX files."))
         else:
             if self.publishing and not cleaned.get("duration"):
                 self.add_error("duration", _("Enter the video duration."))
@@ -455,10 +458,8 @@ class MaterialForm(forms.Form):
                     )
                 )
                 if host and not (
-                    host == "kaznu.kz"
-                    or host.endswith(".kaznu.kz")
-                    or host == "farabi.university"
-                    or host.endswith(".farabi.university")
+                    host in {"kaznu.kz", "farabi.university"}
+                    or host.endswith((".kaznu.kz", ".farabi.university"))
                     or host in allowed
                 ):
                     raise ValidationError(_("Use university-hosted video or the university YouTube channel."))

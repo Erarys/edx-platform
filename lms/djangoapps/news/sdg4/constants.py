@@ -24,7 +24,7 @@ FACULTIES = (
     ("economics-business", _("Higher School of Economics and Business")),
     ("al-farabi-business-school", _("Al-Farabi Business School")),
 )
-COURSE_TYPES = (("lecture", _("Lecture course")), ("video", _("Video course")))
+COURSE_TYPES = (("lecture", _("Presentation course")), ("video", _("Video course")))
 LICENSES = tuple(
     (key, label)
     for key, label in (

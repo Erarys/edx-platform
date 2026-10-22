@@ -63,4 +63,9 @@ urlpatterns = [
         {"download": True},
         name="sdg4_download",
     ),
+    path(
+        "<slug:faculty>/<slug:teacher>/<int:course>/<slug:material_id>/preview/",
+        views.material_preview,
+        name="sdg4_material_preview",
+    ),
 ]

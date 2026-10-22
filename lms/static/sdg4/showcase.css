@@ -300,6 +300,23 @@
 .sdg4 .sdg4-button:hover { border-color: #18263e; background: #18263e; color: #fff; }
 .sdg4-languages button:hover { border-color: #ffffff80; background: #263957; color: #fff; }
 
+/* Teacher-first catalogue and three-tab course editor. */
+.sdg4-teacher-hero { display: flex; align-items: flex-start; gap: 28px; margin: 28px 0 8px; padding: clamp(24px, 4vw, 42px); border: 1px solid #dfe7e5; border-radius: 18px; background: linear-gradient(125deg, #eef8f5, #edf4f8); }
+.sdg4-teacher-hero h1 { margin: 5px 0 14px; }
+.sdg4-teacher-hero p { margin: 4px 0; color: #465957; }
+.sdg4-course-editor-form { width: min(100%, 1040px); margin: 0 auto; }
+.sdg4-tab-editor { border-top: 5px solid var(--sdg4-green) !important; background: #fbfdfc; }
+.sdg4-tab-editor > details { margin: 20px 0; padding: 16px; border: 1px solid #dfe7e5; border-radius: 10px; background: #fff; }
+.sdg4-presentation-bulk { margin: 22px 0; padding: 22px; border: 1px dashed #6fa897; border-radius: 12px; background: var(--sdg4-green-soft); }
+.sdg4-material-forms { display: grid; gap: 16px; }
+.sdg4-material-form { margin: 0 !important; border-left: 5px solid var(--sdg4-blue) !important; }
+.sdg4-upload-progress { width: min(100%, 760px); margin: 30px auto; padding: 28px; border: 1px solid #96c9bc; border-radius: 16px; background: #effaf6; box-shadow: 0 14px 40px #173f3812; }
+.sdg4-upload-progress strong { font-size: 1.15rem; }
+.sdg4-upload-progress [data-upload-percent] { float: right; color: var(--sdg4-green-dark); font-size: 1.15rem; font-weight: 800; }
+.sdg4-upload-progress progress { display: block; width: 100%; height: 22px; margin: 14px 0; accent-color: var(--sdg4-green); }
+.sdg4-upload-progress p { margin: 0; color: var(--sdg4-muted); }
+.sdg4-upload-failed { border-color: #d48d98; background: #fff0f2; }
+
 @media (max-width: 900px) {
   .sdg4-feed-layout { grid-template-columns: 1fr; }
   .sdg4-feed-sidebar { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -316,4 +333,8 @@
   .sdg4-feed .sdg4-filters input, .sdg4-feed .sdg4-filters select { font-size: 16px; }
   .sdg4-access-panel, .sdg4-account-confirmation { padding: 24px 18px; }
   .sdg4-publisher-list { grid-template-columns: 1fr; }
+  .sdg4-teacher-hero { flex-direction: column; }
+  .sdg4-teacher-hero .sdg4-photo { width: 112px; height: 112px; }
+  .sdg4-tabs { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; }
+  .sdg4-tabs a { min-width: 145px; scroll-snap-align: start; }
 }
