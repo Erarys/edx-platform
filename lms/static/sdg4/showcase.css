@@ -178,8 +178,8 @@
 .sdg4-languages button[aria-pressed="true"] { background: var(--sdg4-green); border-color: var(--sdg4-green); }
 .sdg4-editor-link { display: flex; justify-content: flex-end; gap: 14px; margin: 12px 0 18px; font-size: .88rem; }
 .sdg4-editor-link a { padding: 7px 12px; border-radius: 20px; background: var(--sdg4-green-soft); color: var(--sdg4-green-dark); text-decoration: none; font-weight: 600; }
-.sdg4-editor-link .sdg4-editor-create { background: var(--sdg4-green); color: #fff !important; }
-.sdg4-editor-link .sdg4-editor-create:hover { color: #9ed8ff !important; }
+.sdg4-editor-link .sdg4-editor-create { border: 1px solid #18263e; border-radius: 12px; background: #18263e; color: #fff !important; }
+.sdg4-editor-link .sdg4-editor-create:hover { border-color: #18263e; background: #18263e; color: #9ed8ff !important; }
 .sdg4-feed-hero { position: relative; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(230px, .5fr); gap: 48px; align-items: center; min-height: 330px; margin: 0 0 34px; padding: clamp(30px, 5vw, 64px); overflow: hidden; border-radius: 24px; background: linear-gradient(125deg, #e6f6ef 0%, #edf6f7 58%, #d4edf0 100%); }
 .sdg4-feed-hero::before, .sdg4-feed-hero::after { content: ""; position: absolute; border-radius: 50%; pointer-events: none; }
 .sdg4-feed-hero::before { width: 220px; height: 220px; right: 20%; top: -135px; border: 44px solid #ffffff6b; }

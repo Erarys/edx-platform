@@ -728,6 +728,8 @@ class ShowcaseTests(TestCase):
         self.assertIn("max-width: 716px", css)
         self.assertIn("width: 100% !important", css)
         self.assertIn("width: min(100%, 520px)", css)
+        self.assertIn(".sdg4-editor-create { border: 1px solid #18263e", css)
+        self.assertIn("color: #9ed8ff !important", css)
 
     def test_guests_cannot_write_or_view_editor_and_csrf_required(self):
         self.client.logout()
@@ -848,6 +850,8 @@ class ShowcaseTests(TestCase):
         self.legacy_page()
         News.objects.create(title="Ordinary news", content="Not a resource")
         response = self.client.get(reverse("sdg4_index"))
+        self.assertContains(response, "OpenLektorium")
+        self.assertNotContains(response, "SDG 4: Quality Education")
         self.assertContains(response, "data-resource-card", count=2)
         self.assertContains(response, "Иванова Алия Сергеевна")
         self.assertContains(response, "Teacher")

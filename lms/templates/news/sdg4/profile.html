@@ -3,7 +3,7 @@
 <%!
 from django.utils.translation import gettext as _
 %>
-<%def name="pagetitle()">${teacher_name} · ${_("SDG 4: Quality Education")}</%def>
+<%def name="pagetitle()">${teacher_name} · ${_("OpenLektorium")}</%def>
 % if can_edit_sdg4:
   <p class="sdg4-article-edit"><a href="${edit_url}">${_("Edit publication")}</a></p>
 % endif
