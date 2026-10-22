@@ -313,6 +313,7 @@ ArticleBlocks = formset_factory(
 
 
 class CourseForm(forms.Form):
+    DELETE = forms.BooleanField(required=False, widget=forms.HiddenInput)
     type = forms.ChoiceField(label=_("Course type"), choices=COURSE_TYPES)
     language = forms.ChoiceField(label=_("Language of materials"), choices=LANGUAGES)
     programme = forms.CharField(label=_("Educational programme code"), max_length=200)
@@ -326,6 +327,7 @@ class CourseForm(forms.Form):
 
     def __init__(self, *args, course=None, publishing=True, **kwargs):
         course = course or {}
+        self.course = course
         kwargs["initial"] = {
             "type": "lecture",
             "language": "ru",
@@ -333,10 +335,6 @@ class CourseForm(forms.Form):
             **course,
         }
         super().__init__(*args, **kwargs)
-        self.fields["programme"].required = publishing
-        if not publishing:
-            for name in ("type", "language", "license"):
-                self.fields[name].required = False
         translated_fields(
             self,
             (
@@ -347,6 +345,18 @@ class CourseForm(forms.Form):
             course,
             publishing=publishing,
         )
+        deleted = bool(self.is_bound and self.data.get(self.add_prefix("DELETE")))
+        self.fields["programme"].required = publishing and not deleted
+        if not publishing or deleted:
+            for name, field in self.fields.items():
+                if name != "DELETE":
+                    field.required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("DELETE"):
+            return cleaned
+        return cleaned
 
     def clean_lecture_files(self):
         files = self.cleaned_data["lecture_files"]
@@ -369,17 +379,6 @@ class MaterialForm(forms.Form):
         max_length=2000,
         required=False,
         validators=[validate_media_url],
-    )
-    captions = forms.FileField(label=_("Subtitles (.vtt)"), required=False)
-    captions_url = forms.CharField(
-        label=_("Existing subtitles URL"),
-        max_length=2000,
-        required=False,
-        validators=[validate_media_url],
-    )
-    youtube_captions = forms.BooleanField(
-        label=_("I verified that this university YouTube video has subtitles."),
-        required=False,
     )
     duration = forms.IntegerField(label=_("Video duration in seconds"), required=False, min_value=1)
 
@@ -405,8 +404,6 @@ class MaterialForm(forms.Form):
         upload.seek(0)
         if extension == ".pdf" and not header.startswith(b"%PDF-"):
             raise ValidationError(_("Upload a valid PDF file."))
-        if extension == ".vtt" and not header.lstrip(b"\xef\xbb\xbf").startswith(b"WEBVTT"):
-            raise ValidationError(_("Upload WebVTT subtitles starting with WEBVTT."))
 
     def clean(self):
         cleaned = super().clean()
@@ -417,15 +414,12 @@ class MaterialForm(forms.Form):
             validate_presentation_upload(upload)
         else:
             self.validate_upload(upload, {".mp4", ".webm", ".ogv"})
-        self.validate_upload(cleaned.get("captions"), {".vtt"})
         if upload and url:
             raise ValidationError(_("Choose either an uploaded file or an existing URL."))
         if self.publishing and not (upload or url or self.material.get("file_path")):
             raise ValidationError(_("Add a file or a link for every lesson."))
         if not cleaned.get("title"):
             cleaned["title"] = material_title(upload.name if upload else url or self.material.get("file_path", ""))
-        if cleaned.get("captions") and cleaned.get("captions_url"):
-            raise ValidationError(_("Choose either uploaded subtitles or a subtitles URL."))
         source = url or self.material.get("file_url", "")
         existing_path = self.material.get("file_path", "") if not (upload or url) else ""
         if existing_path:
@@ -446,8 +440,8 @@ class MaterialForm(forms.Form):
             if self.publishing and not cleaned.get("duration"):
                 self.add_error("duration", _("Enter the video duration."))
             if youtube_host:
-                if not youtube_embed(source) or (self.publishing and not cleaned.get("youtube_captions")):
-                    raise ValidationError(_("Use a valid university YouTube video and confirm its subtitles."))
+                if not youtube_embed(source):
+                    raise ValidationError(_("Use a valid university YouTube video."))
             else:
                 # University media can also use a separately configured storage/CDN host.
                 allowed = set(getattr(settings, "SDG4_MEDIA_HOSTS", ()))
@@ -465,10 +459,6 @@ class MaterialForm(forms.Form):
                     raise ValidationError(_("Use university-hosted video or the university YouTube channel."))
                 if source and PurePosixPath(urlsplit(source).path.lower()).suffix not in {".mp4", ".webm", ".ogv"}:
                     raise ValidationError(_("Use an MP4, WebM or OGV video URL."))
-                if self.publishing and not (
-                    cleaned.get("captions") or cleaned.get("captions_url") or self.material.get("captions_path")
-                ):
-                    raise ValidationError(_("Subtitles are required for each video."))
         return cleaned
 
 
@@ -510,7 +500,7 @@ class MaterialFormSet(BaseFormSet):
         if count > self.max_num:
             raise ValidationError(_("A course can contain at most 200 lessons."))
         if self.publishing and not count:
-            raise ValidationError(_("Add at least one lesson to each of the three courses."))
+            raise ValidationError(_("Add at least one lesson to this tab."))
 
 
 Materials = formset_factory(

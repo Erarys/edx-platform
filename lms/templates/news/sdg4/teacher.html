@@ -77,9 +77,6 @@ from django.utils.translation import gettext as _
           <% video_url = item.get('source') or item.get('url') %>
           <video class="sdg4-video" controls preload="metadata" aria-label="${item.get('title') or _('Video')}" crossorigin="anonymous">
             <source src="${video_url}" />
-            % if item.get('captions'):
-              <track kind="captions" src="${item['captions']}" srclang="${selected.get('language', 'ru')}" label="${material_language}" default />
-            % endif
             <a href="${video_url}">${_("Open video")}</a>
           </video>
         % endif

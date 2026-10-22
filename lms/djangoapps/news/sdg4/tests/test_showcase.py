@@ -66,7 +66,7 @@ def pptx(name="slides.pptx"):
     return SimpleUploadedFile(name, stream.getvalue())
 
 
-def course_payload(action="publish", name="Иванова Алия Сергеевна"):
+def course_payload(action="publish", name="Иванова Алия Сергеевна", tab_count=3):
     data = {
         "name_ru": name,
         "position_ru": "Старший преподаватель",
@@ -75,8 +75,9 @@ def course_payload(action="publish", name="Иванова Алия Сергее�
         "faculty": FACULTIES[0][0],
         "mooc_url": "",
         "action": action,
+        "course-TOTAL_FORMS": str(tab_count),
     }
-    for slot in range(1, 4):
+    for slot in range(1, tab_count + 1):
         prefix = f"course-{slot}"
         data.update(
             {
@@ -150,16 +151,16 @@ class ShowcaseTests(TestCase):
             author=author or self.staff,
         )
 
-    def test_editor_exposes_three_tabs_and_only_presentation_or_video(self):
+    def test_editor_starts_with_one_tab_and_can_add_more(self):
         response = self.client.get(reverse("sdg4_create"))
         self.assertContains(response, "Tab 1")
-        self.assertContains(response, "Tab 2")
-        self.assertContains(response, "Tab 3")
-        self.assertContains(response, "Presentation course", count=3)
-        self.assertContains(response, "Video course", count=3)
+        self.assertContains(response, "Add tab")
+        self.assertContains(response, 'name="course-TOTAL_FORMS" value="1"')
         self.assertNotContains(response, 'data-add-kind="text"')
         self.assertNotContains(response, 'data-add-kind="image"')
         self.assertNotContains(response, 'data-add-kind="audio"')
+        self.assertNotContains(response, "Subtitles")
+        self.assertNotContains(response, "YouTube video has subtitles")
         self.assertContains(response, 'data-upload-limit="1073741824"')
         self.assertContains(response, "data-upload-progress")
 
@@ -176,6 +177,31 @@ class ShowcaseTests(TestCase):
         self.assertContains(response, "Open presentation")
         self.assertContains(response, "Иванова Алия Сергеевна")
 
+    def test_one_completed_tab_can_be_published_and_more_added_later(self):
+        data = course_payload(tab_count=1)
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        row = News.objects.get()
+        document = read_document(row)
+        self.assertEqual(len(document["courses"]), 1)
+        public_page = self.client.get(response.url)
+        self.assertContains(public_page, "Tab 1")
+        self.assertNotContains(public_page, "Tab 2")
+
+        editor = self.client.get(reverse("sdg4_edit", args=[row.pk]))
+        self.assertContains(editor, 'name="course-TOTAL_FORMS" value="1"')
+        self.assertContains(editor, "Add tab")
+
+    def test_removed_tab_is_not_required_or_published(self):
+        data = course_payload()
+        data["course-2-DELETE"] = "on"
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        document = read_document(News.objects.get())
+        self.assertEqual(len(document["courses"]), 2)
+        self.assertEqual(document["courses"][0]["topic"]["ru"], "Тема 1")
+        self.assertEqual(document["courses"][1]["topic"]["ru"], "Тема 3")
+
     def test_home_and_faculty_list_authors_not_publication_titles(self):
         self.create_media_publication("one")
         self.create_media_publication("two")
@@ -187,21 +213,29 @@ class ShowcaseTests(TestCase):
         faculty = self.client.get(reverse("sdg4_faculty", args=[FACULTIES[0][0]]))
         self.assertContains(faculty, "Один Автор", count=1)
 
-    def test_three_existing_publications_are_three_tabs_for_one_author(self):
-        rows = [self.create_media_publication(f"media-{number}") for number in range(1, 4)]
+    def test_existing_publications_each_become_an_automatic_tab(self):
+        rows = [self.create_media_publication(f"media-{number}") for number in range(1, 5)]
         document = read_document(rows[0])
         response = self.client.get(reverse("sdg4_teacher", args=[document["faculty"], document["slug"]]))
-        for number in range(1, 4):
+        for number in range(1, 5):
             self.assertContains(response, f"Tab {number}")
         self.assertNotContains(response, "Скрытое название")
         second = self.client.get(response.request["PATH_INFO"] + "?tab=2")
         self.assertContains(second, "media-2")
+        fourth = self.client.get(response.request["PATH_INFO"] + "?tab=4")
+        self.assertContains(fourth, "media-4")
+
+        consolidated = read_document(rows[0])
+        consolidated["courses"] = views.editor_courses(rows[0], consolidated, self.staff)
+        rows[0].content = json.dumps(consolidated)
+        rows[0].save(update_fields=["content"])
+        self.assertEqual(len(views.author_tabs(views.author_entries(consolidated))), 4)
 
     def test_add_resources_reopens_and_prefills_all_existing_teacher_tabs(self):
         author = get_user_model().objects.create_user("lecturer")
         rows = [
             self.create_media_publication(f"existing-{number}", author=author)
-            for number in range(1, 4)
+            for number in range(1, 5)
         ]
         self.client.force_login(author)
 
@@ -212,7 +246,7 @@ class ShowcaseTests(TestCase):
 
         editor = self.client.get(response.url)
         self.assertContains(editor, f'action="{reverse("sdg4_edit", args=[rows[0].pk])}"')
-        for number in range(1, 4):
+        for number in range(1, 5):
             self.assertContains(editor, f'value="existing-{number}"')
 
     def test_upload_script_uses_unshadowed_form_action_attribute(self):
@@ -231,7 +265,6 @@ class ShowcaseTests(TestCase):
             {
                 "materials-1-0-title": "Видео 1",
                 "materials-1-0-file_url": "https://youtu.be/abcdefghijk",
-                "materials-1-0-youtube_captions": "on",
                 "materials-1-0-duration": "125",
             }
         )
@@ -364,6 +397,7 @@ class ShowcaseTests(TestCase):
             "name_ru": "Черновик",
             "faculty": FACULTIES[0][0],
             "action": "draft",
+            "course-TOTAL_FORMS": "3",
         }
         for slot in range(1, 4):
             draft.update(

@@ -102,6 +102,7 @@ COVER_CONTENT_TYPES = {
 }
 PRESENTATION_EXTENSIONS = {".pdf", ".ppt", ".pptx"}
 logger = logging.getLogger(__name__)
+DEFAULT_MAX_TABS = 50
 
 
 class PresentationPreviewUnavailable(Exception):
@@ -279,9 +280,17 @@ def author_entries(document, include_drafts=False):
 
 def author_tabs(entries):
     sources = []
+    seen_material_ids = set()
     for row, document in entries:
-        sources.extend(document_tab_sources(row, document))
-    return sources[:3]
+        for source in document_tab_sources(row, document):
+            course = source.get("course") or {}
+            materials = course.get("materials", source.get("legacy_media", []))
+            material_ids = {item.get("id") for item in materials if item.get("id")}
+            if material_ids and material_ids.issubset(seen_material_ids):
+                continue
+            seen_material_ids.update(material_ids)
+            sources.append(source)
+    return sources
 
 
 def legacy_editor_course(items, course_type):
@@ -322,7 +331,7 @@ def legacy_editor_course(items, course_type):
 
 
 def editor_courses(row, document, user):
-    """Prefill all retained tabs for a teacher, including older multi-row data."""
+    """Prefill every retained tab for a teacher, including older multi-row data."""
     entries = [
         (candidate, candidate_document)
         for candidate, candidate_document in author_entries(document, include_drafts=True)
@@ -331,18 +340,15 @@ def editor_courses(row, document, user):
     if not any(candidate.pk == row.pk for candidate, _candidate_document in entries):
         entries.insert(0, (row, document))
     courses = []
-    for candidate, candidate_document in entries:
-        for source in document_tab_sources(candidate, candidate_document):
-            if source.get("course"):
-                courses.append(copy.deepcopy(source["course"]))
-            else:
-                media = source.get("legacy_media", [])
-                for course_type in ("lecture", "video"):
-                    course = legacy_editor_course(media, course_type)
-                    if course:
-                        courses.append(course)
-            if len(courses) >= 3:
-                return courses[:3]
+    for source in author_tabs(entries):
+        if source.get("course"):
+            courses.append(copy.deepcopy(source["course"]))
+        else:
+            media = source.get("legacy_media", [])
+            for course_type in ("lecture", "video"):
+                course = legacy_editor_course(media, course_type)
+                if course:
+                    courses.append(course)
     return courses
 
 
@@ -450,7 +456,7 @@ def course_number(request):
         number = int(request.GET.get("tab", request.GET.get("course", "1")))
     except (ValueError, TypeError):
         raise Http404 from None
-    if number not in {1, 2, 3}:
+    if number < 1:
         raise Http404
     return number
 
@@ -617,7 +623,6 @@ def teacher(request, faculty, teacher):
                 "kind": "presentation" if course["type"] == "lecture" else "video",
                 "format": extension.lstrip(".").upper(),
                 "source": file_url(item),
-                "captions": file_url(item, "captions"),
                 "embed": youtube_embed(item.get("file_url", "")) if course["type"] == "video" else "",
             }
             if course["type"] == "lecture":
@@ -727,7 +732,7 @@ def material(request, faculty, teacher, course, material_id, download=False):
 @never_cache
 @require_GET
 def material_preview(request, faculty, teacher, course, material_id):
-    """Render a PDF preview for a presentation stored in one of the three tabs."""
+    """Render a PDF preview for a presentation stored in a resource tab."""
     row, document = find_page(faculty, teacher)
     if course < 1 or course > len(document["courses"]) or document["courses"][course - 1]["type"] != "lecture":
         raise Http404
@@ -1142,7 +1147,7 @@ def save_upload(upload, row_id, slot, saved):
 
 
 def save_page(row, original, teacher_form, bundles, moderation_status, author=None):
-    """Save exactly three course tabs while retaining superseded article data."""
+    """Save the active resource tabs while retaining superseded article data."""
     saved = []
     try:
         with transaction.atomic():
@@ -1180,11 +1185,13 @@ def save_page(row, original, teacher_form, bundles, moderation_status, author=No
                 {key: translations(cleaned, key) for key in ("name", "position", "degree", "department")}
             )
             document["profile"]["mooc_url"] = cleaned.get("mooc_url", "")
-            old_courses = document.get("courses", [])
             courses = []
-            for slot, (course_form, formset) in enumerate(bundles, 1):
+            for course_form, formset, deleted in bundles:
+                if deleted:
+                    continue
+                slot = len(courses) + 1
                 fields = course_form.cleaned_data
-                old_course = old_courses[slot - 1] if len(old_courses) >= slot else {}
+                old_course = course_form.course
                 course = {
                     "type": fields.get("type") or old_course.get("type", "lecture"),
                     "language": fields.get("language") or old_course.get("language", "ru"),
@@ -1201,19 +1208,18 @@ def save_page(row, original, teacher_form, bundles, moderation_status, author=No
                     if not values or values.get("DELETE"):
                         continue
                     item = copy.deepcopy(material_form.material)
-                    item.update({key: values.get(key) for key in ("title", "duration", "youtube_captions")})
+                    item.update({key: values.get(key) for key in ("title", "duration")})
                     item.setdefault("id", uuid4().hex)
-                    for upload_field, kind in (("file", "file"), ("captions", "captions")):
-                        upload = values.get(upload_field)
-                        url = values.get(f"{kind}_url", "")
-                        if upload:
-                            item[f"{kind}_path"] = save_upload(upload, row.pk, f"courses/{slot}", saved)
-                            item.pop(f"{kind}_url", None)
-                        elif url:
-                            item[f"{kind}_url"] = url
-                            item.pop(f"{kind}_path", None)
-                        elif not item.get(f"{kind}_path"):
-                            item.pop(f"{kind}_url", None)
+                    upload = values.get("file")
+                    url = values.get("file_url", "")
+                    if upload:
+                        item["file_path"] = save_upload(upload, row.pk, f"courses/{slot}", saved)
+                        item.pop("file_url", None)
+                    elif url:
+                        item["file_url"] = url
+                        item.pop("file_path", None)
+                    elif not item.get("file_path"):
+                        item.pop("file_url", None)
                     course["materials"].append(item)
                 for upload in fields.get("lecture_files", []):
                     course["materials"].append(
@@ -1222,7 +1228,6 @@ def save_page(row, original, teacher_form, bundles, moderation_status, author=No
                             "title": material_title(upload.name),
                             "file_path": save_upload(upload, row.pk, f"courses/{slot}", saved),
                             "duration": None,
-                            "youtube_captions": False,
                         }
                     )
                 courses.append(course)
@@ -1302,11 +1307,34 @@ def edit(request, news_id=None):
         publishing=publishing,
     )
     existing_courses = [*document.get("courses", [])]
-    existing_courses.extend({} for _index in range(3 - len(existing_courses)))
+    max_tabs = max(1, min(int(getattr(settings, "SDG4_MAX_TABS", DEFAULT_MAX_TABS)), 200))
+    invalid_tab_count = False
+    if bound_data is not None:
+        submitted_count = bound_data.get("course-TOTAL_FORMS")
+        if submitted_count is None:
+            submitted_slots = [
+                int(match.group(1))
+                for key in bound_data
+                if (match := re.match(r"course-(\d+)-", key))
+            ]
+            tab_count = max([len(existing_courses), *submitted_slots, 1])
+        else:
+            try:
+                tab_count = int(submitted_count)
+            except (TypeError, ValueError):
+                tab_count = 0
+                invalid_tab_count = True
+        if tab_count < 0 or tab_count > max_tabs:
+            invalid_tab_count = True
+            tab_count = max(0, min(tab_count, max_tabs))
+    else:
+        tab_count = max(1, len(existing_courses))
+    existing_courses.extend({} for _index in range(tab_count - len(existing_courses)))
     bundles = []
-    for slot in range(1, 4):
+    for slot in range(1, tab_count + 1):
         course = existing_courses[slot - 1]
         prefix = f"course-{slot}"
+        deleted = bool(bound_data and bound_data.get(f"{prefix}-DELETE"))
         course_form = CourseForm(
             bound_data,
             request.FILES or None,
@@ -1322,14 +1350,31 @@ def edit(request, news_id=None):
             prefix=f"materials-{slot}",
             materials=course.get("materials", []),
             course_type=course_type,
-            publishing=publishing,
+            publishing=publishing and not deleted,
             bulk_count=bulk_count,
         )
-        bundles.append((course_form, formset))
+        bundles.append((course_form, formset, deleted))
+    empty_course_form = CourseForm(prefix="course-__tab__", course={}, publishing=publishing)
+    empty_materials = Materials(
+        prefix="materials-__tab__",
+        materials=[],
+        course_type="lecture",
+        publishing=publishing,
+    )
     if request.method == "POST":
         checks = [teacher_form.is_valid()]
-        for course_form, formset in bundles:
+        active_tabs = 0
+        for course_form, formset, deleted in bundles:
+            if deleted:
+                continue
+            active_tabs += 1
             checks.extend((course_form.is_valid(), formset.is_valid()))
+        if invalid_tab_count:
+            teacher_form.add_error(None, _("The number of tabs is invalid."))
+            checks.append(False)
+        if publishing and not active_tabs:
+            teacher_form.add_error(None, _("Add at least one tab before publishing."))
+            checks.append(False)
         valid = all(checks)
         if row and request.POST.get("revision") != document["revision"]:
             teacher_form.add_error(None, _("This page was edited elsewhere. Reload it before saving."))
@@ -1364,5 +1409,8 @@ def edit(request, news_id=None):
             "row": row,
             "moderation_status": moderation_status,
             "bundles": bundles,
+            "empty_course_form": empty_course_form,
+            "empty_materials": empty_materials,
+            "max_tabs": max_tabs,
         },
     )

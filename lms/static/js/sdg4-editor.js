@@ -37,9 +37,23 @@
         updateCourse(editor);
     }
 
-    form.querySelectorAll('[data-course-editor]').forEach(function (editor) {
+    function prepareCourse(editor) {
+        if (editor.dataset.courseReady === 'true') { return; }
+        editor.dataset.courseReady = 'true';
         var type = editor.querySelector('select[name$="-type"]');
         if (type) { type.addEventListener('change', function () { updateCourse(editor); }); }
+        var removeCourse = editor.querySelector('[data-remove-course]');
+        var deletedCourse = editor.querySelector('input[name^="course-"][name$="-DELETE"]');
+        if (deletedCourse && ['on', 'true', 'True', '1'].indexOf(deletedCourse.value) !== -1) {
+            editor.hidden = true;
+        }
+        if (removeCourse) {
+            removeCourse.addEventListener('click', function () {
+                if (deletedCourse) { deletedCourse.value = 'on'; }
+                editor.querySelectorAll('input[type="file"]').forEach(function (input) { input.value = ''; });
+                editor.hidden = true;
+            });
+        }
         editor.querySelectorAll('[data-material-form]').forEach(function (material) {
             prepareMaterial(material, editor);
         });
@@ -61,7 +75,32 @@
             });
         }
         updateCourse(editor);
+    }
+
+    form.querySelectorAll('[data-course-editor]').forEach(function (editor) {
+        prepareCourse(editor);
     });
+
+    var courseList = form.querySelector('[data-course-list]');
+    var addCourse = form.querySelector('[data-add-course]');
+    var courseTemplate = document.getElementById('sdg4-empty-course');
+    var courseTotal = document.getElementById('id_course-TOTAL_FORMS');
+    if (courseList && addCourse && courseTemplate && courseTotal) {
+        addCourse.addEventListener('click', function () {
+            var current = parseInt(courseTotal.value, 10);
+            var maximum = parseInt(addCourse.dataset.maxTabs, 10);
+            if (current >= maximum) { return; }
+            var slot = current + 1;
+            var wrapper = document.createElement('div');
+            wrapper.innerHTML = courseTemplate.innerHTML.replace(/__tab__/g, String(slot)).trim();
+            var editor = wrapper.firstElementChild;
+            courseList.appendChild(editor);
+            courseTotal.value = slot;
+            prepareCourse(editor);
+            editor.scrollIntoView({behavior: 'smooth', block: 'start'});
+            if (slot >= maximum) { addCourse.disabled = true; }
+        });
+    }
 
     document.querySelectorAll('.sdg4-edit details').forEach(function (section) {
         if (section.querySelector('.errorlist')) { section.open = true; }
@@ -69,6 +108,7 @@
 
     function selectedFiles() {
         return Array.from(form.querySelectorAll('input[type="file"]')).reduce(function (files, input) {
+            if (input.closest('[hidden]')) { return files; }
             return files.concat(Array.from(input.files || []));
         }, []);
     }

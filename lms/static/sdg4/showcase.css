@@ -316,6 +316,11 @@
 .sdg4-upload-progress progress { display: block; width: 100%; height: 22px; margin: 14px 0; accent-color: var(--sdg4-green); }
 .sdg4-upload-progress p { margin: 0; color: var(--sdg4-muted); }
 .sdg4-upload-failed { border-color: #d48d98; background: #fff0f2; }
+.sdg4-course-list { display: grid; gap: 22px; }
+.sdg4-tab-editor { position: relative; }
+.sdg4-remove-tab { position: absolute; top: 18px; right: 18px; border-color: #e1a5ae !important; color: #9f1d32 !important; }
+.sdg4-add-tab { display: block; width: min(100%, 520px); margin: 24px auto 34px; padding: 18px 24px !important; border: 2px dashed var(--sdg4-green) !important; border-radius: 14px !important; background: var(--sdg4-green-soft) !important; color: var(--sdg4-green-dark) !important; font-size: 1.05rem; font-weight: 800; }
+.sdg4-add-tab:hover { border-style: solid !important; background: #d9f2e9 !important; }
 
 @media (max-width: 900px) {
   .sdg4-feed-layout { grid-template-columns: 1fr; }

@@ -12,9 +12,52 @@ from django.utils.translation import gettext as _
     % endif
   </div>
 </%def>
+<%def name="course_editor(slot, course_form, formset)">
+  <fieldset class="sdg4-tab-editor" data-course-editor><legend>${_('Tab {number}').format(number=slot)}</legend>
+    <span hidden>${course_form['DELETE']}</span>
+    <button type="button" class="sdg4-remove-tab" data-remove-course>${_("Remove tab")}</button>
+    ${course_form.non_field_errors()}
+    <div class="sdg4-form-grid">${field(course_form['type'])}${field(course_form['language'])}${field(course_form['programme'])}${field(course_form['license'])}</div>
+    ${field(course_form['topic_ru'])}${field(course_form['discipline_ru'])}${field(course_form['annotation_ru'])}
+    <details><summary>${_("Tab translations (KZ / EN)")}</summary>
+      % for code in ('kk', 'en'):
+        <h3>${'KZ' if code == 'kk' else 'EN'}</h3>
+        <div class="sdg4-form-grid">${field(course_form[f'topic_{code}'])}${field(course_form[f'discipline_{code}'])}</div>
+        ${field(course_form[f'annotation_{code}'])}
+      % endfor
+    </details>
+    <div class="sdg4-presentation-bulk" data-presentation-only>${field(course_form['lecture_files'])}</div>
+    <h2>${_("Materials in display order")}</h2>
+    <p class="helptext">${_("Presentation tabs accept PDF, PPT and PPTX. Video tabs accept MP4, WebM, OGV or a university YouTube link. Each uploaded file may be up to 1 GB.")}</p>
+    ${formset.management_form}
+    % if formset.non_form_errors():
+      <div class="sdg4-errors" role="alert">${formset.non_form_errors()}</div>
+    % endif
+    <div class="sdg4-formset" data-prefix="${formset.prefix}">
+      <div class="sdg4-material-forms">
+        % for material in formset:
+          <fieldset class="sdg4-material-form" data-material-form><legend>${_("Material")}</legend>
+            % if material.material.get('file_path'):
+              <p class="helptext">${_("An uploaded file is already attached. Leave the upload field empty to keep it.")}</p>
+            % endif
+            ${material.non_field_errors()}${field(material['title'])}${field(material['file'])}${field(material['file_url'])}
+            <div data-video-only>${field(material['duration'])}</div>
+            <span hidden>${material['DELETE']}</span>
+            <button type="button" data-remove-material>${_("Remove")}</button>
+          </fieldset>
+        % endfor
+      </div>
+      <template class="sdg4-empty-form">
+        <% material = formset.empty_form %>
+        <fieldset class="sdg4-material-form" data-material-form><legend>${_("Material")}</legend>${field(material['title'])}${field(material['file'])}${field(material['file_url'])}<div data-video-only>${field(material['duration'])}</div><span hidden>${material['DELETE']}</span><button type="button" data-remove-material>${_("Remove")}</button></fieldset>
+      </template>
+      <button type="button" class="sdg4-add-material">+ ${_("Add material")}</button>
+    </div>
+  </fieldset>
+</%def>
 <nav class="sdg4-breadcrumb"><a href="${reverse('sdg4_manage')}">${_("Manage SDG 4 resources")}</a></nav>
 <header class="sdg4-edit-intro"><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Open educational resources")}</p><h1>${_("Edit teacher resources") if row else _("Add teacher resources")}</h1>
-  <p>${_("Complete the teacher profile and exactly three tabs. Each tab contains presentations or videos; drafts may be completed later.")}</p>
+  <p>${_("Complete the teacher profile and add presentation or video tabs. You can publish one tab now and add more later.")}</p>
   % if row:
     <p class="sdg4-status sdg4-status-${moderation_status}">${row.get_moderation_status_display()}</p>
   % endif
@@ -28,54 +71,21 @@ from django.utils.translation import gettext as _
 <form id="sdg4-course-form" method="post" action="${reverse('sdg4_edit', args=[row.pk]) if row else reverse('sdg4_create')}" enctype="multipart/form-data" class="sdg4-edit sdg4-course-editor-form" data-upload-limit="1073741824" data-size-error="${_("Each file must be no larger than 1 GB.")}" data-upload-error="${_("The upload could not be completed. Check your connection and try again.")}">
   <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}" />
   <input type="hidden" name="revision" value="${document.get('revision', '')}" />
-  % if teacher_form.errors or any(form.errors or formset.errors or formset.non_form_errors() for form, formset in bundles):
+  % if teacher_form.errors or any(form.errors or formset.errors or formset.non_form_errors() for form, formset, deleted in bundles if not deleted):
     <div class="sdg4-errors" role="alert"><p>${_("Please correct the errors below. Reselect uploaded files before submitting again.")}</p>${teacher_form.non_field_errors()}</div>
   % endif
   <fieldset><legend>01 · ${_("Teacher profile")}</legend>
     <div class="sdg4-form-grid">${field(teacher_form['name_ru'])}${field(teacher_form['faculty'])}${field(teacher_form['position_ru'])}${field(teacher_form['degree_ru'])}${field(teacher_form['department_ru'])}${field(teacher_form['photo'])}</div>
     ${field(teacher_form['mooc_url'])}
   </fieldset>
-  % for slot, (course_form, formset) in enumerate(bundles, 1):
-    <fieldset class="sdg4-tab-editor" data-course-editor><legend>${_('Tab {number}').format(number=slot)}</legend>
-      ${course_form.non_field_errors()}
-      <div class="sdg4-form-grid">${field(course_form['type'])}${field(course_form['language'])}${field(course_form['programme'])}${field(course_form['license'])}</div>
-      ${field(course_form['topic_ru'])}${field(course_form['discipline_ru'])}${field(course_form['annotation_ru'])}
-      <details><summary>${_("Tab translations (KZ / EN)")}</summary>
-        % for code in ('kk', 'en'):
-          <h3>${'KZ' if code == 'kk' else 'EN'}</h3>
-          <div class="sdg4-form-grid">${field(course_form[f'topic_{code}'])}${field(course_form[f'discipline_{code}'])}</div>
-          ${field(course_form[f'annotation_{code}'])}
-        % endfor
-      </details>
-      <div class="sdg4-presentation-bulk" data-presentation-only>${field(course_form['lecture_files'])}</div>
-      <h2>${_("Materials in display order")}</h2>
-      <p class="helptext">${_("Presentation tabs accept PDF, PPT and PPTX. Video tabs accept MP4, WebM, OGV or a university YouTube link. Each uploaded file may be up to 1 GB.")}</p>
-      ${formset.management_form}
-      % if formset.non_form_errors():
-        <div class="sdg4-errors" role="alert">${formset.non_form_errors()}</div>
-      % endif
-      <div class="sdg4-formset" data-prefix="${formset.prefix}">
-        <div class="sdg4-material-forms">
-          % for material in formset:
-            <fieldset class="sdg4-material-form" data-material-form><legend>${_("Material")}</legend>
-              % if material.material.get('file_path'):
-                <p class="helptext">${_("An uploaded file is already attached. Leave the upload field empty to keep it.")}</p>
-              % endif
-              ${material.non_field_errors()}${field(material['title'])}${field(material['file'])}${field(material['file_url'])}
-              <div data-video-only>${field(material['captions'])}${field(material['captions_url'])}${field(material['youtube_captions'])}${field(material['duration'])}</div>
-              <span hidden>${material['DELETE']}</span>
-              <button type="button" data-remove-material>${_("Remove")}</button>
-            </fieldset>
-          % endfor
-        </div>
-        <template class="sdg4-empty-form">
-          <% material = formset.empty_form %>
-          <fieldset class="sdg4-material-form" data-material-form><legend>${_("Material")}</legend>${field(material['title'])}${field(material['file'])}${field(material['file_url'])}<div data-video-only>${field(material['captions'])}${field(material['captions_url'])}${field(material['youtube_captions'])}${field(material['duration'])}</div><span hidden>${material['DELETE']}</span><button type="button" data-remove-material>${_("Remove")}</button></fieldset>
-        </template>
-        <button type="button" class="sdg4-add-material">+ ${_("Add material")}</button>
-      </div>
-    </fieldset>
-  % endfor
+  <input type="hidden" id="id_course-TOTAL_FORMS" name="course-TOTAL_FORMS" value="${len(bundles)}" />
+  <div class="sdg4-course-list" data-course-list>
+    % for slot, (course_form, formset, deleted) in enumerate(bundles, 1):
+      ${course_editor(slot, course_form, formset)}
+    % endfor
+  </div>
+  <template id="sdg4-empty-course">${course_editor('__tab__', empty_course_form, empty_materials)}</template>
+  <button type="button" class="sdg4-add-tab" data-add-course data-max-tabs="${max_tabs}">+ ${_("Add tab")}</button>
   <details class="sdg4-translations"><summary>${_("Teacher profile translations (KZ / EN)")}</summary>
     % for code in ('kk', 'en'):
       <h2>${'KZ' if code == 'kk' else 'EN'}</h2>
