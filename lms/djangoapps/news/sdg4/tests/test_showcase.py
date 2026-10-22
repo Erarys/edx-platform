@@ -1,4 +1,4 @@
-"""Regression coverage for the teacher-first OpenLektorium showcase."""
+"""Regression coverage for the teacher-first Open лекториум showcase."""
 
 import io
 import json
