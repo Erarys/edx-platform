@@ -16,11 +16,14 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.auth.views import redirect_to_login
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files import File
+from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.core.signing import BadSignature, SignatureExpired, dumps, loads
 from django.db import transaction
 from django.db.models import Q
+from django.forms import ImageField
 from django.http import (
     FileResponse,
     Http404,
@@ -75,6 +78,8 @@ from .forms import (
     TeacherForm,
     material_title,
     translations,
+    validate_article_upload,
+    validate_presentation_upload,
 )
 
 ARTICLE_CONTENT_TYPES = {
@@ -103,10 +108,245 @@ COVER_CONTENT_TYPES = {
 PRESENTATION_EXTENSIONS = {".pdf", ".ppt", ".pptx"}
 logger = logging.getLogger(__name__)
 DEFAULT_MAX_TABS = 50
+STAGED_UPLOAD_FIELD = "_sdg4_staged_upload"
+STAGED_UPLOAD_SALT = "sdg4.chunked-upload.v1"
+DEFAULT_UPLOAD_CHUNK_BYTES = 2 * 1024 * 1024
+DEFAULT_STAGED_UPLOAD_TTL = 24 * 60 * 60
 
 
 class PresentationPreviewUnavailable(Exception):
     """The original is valid, but a browser-safe PDF preview cannot be made."""
+
+
+def upload_chunk_bytes():
+    """Keep each request below Tutor's default 4 MB LMS request-body limit."""
+    configured = int(getattr(settings, "SDG4_UPLOAD_CHUNK_BYTES", DEFAULT_UPLOAD_CHUNK_BYTES))
+    return max(256 * 1024, min(configured, DEFAULT_UPLOAD_CHUNK_BYTES))
+
+
+def upload_limit_bytes():
+    return int(getattr(settings, "SDG4_MAX_UPLOAD_BYTES", 1024 * 1024 * 1024))
+
+
+def staged_upload_ttl():
+    configured = int(getattr(settings, "SDG4_STAGED_UPLOAD_TTL", DEFAULT_STAGED_UPLOAD_TTL))
+    return max(60, min(configured, 7 * 24 * 60 * 60))
+
+
+def upload_api_error(message, status=400):
+    return JsonResponse({"error": str(message)}, status=status)
+
+
+def upload_request_data(request):
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise ValueError(_("The upload request is invalid.")) from None
+    if not isinstance(data, dict):
+        raise TypeError(_("The upload request is invalid."))
+    return data
+
+
+def staged_field_kind(field_name, requested_kind=""):
+    if field_name == "photo":
+        return "image"
+    if re.fullmatch(r"course-\d+-lecture_files", field_name):
+        return "presentation"
+    if re.fullmatch(r"materials-\d+-\d+-file", field_name) and requested_kind in {"presentation", "video"}:
+        return requested_kind
+    return ""
+
+
+def staged_upload_path(payload):
+    extension = PurePosixPath(payload["name"].lower()).suffix
+    return f"sdg4/staging/{payload['user']}/{payload['upload_id']}/file{extension}"
+
+
+def staged_chunk_path(payload, index):
+    return f"sdg4/staging/{payload['user']}/{payload['upload_id']}/chunks/{index:06d}.part"
+
+
+def staged_chunk_count(payload):
+    return max(1, math.ceil(payload["size"] / payload["chunk_size"]))
+
+
+def load_staged_token(token, user):
+    try:
+        payload = loads(token, salt=STAGED_UPLOAD_SALT, max_age=staged_upload_ttl())
+    except (BadSignature, SignatureExpired):
+        raise ValueError(_("The temporary upload has expired. Select the file again.")) from None
+    required = {"version", "user", "upload_id", "field", "kind", "name", "size", "chunk_size"}
+    if not isinstance(payload, dict) or not required.issubset(payload):
+        raise ValueError(_("The temporary upload is invalid."))
+    if payload["version"] != 1 or payload["user"] != user.pk:
+        raise ValueError(_("The temporary upload does not belong to this account."))
+    if not re.fullmatch(r"[0-9a-f]{32}", str(payload["upload_id"])):
+        raise ValueError(_("The temporary upload is invalid."))
+    if staged_field_kind(payload["field"], payload["kind"]) != payload["kind"]:
+        raise ValueError(_("The temporary upload is invalid."))
+    return payload
+
+
+def validate_staged_file(upload, kind):
+    if kind == "presentation":
+        validate_presentation_upload(upload)
+    elif kind == "video":
+        validate_article_upload(upload, "video")
+    elif kind == "image":
+        ImageField().clean(upload)
+    else:
+        raise ValidationError(_("The file type does not match this material."))
+    upload.seek(0)
+
+
+@never_cache
+@require_POST
+def chunk_upload_start(request):
+    """Issue an authenticated token for a bounded, sequential chunk upload."""
+    response = require_editor(request)
+    if response is not None:
+        return response
+    try:
+        data = upload_request_data(request)
+        field_name = str(data.get("field", ""))
+        kind = staged_field_kind(field_name, str(data.get("kind", "")))
+        filename = PurePosixPath(str(data.get("name", "")).replace("\\", "/")).name[:250]
+        size = int(data.get("size", 0))
+        if not kind or not filename or size <= 0 or size > upload_limit_bytes():
+            raise ValueError(_("The selected file cannot be uploaded."))
+        extension = PurePosixPath(filename.lower()).suffix
+        allowed = {
+            "image": set(COVER_CONTENT_TYPES),
+            "presentation": PRESENTATION_EXTENSIONS,
+            "video": {".mp4", ".webm", ".ogv"},
+        }[kind]
+        if extension not in allowed:
+            raise ValueError(_("The file type does not match this material."))
+        chunk_size = upload_chunk_bytes()
+        payload = {
+            "version": 1,
+            "user": request.user.pk,
+            "upload_id": uuid4().hex,
+            "field": field_name,
+            "kind": kind,
+            "name": filename,
+            "size": size,
+            "chunk_size": chunk_size,
+        }
+        token = dumps(payload, salt=STAGED_UPLOAD_SALT, compress=True)
+    except (TypeError, ValueError) as exc:
+        return upload_api_error(exc)
+    return JsonResponse({"token": token, "chunk_size": chunk_size, "chunks": staged_chunk_count(payload)})
+
+
+@never_cache
+@require_POST
+def chunk_upload_part(request):
+    """Store one idempotent raw chunk without parsing a large multipart body."""
+    response = require_editor(request)
+    if response is not None:
+        return response
+    try:
+        token = request.headers.get("x-sdg4-upload", "")
+        payload = load_staged_token(token, request.user)
+        index = int(request.headers.get("x-sdg4-chunk-index", "-1"))
+        count = staged_chunk_count(payload)
+        if index < 0 or index >= count:
+            raise ValueError(_("The upload chunk number is invalid."))
+        expected = min(payload["chunk_size"], payload["size"] - (index * payload["chunk_size"]))
+        body = request.body
+        if len(body) != expected:
+            raise ValueError(_("The upload chunk is incomplete."))
+        path = staged_chunk_path(payload, index)
+        if default_storage.exists(path):
+            if default_storage.size(path) == expected:
+                return JsonResponse({"received": index, "chunks": count})
+            default_storage.delete(path)
+        stored_path = default_storage.save(path, ContentFile(body))
+        if stored_path != path:
+            default_storage.delete(stored_path)
+            raise ValueError(_("The upload chunk could not be stored."))
+    except (TypeError, ValueError, OSError) as exc:
+        return upload_api_error(exc)
+    return JsonResponse({"received": index, "chunks": count})
+
+
+@never_cache
+@require_POST
+def chunk_upload_complete(request):
+    """Validate and assemble uploaded chunks into one private staged file."""
+    response = require_editor(request)
+    if response is not None:
+        return response
+    try:
+        data = upload_request_data(request)
+        token = str(data.get("token", ""))
+        payload = load_staged_token(token, request.user)
+        complete_path = staged_upload_path(payload)
+        if default_storage.exists(complete_path) and default_storage.size(complete_path) == payload["size"]:
+            return JsonResponse({"token": token})
+        count = staged_chunk_count(payload)
+        part_paths = [staged_chunk_path(payload, index) for index in range(count)]
+        if any(not default_storage.exists(path) for path in part_paths):
+            raise ValueError(_("The upload is incomplete. Please try again."))
+        with tempfile.NamedTemporaryFile(prefix="sdg4-upload-") as assembled:
+            total = 0
+            for path in part_paths:
+                with default_storage.open(path, "rb") as part:
+                    shutil.copyfileobj(part, assembled, length=1024 * 1024)
+                total += default_storage.size(path)
+            if total != payload["size"]:
+                raise ValueError(_("The uploaded file size is invalid."))
+            assembled.flush()
+            assembled.seek(0)
+            upload = File(assembled, name=payload["name"])
+            validate_staged_file(upload, payload["kind"])
+            if default_storage.exists(complete_path):
+                default_storage.delete(complete_path)
+            stored_path = default_storage.save(complete_path, upload)
+            if stored_path != complete_path:
+                default_storage.delete(stored_path)
+                raise ValueError(_("The uploaded file could not be assembled."))
+        for path in part_paths:
+            default_storage.delete(path)
+    except (TypeError, ValueError, ValidationError, OSError) as exc:
+        return upload_api_error(exc)
+    return JsonResponse({"token": token})
+
+
+def materialize_staged_uploads(request):
+    """Attach signed staged files to request.FILES for the existing forms."""
+    tokens = request.POST.getlist(STAGED_UPLOAD_FIELD)
+    if len(tokens) > 250:
+        return [], [], _("Too many temporary uploads were submitted.")
+    accepted = []
+    opened = []
+    try:
+        for token in tokens:
+            payload = load_staged_token(token, request.user)
+            path = staged_upload_path(payload)
+            if not default_storage.exists(path) or default_storage.size(path) != payload["size"]:
+                raise ValueError(_("The temporary upload is incomplete. Select the file again."))
+            source = default_storage.open(path, "rb")
+            upload = File(source, name=payload["name"])
+            opened.append(upload)
+            request.FILES.appendlist(payload["field"], upload)
+            accepted.append((token, payload))
+    except (ValueError, OSError) as exc:
+        return accepted, opened, str(exc)
+    return accepted, opened, ""
+
+
+def close_staged_uploads(opened):
+    for upload in opened:
+        upload.close()
+
+
+def remove_staged_uploads(accepted):
+    for _token, payload in accepted:
+        default_storage.delete(staged_upload_path(payload))
+        for index in range(staged_chunk_count(payload)):
+            default_storage.delete(staged_chunk_path(payload, index))
 
 
 def presentation_converter():
@@ -1280,6 +1520,11 @@ def edit(request, news_id=None):
         document["courses"] = editor_courses(row, document, request.user)
     if row:
         document["revision"] = row.updated_at.isoformat()
+    staged_uploads = []
+    staged_files = []
+    staged_error = ""
+    if request.method == "POST":
+        staged_uploads, staged_files, staged_error = materialize_staged_uploads(request)
     bound_data = request.POST.copy() if request.method == "POST" else None
     moderation_status = row.moderation_status if row else News.ModerationStatus.DRAFT
     publishing = moderation_status != News.ModerationStatus.DRAFT
@@ -1306,6 +1551,8 @@ def edit(request, news_id=None):
         document=document or None,
         publishing=publishing,
     )
+    if staged_error:
+        teacher_form.add_error(None, staged_error)
     existing_courses = [*document.get("courses", [])]
     max_tabs = max(1, min(int(getattr(settings, "SDG4_MAX_TABS", DEFAULT_MAX_TABS)), 200))
     invalid_tab_count = False
@@ -1376,6 +1623,8 @@ def edit(request, news_id=None):
             teacher_form.add_error(None, _("Add at least one tab before publishing."))
             checks.append(False)
         valid = all(checks)
+        if staged_error:
+            valid = False
         if row and request.POST.get("revision") != document["revision"]:
             teacher_form.add_error(None, _("This page was edited elsewhere. Reload it before saving."))
             valid = False
@@ -1397,9 +1646,12 @@ def edit(request, news_id=None):
                 else:
                     query = "submitted=1" if moderation_status == News.ModerationStatus.PENDING else "saved=1"
                     target = reverse("sdg4_edit", args=[saved_row.pk]) + f"?{query}"
+                close_staged_uploads(staged_files)
+                remove_staged_uploads(staged_uploads)
                 if request.headers.get("x-requested-with") == "XMLHttpRequest":
                     return JsonResponse({"redirect": target})
                 return redirect(target)
+    close_staged_uploads(staged_files)
     return render(
         request,
         "edit",
@@ -1412,5 +1664,6 @@ def edit(request, news_id=None):
             "empty_course_form": empty_course_form,
             "empty_materials": empty_materials,
             "max_tabs": max_tabs,
+            "staged_upload_tokens": [token for token, _payload in staged_uploads],
         },
     )

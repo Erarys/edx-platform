@@ -14,7 +14,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
 from django.middleware.csrf import get_token
 from django.template import Context
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
 from mako.lookup import TemplateLookup
@@ -120,6 +120,33 @@ class ShowcaseTests(TestCase):
         self.assertEqual(response.status_code, 302, response.content.decode())
         row = News.objects.order_by("-pk").first()
         return row, read_document(row), response.url
+
+    def stage_upload(self, field, kind, name, content):
+        started = self.client.post(
+            reverse("sdg4_upload_start"),
+            json.dumps({"field": field, "kind": kind, "name": name, "size": len(content)}),
+            content_type="application/json",
+        )
+        self.assertEqual(started.status_code, 200, started.content.decode())
+        result = started.json()
+        for index in range(result["chunks"]):
+            offset = index * result["chunk_size"]
+            chunk = content[offset : offset + result["chunk_size"]]
+            uploaded = self.client.post(
+                reverse("sdg4_upload_chunk"),
+                chunk,
+                content_type="application/octet-stream",
+                HTTP_X_SDG4_UPLOAD=result["token"],
+                HTTP_X_SDG4_CHUNK_INDEX=str(index),
+            )
+            self.assertEqual(uploaded.status_code, 200, uploaded.content.decode())
+        completed = self.client.post(
+            reverse("sdg4_upload_complete"),
+            json.dumps({"token": result["token"]}),
+            content_type="application/json",
+        )
+        self.assertEqual(completed.status_code, 200, completed.content.decode())
+        return result
 
     def create_media_publication(self, slug, kind="presentation", name="Один Автор", author=None):
         extension = ".pdf" if kind == "presentation" else ".mp4"
@@ -255,6 +282,71 @@ class ShowcaseTests(TestCase):
         )
         self.assertIn("form.getAttribute('action')", script)
         self.assertNotIn("form.action || window.location.href", script)
+        self.assertIn("request.setRequestHeader('X-CSRFToken', csrfToken())", script)
+        self.assertIn("form.dataset.uploadChunkUrl", script)
+
+    @override_settings(SDG4_UPLOAD_CHUNK_BYTES=256 * 1024)
+    def test_large_file_is_uploaded_in_chunks_then_consumed_by_the_form(self):
+        content = b"%PDF-1.4\n" + (b"x" * (300 * 1024)) + b"\n%%EOF"
+        staged = self.stage_upload(
+            "course-1-lecture_files",
+            "presentation",
+            "large-lecture.pdf",
+            content,
+        )
+        self.assertGreater(staged["chunks"], 1)
+        data = course_payload(tab_count=1)
+        data.pop("course-1-lecture_files")
+        data[views.STAGED_UPLOAD_FIELD] = staged["token"]
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        row = News.objects.get()
+        material = read_document(row)["courses"][0]["materials"][0]
+        with default_storage.open(material["file_path"], "rb") as stored:
+            self.assertEqual(stored.read(), content)
+        payload = views.load_staged_token(staged["token"], self.staff)
+        self.assertFalse(default_storage.exists(views.staged_upload_path(payload)))
+
+    def test_staged_upload_token_cannot_be_used_by_another_account(self):
+        staged = self.stage_upload(
+            "course-1-lecture_files",
+            "presentation",
+            "private.pdf",
+            b"%PDF-1.4\n%%EOF",
+        )
+        other = get_user_model().objects.create_user("other", is_staff=True)
+        self.client.force_login(other)
+        data = course_payload(tab_count=1)
+        data.pop("course-1-lecture_files")
+        data[views.STAGED_UPLOAD_FIELD] = staged["token"]
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "does not belong to this account")
+        self.assertFalse(News.objects.exists())
+
+    def test_chunk_api_accepts_csrf_header_without_parsing_a_multipart_form(self):
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.staff)
+        page = client.get(reverse("sdg4_create") + "?new=1")
+        self.assertEqual(page.status_code, 200)
+        csrf_token = client.cookies["csrftoken"].value
+        payload = json.dumps(
+            {
+                "field": "materials-1-0-file",
+                "kind": "video",
+                "name": "lecture.mp4",
+                "size": 20,
+            }
+        )
+        rejected = client.post(reverse("sdg4_upload_start"), payload, content_type="application/json")
+        self.assertEqual(rejected.status_code, 403)
+        accepted = client.post(
+            reverse("sdg4_upload_start"),
+            payload,
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(accepted.status_code, 200, accepted.content.decode())
 
     def test_video_tab_renders_player_and_requires_accessible_metadata(self):
         data = course_payload()
