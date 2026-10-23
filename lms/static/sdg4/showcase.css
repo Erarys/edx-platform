@@ -11,7 +11,7 @@
 .sdg4-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--sdg4-line); }
 .sdg4-brand { font-weight: 700; }
 .sdg4-languages { display: flex; gap: 4px; margin: 0; }
-.sdg4 button, .sdg4-button { display: inline-block; border: 1px solid #154e83; border-radius: 6px; background: #fff; color: #154e83; padding: 10px 16px; min-height: 44px; cursor: pointer; text-decoration: none; font: inherit; text-shadow: none; box-shadow: none; }
+.sdg4 button, .sdg4-button { display: inline-block; border: 1px solid #154e83; border-radius: 6px; background: #fff; color: #fff; padding: 10px 16px; min-height: 44px; cursor: pointer; text-decoration: none; font: inherit; text-shadow: none; box-shadow: none; }
 .sdg4 .sdg4-button, .sdg4-languages button[aria-pressed="true"] { background: var(--sdg4-ink); color: #fff; border-color: var(--sdg4-ink); }
 .sdg4 .sdg4-button:hover { background: #2b446a; color: #fff; }
 .sdg4-hero { margin: 32px 0; padding: 36px; border-radius: 12px; background: #a71930; color: #fff; }
@@ -165,7 +165,6 @@
 .sdg4-document-viewer { display: block; width: 100%; height: min(78vh, 760px); min-height: 520px; border: 0; background: #fff; }
 .sdg4-preview-unavailable { margin: 18px 0 0; padding: 14px 16px; border-left: 4px solid #d08a16; background: #fff8e6; color: #5f491e; }
 @media (max-width: 600px) { .sdg4-article-block-bar { align-items: flex-start; flex-direction: column; } .sdg4-article { padding: 20px; } .sdg4-document-viewer { height: 68vh; min-height: 380px; } }
-
 /* 2026 publication feed: compact editorial rhythm inspired by article platforms,
    with an original Open KazNU blue/green identity. */
 .sdg4 { --sdg4-green: #0b8f71; --sdg4-green-dark: #087159; --sdg4-green-soft: #e4f6ef; --sdg4-surface: #f4f7f6; --sdg4-muted: #5d6b6a; }

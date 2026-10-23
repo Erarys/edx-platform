@@ -12,13 +12,6 @@ from django.utils.translation import gettext as _
 <main id="main" class="sdg4" tabindex="-1">
   <div class="sdg4-toolbar">
     <a class="sdg4-brand" href="${reverse('sdg4_index')}">${_("Open лекториум")}</a>
-    <form method="post" action="${reverse('sdg4_language')}" class="sdg4-languages" aria-label="${_('Choose Language')}">
-      <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}" />
-      <input type="hidden" name="next" value="${request.get_full_path()}" />
-      % for code, label in sdg4_languages:
-        <button type="submit" name="language" value="${code}" lang="${code}" aria-pressed="${'true' if code == sdg4_language else 'false'}">${label}</button>
-      % endfor
-    </form>
   </div>
   % if can_manage_sdg4:
     <p class="sdg4-editor-link"><a href="${reverse('sdg4_manage')}">${_("My publications")}</a>
