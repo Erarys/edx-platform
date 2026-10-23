@@ -6,7 +6,6 @@ from . import views
 
 urlpatterns = [
     path("", views.index, name="sdg4_index"),
-    path("language/", views.change_language, name="sdg4_language"),
     path("moderation/", views.moderation, name="sdg4_moderation"),
     path("moderation/<int:news_id>/approve/", views.approve, name="sdg4_approve"),
     path("upload/start/", views.chunk_upload_start, name="sdg4_upload_start"),

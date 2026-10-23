@@ -16,9 +16,6 @@
         editor.querySelectorAll('[data-presentation-only]').forEach(function (section) {
             section.hidden = isVideo;
         });
-        editor.querySelectorAll('[data-video-only]').forEach(function (section) {
-            section.hidden = !isVideo;
-        });
         activeMaterials(editor).forEach(function (material) {
             var input = material.querySelector('input[type="file"][name$="-file"]');
             if (input) { input.accept = isVideo ? '.mp4,.ogv,.webm' : '.pdf'; }
@@ -112,7 +109,7 @@
         });
     }
 
-    document.querySelectorAll('.sdg4-edit details').forEach(function (section) {
+    form.querySelectorAll('details').forEach(function (section) {
         if (section.querySelector('.errorlist')) { section.open = true; }
     });
 

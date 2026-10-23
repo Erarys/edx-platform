@@ -20,8 +20,8 @@ from mako.lookup import TemplateLookup
 from lms.djangoapps.news.models import News
 
 from .. import views
-from ..constants import FACULTIES, LANGUAGES, NEWS_PREFIX, PUBLISHERS_GROUP
-from ..data import language_code, read_document
+from ..constants import FACULTIES, NEWS_PREFIX, PUBLISHERS_GROUP
+from ..data import read_document
 from ..forms import MaterialForm
 
 
@@ -39,8 +39,6 @@ def template_renderer(request, template, context, status=200):
     context.update(
         request=request,
         csrf_token=get_token(request),
-        sdg4_languages=LANGUAGES,
-        sdg4_language=language_code(),
         can_manage_sdg4=views.can_manage(request.user),
         can_moderate_sdg4=views.can_moderate(request.user),
         can_publish_sdg4=views.can_publish(request.user),
@@ -315,7 +313,7 @@ class ShowcaseTests(TestCase):
 
     @override_settings(SDG4_UPLOAD_CHUNK_BYTES=256 * 1024)
     def test_chunked_video_is_attached_to_a_material_form(self):
-        content = b"video-data" * (40 * 1024)
+        content = b"\x00\x00\x00\x18ftypisom" + b"video-data" * (40 * 1024)
         staged = self.stage_upload(
             "materials-1-0-file",
             "video",

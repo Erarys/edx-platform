@@ -12,21 +12,18 @@ from django.utils.translation import gettext_lazy as _
 from .constants import COURSE_TYPES, FACULTIES, LANGUAGES
 from .data import validate_media_url, youtube_embed
 
-ARTICLE_BLOCK_TYPES = (
-    ("text", _("Text")),
-    ("image", _("Image")),
-    ("presentation", _("Presentation")),
-    ("audio", _("Audio")),
-    ("video", _("Video")),
-)
-
 ARTICLE_EXTENSIONS = {
     "image": {".jpg", ".jpeg", ".png", ".webp", ".gif"},
     "presentation": {".pdf"},
     "audio": {".mp3", ".m4a", ".ogg", ".wav"},
     "video": {".mp4", ".webm", ".ogv"},
 }
-MAX_ARTICLE_BLOCKS = max(1, int(getattr(settings, "SDG4_MAX_ARTICLE_BLOCKS", 1000)))
+YOUTUBE_HOSTS = {
+    "youtube.com",
+    "www.youtube.com",
+    "youtu.be",
+    "www.youtube-nocookie.com",
+}
 
 def translated_fields(form, names, initial, publishing=True):
     for name, label, limit, multiline in names:
@@ -114,63 +111,6 @@ class MultipleFileField(forms.FileField):
         return [clean_single(upload, initial) for upload in (data if isinstance(data, (list, tuple)) else [data])]
 
 
-class SimpleTeacherForm(TeacherForm):
-    """Only a teacher, faculty and a link or presentation are needed to publish."""
-
-    resource_url = forms.CharField(
-        label=_("Course or material link"),
-        max_length=2000,
-        required=False,
-        validators=[validate_media_url],
-    )
-    resource_title = forms.CharField(label=_("Link title (optional)"), max_length=250, required=False)
-    cover_image = forms.ImageField(
-        label=_("Article cover (optional)"),
-        required=False,
-        widget=forms.ClearableFileInput(attrs={"accept": ".jpg,.jpeg,.png,.webp"}),
-    )
-    presentations = MultipleFileField(
-        label=_("Upload presentations"),
-        required=False,
-        widget=MultipleFileInput(attrs={"accept": ".pdf", "aria-describedby": "sdg4-upload-help"}),
-    )
-
-    def __init__(self, *args, document=None, publishing=True, **kwargs):
-        self.publishing = publishing
-        super().__init__(*args, document=document, publishing=False, **kwargs)
-        self.fields.pop("mooc_url")
-        self.fields.pop("slug")
-        # The link is a single editable field, not a course/lesson formset.
-        resources = self.document.get("resources", [])
-        link = next((item for item in resources if item.get("kind") == "link"), {})
-        self.initial.update(resource_url=link.get("file_url", ""), resource_title=link.get("title", ""))
-        translated_fields(
-            self,
-            (("article_title", _("Article title (optional)"), 250, False),),
-            self.document,
-            publishing=False,
-        )
-
-    def clean_presentations(self):
-        uploads = self.cleaned_data["presentations"]
-        existing = sum(item.get("kind") != "link" for item in self.document.get("resources", []))
-        if len(uploads) + existing > 200:
-            raise ValidationError(_("You can upload up to 200 presentations per teacher."))
-        for upload in uploads:
-            validate_presentation_upload(upload)
-        return uploads
-
-    def clean_cover_image(self):
-        cover = self.cleaned_data["cover_image"]
-        if cover and (cover.size > 20 * 1024 * 1024 or cover.image.format not in {"JPEG", "PNG", "WEBP"}):
-            raise ValidationError(_("Upload a JPEG, PNG or WebP cover up to 20 MB."))
-        return cover
-
-    def clean(self):
-        cleaned = super().clean()
-        return cleaned
-
-
 def validate_presentation_upload(upload):
     MaterialForm.validate_upload(upload, ARTICLE_EXTENSIONS["presentation"])
 
@@ -204,95 +144,6 @@ def validate_article_upload(upload, kind):
     }.get(extension, False)
     if not valid:
         raise ValidationError(_("The uploaded media file is not valid."))
-
-
-class ArticleBlockForm(forms.Form):
-    """One ordered article block; existing file paths always come from the database."""
-
-    block_id = forms.CharField(required=False, widget=forms.HiddenInput())
-    kind = forms.ChoiceField(label=_("Block type"), choices=ARTICLE_BLOCK_TYPES)
-    text = forms.CharField(
-        label=_("Text"),
-        required=False,
-        widget=forms.Textarea(attrs={"rows": 6, "placeholder": _("Write the article text here…")}),
-    )
-    title = forms.CharField(label=_("File title (optional)"), max_length=250, required=False)
-    caption = forms.CharField(label=_("Caption (optional)"), max_length=500, required=False)
-    file = forms.FileField(label=_("File"), required=False)
-
-    def __init__(self, *args, block=None, **kwargs):
-        self.block = block or {}
-        if self.block:
-            kwargs["initial"] = {
-                "block_id": self.block.get("id", ""),
-                "kind": self.block.get("kind", "text"),
-                "text": self.block.get("text", ""),
-                "title": self.block.get("title", ""),
-                "caption": self.block.get("caption", ""),
-                **kwargs.get("initial", {}),
-            }
-        super().__init__(*args, **kwargs)
-
-    def clean(self):
-        cleaned = super().clean()
-        if self.errors:
-            return cleaned
-        block_id = cleaned.get("block_id", "")
-        expected_id = self.block.get("id", "")
-        if block_id != expected_id:
-            raise ValidationError(_("The article block is no longer current. Reload the page."))
-        kind = cleaned.get("kind")
-        upload = cleaned.get("file")
-        if kind == "text":
-            if not cleaned.get("text", "").strip():
-                self.add_error("text", _("Enter text for this block."))
-            if upload:
-                self.add_error("file", _("A text block cannot contain a file."))
-            return cleaned
-        existing_path = self.block.get("file_path", "")
-        if not upload and not existing_path:
-            self.add_error("file", _("Choose a file for this block."))
-            return cleaned
-        if not upload:
-            extension = PurePosixPath(existing_path.lower()).suffix
-            if kind != self.block.get("kind") or extension not in ARTICLE_EXTENSIONS[kind]:
-                self.add_error("file", _("Choose a file that matches the selected block type."))
-            return cleaned
-        try:
-            validate_article_upload(upload, kind)
-        except ValidationError as exc:
-            self.add_error("file", exc)
-            return cleaned
-        if not cleaned.get("title"):
-            cleaned["title"] = material_title(upload.name)
-        return cleaned
-
-
-class ArticleBlockFormSet(BaseFormSet):
-    ordering_widget = forms.HiddenInput
-
-    def __init__(self, *args, blocks=None, **kwargs):
-        self.blocks = blocks or []
-        kwargs["initial"] = self.blocks
-        super().__init__(*args, **kwargs)
-
-    def get_form_kwargs(self, index):
-        kwargs = super().get_form_kwargs(index)
-        if index is not None and index < len(self.blocks):
-            kwargs["block"] = self.blocks[index]
-        return kwargs
-
-
-ArticleBlocks = formset_factory(
-    ArticleBlockForm,
-    formset=ArticleBlockFormSet,
-    extra=0,
-    can_delete=True,
-    can_order=True,
-    max_num=MAX_ARTICLE_BLOCKS,
-    validate_max=True,
-    absolute_max=MAX_ARTICLE_BLOCKS,
-)
 
 
 class CourseForm(forms.Form):
@@ -332,12 +183,6 @@ class CourseForm(forms.Form):
             for name, field in self.fields.items():
                 if name != "DELETE":
                     field.required = False
-
-    def clean(self):
-        cleaned = super().clean()
-        if cleaned.get("DELETE"):
-            return cleaned
-        return cleaned
 
     def clean_lecture_files(self):
         files = self.cleaned_data["lecture_files"]
@@ -390,10 +235,7 @@ class MaterialForm(forms.Form):
         if self.errors:
             return cleaned
         upload, url = cleaned.get("file"), cleaned.get("file_url", "")
-        if self.course_type == "lecture" and upload:
-            validate_presentation_upload(upload)
-        else:
-            self.validate_upload(upload, {".mp4", ".webm", ".ogv"})
+        self._validate_new_upload(upload)
         if upload and url:
             # Selecting a new local file is an explicit replacement action.  In
             # particular, this lets an author replace a previously saved URL
@@ -404,7 +246,19 @@ class MaterialForm(forms.Form):
             raise ValidationError(_("Add a file or a link for every lesson."))
         if not cleaned.get("title"):
             cleaned["title"] = material_title(upload.name if upload else url or self.material.get("file_path", ""))
-        source = url or self.material.get("file_url", "")
+        self._validate_existing_file(upload, url)
+        self._validate_url(url)
+        return cleaned
+
+    def _validate_new_upload(self, upload):
+        if not upload:
+            return
+        if self.course_type == "lecture":
+            validate_presentation_upload(upload)
+        else:
+            self.validate_upload(upload, ARTICLE_EXTENSIONS["video"])
+
+    def _validate_existing_file(self, upload, url):
         existing_path = self.material.get("file_path", "") if not (upload or url) else ""
         if existing_path:
             # Keep existing legacy PowerPoint materials editable. New presentation
@@ -412,42 +266,43 @@ class MaterialForm(forms.Form):
             expected = (
                 {".pdf", ".ppt", ".pptx"}
                 if self.course_type == "lecture"
-                else {".mp4", ".webm", ".ogv"}
+                else ARTICLE_EXTENSIONS["video"]
             )
             if PurePosixPath(existing_path.lower()).suffix not in expected:
                 raise ValidationError(_("The file type does not match this material."))
+
+    def _validate_url(self, url):
+        source = url or self.material.get("file_url", "")
         host = (urlsplit(source).hostname or "").lower()
-        youtube_host = host in {
-            "youtube.com",
-            "www.youtube.com",
-            "youtu.be",
-            "www.youtube-nocookie.com",
-        }
         if self.course_type == "lecture":
             if url and PurePosixPath(urlsplit(url).path.lower()).suffix not in ARTICLE_EXTENSIONS["presentation"]:
                 raise ValidationError(_("Presentation materials must be PDF files."))
-        else:
-            if youtube_host:
-                if not youtube_embed(source):
-                    raise ValidationError(_("Use a valid university YouTube video."))
-            else:
-                # University media can also use a separately configured storage/CDN host.
-                allowed = set(getattr(settings, "SDG4_MEDIA_HOSTS", ()))
-                allowed.update(
-                    filter(
-                        None,
-                        (urlsplit(getattr(settings, key, "")).hostname for key in ("MEDIA_URL", "LMS_ROOT_URL")),
-                    )
-                )
-                if host and not (
-                    host in {"kaznu.kz", "farabi.university"}
-                    or host.endswith((".kaznu.kz", ".farabi.university"))
-                    or host in allowed
-                ):
-                    raise ValidationError(_("Use university-hosted video or the university YouTube channel."))
-                if source and PurePosixPath(urlsplit(source).path.lower()).suffix not in {".mp4", ".webm", ".ogv"}:
-                    raise ValidationError(_("Use an MP4, WebM or OGV video URL."))
-        return cleaned
+            return
+        if host in YOUTUBE_HOSTS:
+            if not youtube_embed(source):
+                raise ValidationError(_("Use a valid university YouTube video."))
+            return
+        self._validate_university_video(source, host)
+
+    @staticmethod
+    def _validate_university_video(source, host):
+        # University media can also use a separately configured storage/CDN host.
+        allowed = set(getattr(settings, "SDG4_MEDIA_HOSTS", ()))
+        allowed.update(
+            filter(
+                None,
+                (urlsplit(getattr(settings, key, "")).hostname for key in ("MEDIA_URL", "LMS_ROOT_URL")),
+            )
+        )
+        is_university_host = (
+            host in {"kaznu.kz", "farabi.university"}
+            or host.endswith((".kaznu.kz", ".farabi.university"))
+            or host in allowed
+        )
+        if host and not is_university_host:
+            raise ValidationError(_("Use university-hosted video or the university YouTube channel."))
+        if source and PurePosixPath(urlsplit(source).path.lower()).suffix not in ARTICLE_EXTENSIONS["video"]:
+            raise ValidationError(_("Use an MP4, WebM or OGV video URL."))
 
 
 class MaterialFormSet(BaseFormSet):

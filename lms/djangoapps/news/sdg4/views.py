@@ -35,11 +35,9 @@ from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.timesince import timesince
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
-from django.views.i18n import set_language
 
 from ..models import News
 from .constants import (
@@ -62,7 +60,6 @@ from .data import (
     file_url,
     find_page,
     increment,
-    language_code,
     localized,
     public_url,
     read_document,
@@ -430,8 +427,6 @@ def render(request, template, context, status=200):
     from common.djangoapps.edxmako.shortcuts import render_to_response  # pylint: disable=import-outside-toplevel
 
     context.update(
-        sdg4_languages=LANGUAGES,
-        sdg4_language=language_code(),
         can_manage_sdg4=can_manage(request.user),
         can_moderate_sdg4=can_moderate(request.user),
         can_publish_sdg4=can_publish(request.user),
@@ -631,36 +626,6 @@ def catalogue_authors(catalogue=None):
     return sorted(cards, key=lambda card: alphabetical_key(card["name"]))
 
 
-def save_language_preference(user, language):
-    """Integrate with the LMS middleware, which otherwise restores the old cookie."""
-    from openedx.core.djangoapps.lang_pref import LANGUAGE_KEY  # pylint: disable=import-outside-toplevel
-    from openedx.core.djangoapps.user_api.preferences.api import set_user_preference  # pylint: disable=import-outside-toplevel
-
-    set_user_preference(getattr(user, "real_user", user), LANGUAGE_KEY, language)
-
-
-@require_POST
-def change_language(request):
-    language = request.POST.get("language")
-    if language not in dict(LANGUAGES):
-        return HttpResponseBadRequest()
-    if request.user.is_authenticated:
-        save_language_preference(request.user, language)
-    # Django validates the redirect target against the current host.
-    response = set_language(request)
-    response.set_cookie(
-        settings.LANGUAGE_COOKIE_NAME,
-        language,
-        max_age=settings.LANGUAGE_COOKIE_AGE,
-        domain=getattr(settings, "SHARED_COOKIE_DOMAIN", settings.LANGUAGE_COOKIE_DOMAIN),
-        path=settings.LANGUAGE_COOKIE_PATH,
-        secure=settings.LANGUAGE_COOKIE_SECURE or request.is_secure(),
-        httponly=settings.LANGUAGE_COOKIE_HTTPONLY,
-        samesite=settings.LANGUAGE_COOKIE_SAMESITE,
-    )
-    return response
-
-
 @require_GET
 def index(request):
     return render(
@@ -748,26 +713,12 @@ def material_download_label(item):
     return title
 
 
-def publication_context(row, document):
-    """Metadata displayed above a publication, similar to a conventional article card."""
+def publication_author(row, document):
+    """Prefer the account identity while supporting imported author profiles."""
     author_name = localized(document.get("profile", {}).get("name"))
     if row.author_id:
         author_name = row.author.get_full_name().strip() or row.author.get_username()
-    published_at = row.published_at or row.created_at
-    age = timesince(published_at, timezone.now()).split(",", maxsplit=1)[0]
-    words = sum(
-        len(re.findall(r"\w+", block.get("text", ""), flags=re.UNICODE))
-        for block in document.get("article", [])
-        if block.get("kind") == "text"
-    )
-    return {
-        "article_author": author_name,
-        "article_published_at": published_at,
-        "article_published_ago": _("{age} ago").format(age=age),
-        "article_reading_minutes": max(1, math.ceil(words / 200)) if document.get("article") else 0,
-        "article_view_count": row.view_count,
-        "cover_url": reverse("sdg4_cover", args=[document["faculty"], document["slug"]]) if row.cover_image else "",
-    }
+    return author_name
 
 
 def publication_title(document):
@@ -776,48 +727,6 @@ def publication_title(document):
         return title
     teacher_name = localized(document.get("profile", {}).get("name"))
     return _("Educational materials by {name}").format(name=teacher_name)
-
-
-def publication_card(row, document):
-    """One feed card per publication, regardless of how many files it contains."""
-    teacher = teacher_card(row, document)
-    metadata = publication_context(row, document)
-    text = next(
-        (
-            block.get("text", "")
-            for block in document.get("article", [])
-            if block.get("kind") == "text" and block.get("text", "").strip()
-        ),
-        "",
-    )
-    summary = re.sub(r"\s+", " ", text).strip()
-    if len(summary) > 420:
-        summary = summary[:417].rstrip() + "…"
-    cover_url = metadata["cover_url"]
-    if not cover_url:
-        first_image = next(
-            (block for block in document.get("article", []) if block.get("kind") == "image"),
-            None,
-        )
-        if first_image:
-            cover_url = reverse(
-                "sdg4_article_block",
-                args=[document["faculty"], document["slug"], first_image["id"]],
-            )
-    return {
-        "id": row.pk,
-        "title": publication_title(document),
-        "summary": summary or localized(document.get("profile", {}).get("position")),
-        "url": public_url(document),
-        "teacher": teacher,
-        "author": metadata["article_author"],
-        "published_at": metadata["article_published_at"],
-        "published_ago": metadata["article_published_ago"],
-        "reading_minutes": metadata["article_reading_minutes"],
-        "view_count": metadata["article_view_count"],
-        "cover_url": cover_url,
-        "photo_url": row.image.url if row.image else "",
-    }
 
 
 @never_cache
@@ -1176,7 +1085,6 @@ def manage(request):
 
 def moderation_card(row, document):
     card = teacher_card(row, document)
-    metadata = publication_context(row, document)
     text = next(
         (
             block.get("text", "")
@@ -1187,7 +1095,7 @@ def moderation_card(row, document):
     )
     card.update(
         title=publication_title(document),
-        author=metadata["article_author"],
+        author=publication_author(row, document),
         author_username=row.author.get_username() if row.author_id else "",
         author_email=row.author.email if row.author_id else "",
         summary=re.sub(r"\s+", " ", text).strip()[:280],
@@ -1375,7 +1283,82 @@ def save_upload(upload, row_id, slot, saved):
     return path
 
 
-def save_page(row, original, teacher_form, bundles, moderation_status, author=None):
+def create_page(teacher_form, author):
+    row = News.objects.create(
+        title=NEWS_PREFIX + "draft",
+        content="{}",
+        content_type=News.ContentType.SDG4,
+        author=author,
+    )
+    document = {
+        "schema": 3,
+        "faculty": teacher_form.cleaned_data["faculty"],
+        "slug": f"{teacher_slug(teacher_form.cleaned_data['name_ru'])}-{row.pk}",
+        "profile": {},
+        "courses": [],
+        "resources": [],
+        "article": [],
+        "stats": {},
+    }
+    return row, document
+
+
+def saved_material(material_form, row_id, slot, saved):
+    values = material_form.cleaned_data
+    item = copy.deepcopy(material_form.material)
+    item["title"] = values.get("title")
+    item.pop("duration", None)
+    item.setdefault("id", uuid4().hex)
+    upload = values.get("file")
+    url = values.get("file_url", "")
+    if upload:
+        item["file_path"] = save_upload(upload, row_id, f"courses/{slot}", saved)
+        item.pop("file_url", None)
+    elif url:
+        item["file_url"] = url
+        item.pop("file_path", None)
+    elif not item.get("file_path"):
+        item.pop("file_url", None)
+    return item
+
+
+def saved_course(course_form, formset, row_id, slot, publishing, saved):
+    fields = course_form.cleaned_data
+    old_course = course_form.course
+    course = {
+        "type": fields.get("type") or old_course.get("type", "lecture"),
+        "language": fields.get("language") or old_course.get("language", "ru"),
+        "programme": fields.get("programme", ""),
+        "published_at": old_course.get("published_at") or (
+            timezone.localdate().isoformat() if publishing else ""
+        ),
+    }
+    course.update({key: translations(fields, key) for key in ("topic", "discipline", "annotation")})
+    course["materials"] = [
+        saved_material(material_form, row_id, slot, saved)
+        for material_form in formset
+        if material_form.cleaned_data and not material_form.cleaned_data.get("DELETE")
+    ]
+    course["materials"].extend(
+        {
+            "id": uuid4().hex,
+            "title": material_title(upload.name),
+            "file_path": save_upload(upload, row_id, f"courses/{slot}", saved),
+        }
+        for upload in fields.get("lecture_files", [])
+    )
+    return course
+
+
+def saved_courses(bundles, row_id, publishing, saved):
+    courses = []
+    for course_form, formset, deleted in bundles:
+        if not deleted:
+            courses.append(saved_course(course_form, formset, row_id, len(courses) + 1, publishing, saved))
+    return courses
+
+
+def save_page(row, teacher_form, bundles, moderation_status, author=None):
     """Save the active resource tabs while retaining superseded article data."""
     saved = []
     try:
@@ -1383,25 +1366,10 @@ def save_page(row, original, teacher_form, bundles, moderation_status, author=No
             if row:
                 row = sdg4_queryset().select_for_update().get(pk=row.pk)
                 document = copy.deepcopy(read_document(row))
-                if original["revision"] != row.updated_at.isoformat():
+                if teacher_form.document["revision"] != row.updated_at.isoformat():
                     raise ValueError(_("This page was edited elsewhere. Reload it before saving."))
             else:
-                row = News.objects.create(
-                    title=NEWS_PREFIX + "draft",
-                    content="{}",
-                    content_type=News.ContentType.SDG4,
-                    author=author,
-                )
-                document = {
-                    "schema": 3,
-                    "faculty": teacher_form.cleaned_data["faculty"],
-                    "slug": f"{teacher_slug(teacher_form.cleaned_data['name_ru'])}-{row.pk}",
-                    "profile": {},
-                    "courses": [],
-                    "resources": [],
-                    "article": [],
-                    "stats": {},
-                }
+                row, document = create_page(teacher_form, author)
             cleaned = teacher_form.cleaned_data
             was_published = (
                 bool(document.get("published"))
@@ -1414,52 +1382,7 @@ def save_page(row, original, teacher_form, bundles, moderation_status, author=No
                 {key: translations(cleaned, key) for key in ("name", "position", "degree", "department")}
             )
             document["profile"]["mooc_url"] = cleaned.get("mooc_url", "")
-            courses = []
-            for course_form, formset, deleted in bundles:
-                if deleted:
-                    continue
-                slot = len(courses) + 1
-                fields = course_form.cleaned_data
-                old_course = course_form.course
-                course = {
-                    "type": fields.get("type") or old_course.get("type", "lecture"),
-                    "language": fields.get("language") or old_course.get("language", "ru"),
-                    "programme": fields.get("programme", ""),
-                }
-                course.update({key: translations(fields, key) for key in ("topic", "discipline", "annotation")})
-                course["published_at"] = old_course.get("published_at") or (
-                    timezone.localdate().isoformat() if publishing else ""
-                )
-                course["materials"] = []
-                for material_form in formset:
-                    values = material_form.cleaned_data
-                    if not values or values.get("DELETE"):
-                        continue
-                    item = copy.deepcopy(material_form.material)
-                    item["title"] = values.get("title")
-                    item.pop("duration", None)
-                    item.setdefault("id", uuid4().hex)
-                    upload = values.get("file")
-                    url = values.get("file_url", "")
-                    if upload:
-                        item["file_path"] = save_upload(upload, row.pk, f"courses/{slot}", saved)
-                        item.pop("file_url", None)
-                    elif url:
-                        item["file_url"] = url
-                        item.pop("file_path", None)
-                    elif not item.get("file_path"):
-                        item.pop("file_url", None)
-                    course["materials"].append(item)
-                for upload in fields.get("lecture_files", []):
-                    course["materials"].append(
-                        {
-                            "id": uuid4().hex,
-                            "title": material_title(upload.name),
-                            "file_path": save_upload(upload, row.pk, f"courses/{slot}", saved),
-                        }
-                    )
-                courses.append(course)
-            document["courses"] = courses
+            document["courses"] = saved_courses(bundles, row.pk, publishing, saved)
             if cleaned.get("photo"):
                 row.image = save_upload(cleaned["photo"], row.pk, "photo", saved)
             if not row.author_id and author is not None:
@@ -1480,18 +1403,103 @@ def save_page(row, original, teacher_form, bundles, moderation_status, author=No
         raise
 
 
-@never_cache
-@require_http_methods(["GET", "POST"])
-def edit(request, news_id=None):
-    response = require_editor(request)
-    if response is not None:
-        return response
+def requested_moderation_status(user, row, bound_data):
+    status = row.moderation_status if row else News.ModerationStatus.DRAFT
+    if bound_data is None:
+        return status
+    action = bound_data.get("action", "save")
+    if action == "draft":
+        status = News.ModerationStatus.DRAFT
+    elif can_publish(user):
+        if action in {"approve", "publish"}:
+            status = News.ModerationStatus.PUBLISHED
+        elif action == "submit":
+            status = News.ModerationStatus.PENDING
+    else:
+        # Contributors can submit complete resources only through moderation.
+        status = News.ModerationStatus.PENDING
+    bound_data["published"] = "on" if status == News.ModerationStatus.PUBLISHED else ""
+    return status
+
+
+def submitted_tab_count(bound_data, existing_count, max_tabs):
+    if bound_data is None:
+        return max(1, existing_count), False
+    submitted_count = bound_data.get("course-TOTAL_FORMS")
+    if submitted_count is None:
+        submitted_slots = [
+            int(match.group(1))
+            for key in bound_data
+            if (match := re.match(r"course-(\d+)-", key))
+        ]
+        return max([existing_count, *submitted_slots, 1]), False
+    try:
+        count = int(submitted_count)
+    except (TypeError, ValueError):
+        return 0, True
+    invalid = count < 0 or count > max_tabs
+    return max(0, min(count, max_tabs)), invalid
+
+
+def editor_bundles(request, bound_data, courses, tab_count, publishing):
+    courses.extend({} for _index in range(tab_count - len(courses)))
+    bundles = []
+    for slot in range(1, tab_count + 1):
+        course = courses[slot - 1]
+        prefix = f"course-{slot}"
+        deleted = bool(bound_data and bound_data.get(f"{prefix}-DELETE"))
+        course_form = CourseForm(
+            bound_data,
+            request.FILES or None,
+            prefix=prefix,
+            course=course,
+            publishing=publishing,
+        )
+        course_type = (
+            bound_data.get(f"{prefix}-type", course.get("type", "lecture"))
+            if bound_data
+            else course.get("type", "lecture")
+        )
+        bulk_count = len(request.FILES.getlist(f"{prefix}-lecture_files")) if bound_data else 0
+        formset = Materials(
+            bound_data,
+            request.FILES or None,
+            prefix=f"materials-{slot}",
+            materials=course.get("materials", []),
+            course_type=course_type,
+            publishing=publishing and not deleted,
+            bulk_count=bulk_count,
+        )
+        bundles.append((course_form, formset, deleted))
+    return bundles
+
+
+def editor_forms_are_valid(teacher_form, bundles, invalid_tab_count, publishing, revision_is_current):
+    checks = [teacher_form.is_valid()]
+    active_tabs = 0
+    for course_form, formset, deleted in bundles:
+        if not deleted:
+            active_tabs += 1
+            checks.extend((course_form.is_valid(), formset.is_valid()))
+    if invalid_tab_count:
+        teacher_form.add_error(None, _("The number of courses is invalid."))
+        checks.append(False)
+    if publishing and not active_tabs:
+        teacher_form.add_error(None, _("Add at least one course before publishing."))
+        checks.append(False)
+    if not revision_is_current:
+        teacher_form.add_error(None, _("This page was edited elsewhere. Reload it before saving."))
+        checks.append(False)
+    return all(checks)
+
+
+def editor_document(request, news_id):
     if news_id is None and request.method == "GET" and request.GET.get("new") != "1":
         groups = owned_author_groups(request.user)
         if len(groups) == 1:
-            return redirect("sdg4_edit", news_id=groups[0][0][0].pk)
+            return redirect("sdg4_edit", news_id=groups[0][0][0].pk), None, None
         if len(groups) > 1:
-            return redirect("sdg4_manage")
+            return redirect("sdg4_manage"), None, None
     row = get_object_or_404(sdg4_queryset(), pk=news_id) if news_id else None
     if row and not can_edit(request.user, row):
         raise PermissionDenied
@@ -1503,36 +1511,55 @@ def edit(request, news_id=None):
             if can_edit(request.user, candidate)
         ]
         if editable_entries and editable_entries[0][0].pk != row.pk:
-            return redirect("sdg4_edit", news_id=editable_entries[0][0].pk)
+            return redirect("sdg4_edit", news_id=editable_entries[0][0].pk), None, None
     if row:
         document["courses"] = editor_courses(row, document, request.user)
-    if row:
         document["revision"] = row.updated_at.isoformat()
+    return None, row, document
+
+
+def save_editor_submission(request, row, teacher_form, bundles, moderation_status, staged):
+    try:
+        saved_row, result = save_page(
+            row,
+            teacher_form,
+            bundles,
+            moderation_status,
+            request.user,
+        )
+    except ValueError as exc:
+        teacher_form.add_error(None, str(exc))
+        return None
+    if result["published"]:
+        target = public_url(result)
+    else:
+        query = "submitted=1" if moderation_status == News.ModerationStatus.PENDING else "saved=1"
+        target = reverse("sdg4_edit", args=[saved_row.pk]) + f"?{query}"
+    staged_uploads, staged_files = staged
+    close_staged_uploads(staged_files)
+    remove_staged_uploads(staged_uploads)
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"redirect": target})
+    return redirect(target)
+
+
+@never_cache
+@require_http_methods(["GET", "POST"])
+def edit(request, news_id=None):
+    response = require_editor(request)
+    if response is not None:
+        return response
+    response, row, document = editor_document(request, news_id)
+    if response is not None:
+        return response
     staged_uploads = []
     staged_files = []
     staged_error = ""
     if request.method == "POST":
         staged_uploads, staged_files, staged_error = materialize_staged_uploads(request)
     bound_data = request.POST.copy() if request.method == "POST" else None
-    moderation_status = row.moderation_status if row else News.ModerationStatus.DRAFT
+    moderation_status = requested_moderation_status(request.user, row, bound_data)
     publishing = moderation_status != News.ModerationStatus.DRAFT
-    if bound_data is not None:
-        action = bound_data.get("action", "save")
-        if action == "draft":
-            moderation_status = News.ModerationStatus.DRAFT
-        elif can_publish(request.user):
-            if action in {"approve", "publish"}:
-                moderation_status = News.ModerationStatus.PUBLISHED
-            elif action == "submit":
-                moderation_status = News.ModerationStatus.PENDING
-        else:
-            # Never trust the button value sent by a contributor. Any attempt to
-            # publish or save a complete article must still pass staff review.
-            moderation_status = News.ModerationStatus.PENDING
-        publishing = moderation_status != News.ModerationStatus.DRAFT
-        bound_data["published"] = (
-            "on" if moderation_status == News.ModerationStatus.PUBLISHED else ""
-        )
     teacher_form = TeacherForm(
         bound_data,
         request.FILES or None,
@@ -1543,52 +1570,8 @@ def edit(request, news_id=None):
         teacher_form.add_error(None, staged_error)
     existing_courses = [*document.get("courses", [])]
     max_tabs = max(1, min(int(getattr(settings, "SDG4_MAX_TABS", DEFAULT_MAX_TABS)), 200))
-    invalid_tab_count = False
-    if bound_data is not None:
-        submitted_count = bound_data.get("course-TOTAL_FORMS")
-        if submitted_count is None:
-            submitted_slots = [
-                int(match.group(1))
-                for key in bound_data
-                if (match := re.match(r"course-(\d+)-", key))
-            ]
-            tab_count = max([len(existing_courses), *submitted_slots, 1])
-        else:
-            try:
-                tab_count = int(submitted_count)
-            except (TypeError, ValueError):
-                tab_count = 0
-                invalid_tab_count = True
-        if tab_count < 0 or tab_count > max_tabs:
-            invalid_tab_count = True
-            tab_count = max(0, min(tab_count, max_tabs))
-    else:
-        tab_count = max(1, len(existing_courses))
-    existing_courses.extend({} for _index in range(tab_count - len(existing_courses)))
-    bundles = []
-    for slot in range(1, tab_count + 1):
-        course = existing_courses[slot - 1]
-        prefix = f"course-{slot}"
-        deleted = bool(bound_data and bound_data.get(f"{prefix}-DELETE"))
-        course_form = CourseForm(
-            bound_data,
-            request.FILES or None,
-            prefix=prefix,
-            course=course,
-            publishing=publishing,
-        )
-        course_type = request.POST.get(f"{prefix}-type", course.get("type", "lecture"))
-        bulk_count = len(request.FILES.getlist(f"{prefix}-lecture_files")) if request.method == "POST" else 0
-        formset = Materials(
-            request.POST if request.method == "POST" else None,
-            request.FILES if request.method == "POST" else None,
-            prefix=f"materials-{slot}",
-            materials=course.get("materials", []),
-            course_type=course_type,
-            publishing=publishing and not deleted,
-            bulk_count=bulk_count,
-        )
-        bundles.append((course_form, formset, deleted))
+    tab_count, invalid_tab_count = submitted_tab_count(bound_data, len(existing_courses), max_tabs)
+    bundles = editor_bundles(request, bound_data, existing_courses, tab_count, publishing)
     empty_course_form = CourseForm(prefix="course-__tab__", course={}, publishing=publishing)
     empty_materials = Materials(
         prefix="materials-__tab__",
@@ -1597,48 +1580,25 @@ def edit(request, news_id=None):
         publishing=publishing,
     )
     if request.method == "POST":
-        checks = [teacher_form.is_valid()]
-        active_tabs = 0
-        for course_form, formset, deleted in bundles:
-            if deleted:
-                continue
-            active_tabs += 1
-            checks.extend((course_form.is_valid(), formset.is_valid()))
-        if invalid_tab_count:
-            teacher_form.add_error(None, _("The number of courses is invalid."))
-            checks.append(False)
-        if publishing and not active_tabs:
-            teacher_form.add_error(None, _("Add at least one course before publishing."))
-            checks.append(False)
-        valid = all(checks)
-        if staged_error:
-            valid = False
-        if row and request.POST.get("revision") != document["revision"]:
-            teacher_form.add_error(None, _("This page was edited elsewhere. Reload it before saving."))
-            valid = False
+        revision_is_current = not row or request.POST.get("revision") == document["revision"]
+        valid = editor_forms_are_valid(
+            teacher_form,
+            bundles,
+            invalid_tab_count,
+            publishing,
+            revision_is_current,
+        ) and not staged_error
         if valid:
-            try:
-                saved_row, result = save_page(
-                    row,
-                    document,
-                    teacher_form,
-                    bundles,
-                    moderation_status,
-                    request.user,
-                )
-            except ValueError as exc:
-                teacher_form.add_error(None, str(exc))
-            else:
-                if result["published"]:
-                    target = public_url(result)
-                else:
-                    query = "submitted=1" if moderation_status == News.ModerationStatus.PENDING else "saved=1"
-                    target = reverse("sdg4_edit", args=[saved_row.pk]) + f"?{query}"
-                close_staged_uploads(staged_files)
-                remove_staged_uploads(staged_uploads)
-                if request.headers.get("x-requested-with") == "XMLHttpRequest":
-                    return JsonResponse({"redirect": target})
-                return redirect(target)
+            response = save_editor_submission(
+                request,
+                row,
+                teacher_form,
+                bundles,
+                moderation_status,
+                (staged_uploads, staged_files),
+            )
+            if response is not None:
+                return response
     close_staged_uploads(staged_files)
     return render(
         request,

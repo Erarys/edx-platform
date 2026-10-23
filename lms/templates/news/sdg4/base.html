@@ -10,9 +10,6 @@ from django.utils.translation import gettext as _
   <link rel="stylesheet" href="${static.url('sdg4/showcase.css')}" />
 </%def>
 <main id="main" class="sdg4" tabindex="-1">
-  <div class="sdg4-toolbar">
-    <a class="sdg4-brand" href="${reverse('sdg4_index')}">${_("Открытый лекториум")}</a>
-  </div>
   % if can_manage_sdg4:
     <p class="sdg4-editor-link"><a href="${reverse('sdg4_manage')}">${_("My publications")}</a>
       % if can_moderate_sdg4:

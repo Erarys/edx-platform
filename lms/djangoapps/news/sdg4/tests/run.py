@@ -15,7 +15,7 @@ package.__path__ = [str(ROOT / "lms")]
 package.__file__ = str(ROOT / "lms" / "__init__.py")
 sys.modules["lms"] = package
 
-from django.core.management import execute_from_command_line  # noqa: E402
+from django.core.management import execute_from_command_line
 
 if __name__ == "__main__":
     execute_from_command_line(
