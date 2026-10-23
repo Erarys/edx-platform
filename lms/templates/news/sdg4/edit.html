@@ -55,7 +55,7 @@ from django.utils.translation import gettext as _
   </fieldset>
 </%def>
 <nav class="sdg4-breadcrumb"><a href="${reverse('sdg4_manage')}">${_("Manage SDG 4 resources")}</a></nav>
-<header class="sdg4-edit-intro"><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Open educational resources")}</p><h1>${_("Edit teacher resources") if row else _("Add teacher resources")}</h1>
+<header class="sdg4-edit-intro"><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Open educational resources")}</p><h1>${_("Educational resources") if row else _("Add teacher resources")}</h1>
   <p>${_("Complete the teacher profile and add presentation or video courses. You can publish one course now and add more later.")}</p>
   % if row:
     <p class="sdg4-status sdg4-status-${moderation_status}">${row.get_moderation_status_display()}</p>

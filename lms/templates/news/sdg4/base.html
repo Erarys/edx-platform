@@ -5,13 +5,13 @@
 from django.urls import reverse
 from django.utils.translation import gettext as _
 %>
-<%def name="pagetitle()">${_("Open лекториум")}</%def>
+<%def name="pagetitle()">${_("Открытый лекториум")}</%def>
 <%def name="head_extra(**pageargs)">
   <link rel="stylesheet" href="${static.url('sdg4/showcase.css')}" />
 </%def>
 <main id="main" class="sdg4" tabindex="-1">
   <div class="sdg4-toolbar">
-    <a class="sdg4-brand" href="${reverse('sdg4_index')}">${_("Open лекториум")}</a>
+    <a class="sdg4-brand" href="${reverse('sdg4_index')}">${_("Открытый лекториум")}</a>
   </div>
   % if can_manage_sdg4:
     <p class="sdg4-editor-link"><a href="${reverse('sdg4_manage')}">${_("My publications")}</a>
