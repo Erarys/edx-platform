@@ -56,12 +56,6 @@ class TeacherForm(forms.Form):
         help_text=_("Use a surname and initials in Latin letters. The address is fixed after the first save."),
     )
     photo = forms.ImageField(label=_("Photo (optional)"), required=False)
-    mooc_url = forms.CharField(
-        label=_("MOOC link (optional)"),
-        max_length=1000,
-        required=False,
-        validators=[validate_media_url],
-    )
     published = forms.BooleanField(label=_("Publish this page"), required=False, widget=forms.HiddenInput())
 
     def __init__(self, *args, document=None, publishing=True, **kwargs):
@@ -70,7 +64,6 @@ class TeacherForm(forms.Form):
         kwargs["initial"] = {
             "faculty": self.document.get("faculty", ""),
             "slug": self.document.get("slug", ""),
-            "mooc_url": profile.get("mooc_url", ""),
             "published": self.document.get("published", False),
         }
         super().__init__(*args, **kwargs)

@@ -2,6 +2,23 @@
     'use strict';
     var form = document.getElementById('sdg4-course-form');
     if (!form) { return; }
+    var courseList = form.querySelector('[data-course-list]');
+    var addCourse = form.querySelector('[data-add-course]');
+    var courseTemplate = document.getElementById('sdg4-empty-course');
+    var courseTotal = document.getElementById('id_course-TOTAL_FORMS');
+
+    function renumberCourses() {
+        if (!courseList) { return; }
+        var number = 0;
+        courseList.querySelectorAll('[data-course-editor]').forEach(function (editor) {
+            if (editor.hidden) { return; }
+            number += 1;
+            var heading = editor.querySelector('[data-course-number]');
+            if (heading) {
+                heading.textContent = courseList.dataset.courseLabel.replace('{number}', String(number));
+            }
+        });
+    }
 
     function activeMaterials(container) {
         return Array.from(container.querySelectorAll('[data-material-form]')).filter(function (material) {
@@ -59,6 +76,7 @@
                 if (deletedCourse) { deletedCourse.value = 'on'; }
                 editor.querySelectorAll('input[type="file"]').forEach(function (input) { input.value = ''; });
                 editor.hidden = true;
+                renumberCourses();
             });
         }
         editor.querySelectorAll('[data-material-form]').forEach(function (material) {
@@ -87,11 +105,8 @@
     form.querySelectorAll('[data-course-editor]').forEach(function (editor) {
         prepareCourse(editor);
     });
+    renumberCourses();
 
-    var courseList = form.querySelector('[data-course-list]');
-    var addCourse = form.querySelector('[data-add-course]');
-    var courseTemplate = document.getElementById('sdg4-empty-course');
-    var courseTotal = document.getElementById('id_course-TOTAL_FORMS');
     if (courseList && addCourse && courseTemplate && courseTotal) {
         addCourse.addEventListener('click', function () {
             var current = parseInt(courseTotal.value, 10);
@@ -104,6 +119,7 @@
             courseList.appendChild(editor);
             courseTotal.value = slot;
             prepareCourse(editor);
+            renumberCourses();
             editor.scrollIntoView({behavior: 'smooth', block: 'start'});
             if (slot >= maximum) { addCourse.disabled = true; }
         });

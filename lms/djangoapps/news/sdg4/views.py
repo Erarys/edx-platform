@@ -812,7 +812,6 @@ def teacher(request, faculty, teacher):
             "teacher_name": localized(profile["name"]),
             "profile": {key: localized(profile.get(key)) for key in ("position", "degree", "department")},
             "photo_url": photo_row.image.url if photo_row else "",
-            "mooc_url": profile.get("mooc_url", ""),
             "faculty_name": dict(FACULTIES)[faculty],
             "faculty_slug": faculty,
             "courses": courses,
@@ -1381,7 +1380,7 @@ def save_page(row, teacher_form, bundles, moderation_status, author=None):
             document["profile"].update(
                 {key: translations(cleaned, key) for key in ("name", "position", "degree", "department")}
             )
-            document["profile"]["mooc_url"] = cleaned.get("mooc_url", "")
+            document["profile"].pop("mooc_url", None)
             document["courses"] = saved_courses(bundles, row.pk, publishing, saved)
             if cleaned.get("photo"):
                 row.image = save_upload(cleaned["photo"], row.pk, "photo", saved)

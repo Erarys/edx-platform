@@ -61,7 +61,6 @@ def course_payload(action="publish", name="Иванова Алия Сергее�
         "degree_ru": "Магистр",
         "department_ru": "Кафедра информатики",
         "faculty": FACULTIES[0][0],
-        "mooc_url": "",
         "action": action,
         "course-TOTAL_FORMS": str(tab_count),
     }
@@ -170,6 +169,9 @@ class ShowcaseTests(TestCase):
         self.assertContains(response, "Course 1")
         self.assertContains(response, "Add course")
         self.assertContains(response, 'name="course-TOTAL_FORMS" value="1"')
+        self.assertContains(response, "data-course-number")
+        self.assertContains(response, 'data-course-label="Course {number}"')
+        self.assertNotContains(response, 'name="mooc_url"')
         self.assertNotContains(response, 'data-add-kind="text"')
         self.assertNotContains(response, 'data-add-kind="image"')
         self.assertNotContains(response, 'data-add-kind="audio"')
@@ -182,6 +184,7 @@ class ShowcaseTests(TestCase):
         row, document, url = self.publish()
         self.assertEqual(document["schema"], 3)
         self.assertEqual(len(document["courses"]), 3)
+        self.assertNotIn("mooc_url", document["profile"])
         self.assertEqual(row.moderation_status, News.ModerationStatus.PUBLISHED)
         response = self.client.get(url)
         self.assertContains(response, "Course 1")
@@ -271,6 +274,8 @@ class ShowcaseTests(TestCase):
         self.assertNotIn("form.action || window.location.href", script)
         self.assertIn("request.setRequestHeader('X-CSRFToken', csrfToken())", script)
         self.assertIn("form.dataset.uploadChunkUrl", script)
+        self.assertIn("function renumberCourses()", script)
+        self.assertIn("if (editor.hidden) { return; }", script)
 
     @override_settings(SDG4_UPLOAD_CHUNK_BYTES=256 * 1024)
     def test_large_file_is_uploaded_in_chunks_then_consumed_by_the_form(self):
