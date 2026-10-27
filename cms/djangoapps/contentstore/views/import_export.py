@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import shutil
+from urllib.parse import urlencode
 from wsgiref.util import FileWrapper
 
 from django.conf import settings
@@ -60,6 +61,15 @@ log = logging.getLogger(__name__)
 CONTENT_RE = re.compile(r"(?P<start>\d{1,11})-(?P<stop>\d{1,11})/(?P<end>\d{1,11})")
 
 STATUS_FILTERS = user_tasks_settings.USER_TASKS_STATUS_FILTERS
+EXPORT_TARGETS = frozenset({'openedx', 'coursera'})
+
+
+def _export_target(value):
+    """Return a supported export target, defaulting to the native OLX format."""
+    target = value or 'openedx'
+    if target not in EXPORT_TARGETS:
+        raise ValueError(f'Unsupported export target: {target}')
+    return target
 
 
 @transaction.non_atomic_requests
@@ -343,7 +353,13 @@ def export_handler(request, course_key_string):
     requested_format = request.GET.get('_accept', request.META.get('HTTP_ACCEPT', 'text/html'))
 
     if request.method == 'POST':
-        export_olx.delay(request.user.id, course_key_string, request.LANGUAGE_CODE)
+        try:
+            target = _export_target(request.POST.get('target'))
+        except ValueError as error:
+            return JsonResponse({'ExportError': str(error)}, status=400)
+        if library and target != 'openedx':
+            return JsonResponse({'ExportError': 'Coursera export is available for courses only.'}, status=400)
+        export_olx.delay(request.user.id, course_key_string, request.LANGUAGE_CODE, target)
         return JsonResponse({'ExportStatus': 1})
     elif 'text/html' in requested_format:
         if use_new_export_page(course_key) and not library:
@@ -377,7 +393,11 @@ def export_status_handler(request, course_key_string):
         raise PermissionDenied()
 
     # The task status record is authoritative once it's been created
-    task_status = _latest_task_status(request, course_key_string, export_status_handler)
+    try:
+        target = _export_target(request.GET.get('target'))
+    except ValueError as error:
+        return JsonResponse({'ExportError': str(error)}, status=400)
+    task_status = _latest_task_status(request, course_key_string, export_status_handler, target)
     output_url = None
     error = None
     if task_status is None:
@@ -392,6 +412,8 @@ def export_status_handler(request, course_key_string):
         artifact = UserTaskArtifact.objects.get(status=task_status, name='Output')
         if isinstance(artifact.file.storage, FileSystemStorage):
             output_url = reverse_course_url('export_output_handler', course_key)
+            if target != 'openedx':
+                output_url += '?' + urlencode({'target': target})
         elif isinstance(artifact.file.storage, S3Boto3Storage):
             filename = os.path.basename(artifact.file.name)
             disposition = f'attachment; filename="{filename}"'
@@ -438,7 +460,11 @@ def export_output_handler(request, course_key_string):
     if not has_course_author_access(request.user, course_key):
         raise PermissionDenied()
 
-    task_status = _latest_task_status(request, course_key_string, export_output_handler)
+    try:
+        target = _export_target(request.GET.get('target'))
+    except ValueError:
+        raise Http404
+    task_status = _latest_task_status(request, course_key_string, export_output_handler, target)
     if task_status and task_status.state == UserTaskStatus.SUCCEEDED:
         artifact = None
         try:
@@ -454,12 +480,12 @@ def export_output_handler(request, course_key_string):
         raise Http404
 
 
-def _latest_task_status(request, course_key_string, view_func=None):
+def _latest_task_status(request, course_key_string, view_func=None, target='openedx'):
     """
     Get the most recent export status update for the specified course/library
     key.
     """
-    args = {'course_key_string': course_key_string}
+    args = {'course_key_string': course_key_string, 'target': target}
     name = CourseExportTask.generate_name(args)
     task_status = UserTaskStatus.objects.filter(name=name)
     for status_filter in STATUS_FILTERS:

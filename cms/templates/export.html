@@ -89,7 +89,7 @@ else:
 
         <ul class="list-actions">
           <li class="item-action">
-            <a class="action action-export action-primary" href="#">
+            <a class="action action-export action-primary" data-export-target="openedx" href="#">
               <span class="icon fa fa-arrow-circle-o-down" aria-hidden="true"></span>
               <span class="copy">
                   %if library:
@@ -99,7 +99,18 @@ else:
                   %endif</span>
             </a>
           </li>
+          %if not library:
+          <li class="item-action">
+            <a class="action action-export" data-export-target="coursera" href="#">
+              <span class="icon fa fa-arrow-circle-o-down" aria-hidden="true"></span>
+              <span class="copy">${_("Export for Coursera")}</span>
+            </a>
+          </li>
+          %endif
         </ul>
+        %if not library:
+          <p>${_("The Coursera export converts PDF components to reading items and keeps the PDF files in the course archive. Other supported course content keeps its native OLX representation.")}</p>
+        %endif
       </div>
 
       <div class="wrapper wrapper-status is-hidden">

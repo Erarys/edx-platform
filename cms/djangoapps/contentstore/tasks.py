@@ -66,6 +66,7 @@ from common.djangoapps.static_replace import replace_static_urls
 from common.djangoapps.student.auth import has_course_author_access
 from common.djangoapps.student.roles import CourseInstructorRole, CourseStaffRole, LibraryUserRole
 from common.djangoapps.util.monitoring import monitor_import_failure
+from openedx.core.coursera_olx import prepare_coursera_olx
 from openedx.core.djangoapps.content.learning_sequences.api import key_supports_outlines
 from openedx.core.djangoapps.content_libraries import api as v2contentlib_api
 from openedx.core.djangoapps.content_tagging.api import make_copied_tags_editable
@@ -410,13 +411,16 @@ class CourseExportTask(UserTask):  # pylint: disable=abstract-method
             str: The generated name
         """
         key = arguments_dict['course_key_string']
+        target = arguments_dict.get('target', 'openedx')
+        if target == 'coursera':
+            return f'Coursera export of {key}'
         return f'Export of {key}'
 
 
 @shared_task(base=CourseExportTask, bind=True)
 # Note: The decorator @set_code_owner_attribute cannot be used here because the UserTaskMixin
 #   does stack inspection and can't handle additional decorators.
-def export_olx(self, user_id, course_key_string, language):
+def export_olx(self, user_id, course_key_string, language, target='openedx'):
     """
     Export a course or library to an OLX .tar.gz archive and prepare it for download.
     """
@@ -441,7 +445,7 @@ def export_olx(self, user_id, course_key_string, language):
 
     try:
         self.status.set_state('Exporting')
-        tarball = create_export_tarball(courselike_block, courselike_key, {}, self.status)
+        tarball = create_export_tarball(courselike_block, courselike_key, {}, self.status, target=target)
         artifact = UserTaskArtifact(status=self.status, name='Output')
         artifact.file.save(name=os.path.basename(tarball.name), content=File(tarball))
         artifact.save()
@@ -453,7 +457,7 @@ def export_olx(self, user_id, course_key_string, language):
         return
 
 
-def create_export_tarball(course_block, course_key, context, status=None):
+def create_export_tarball(course_block, course_key, context, status=None, target='openedx'):
     """
     Generates the export tarball, or returns None if there was an error.
 
@@ -469,6 +473,8 @@ def create_export_tarball(course_block, course_key, context, status=None):
             export_library_to_xml(modulestore(), contentstore(), course_key, root_dir, name)
         else:
             export_course_to_xml(modulestore(), contentstore(), course_block.id, root_dir, name)
+            if target == 'coursera':
+                prepare_coursera_olx(root_dir / name)
 
         if status:
             status.set_state('Compressing')

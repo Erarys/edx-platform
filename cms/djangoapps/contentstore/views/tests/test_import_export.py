@@ -756,6 +756,7 @@ class ExportTestCase(CourseTestCase):
         resp = self.client.get_html(self.url)
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Export My Course Content")
+        self.assertContains(resp, "Export for Coursera")
 
     def test_export_json_unsupported(self):
         """
@@ -763,6 +764,22 @@ class ExportTestCase(CourseTestCase):
         """
         resp = self.client.get(self.url, HTTP_ACCEPT='application/json')
         self.assertEqual(resp.status_code, 406)
+
+    def test_unknown_export_target(self):
+        resp = self.client.post(self.url, {'target': 'unknown'})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('Unsupported export target', resp.json()['ExportError'])
+
+    @patch('cms.djangoapps.contentstore.tasks.prepare_coursera_olx')
+    def test_coursera_export_async(self, mock_prepare_coursera_olx):
+        resp = self.client.post(self.url, {'target': 'coursera'})
+        self.assertEqual(resp.status_code, 200)
+        mock_prepare_coursera_olx.assert_called_once()
+
+        resp = self.client.get(self.status_url, {'target': 'coursera'})
+        result = resp.json()
+        self.assertEqual(result['ExportStatus'], 3)
+        self.assertIn('target=coursera', result['ExportOutput'])
 
     def test_export_async(self):
         """

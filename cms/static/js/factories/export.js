@@ -13,14 +13,20 @@ define([
         };
 
         var startExport = function(e) {
+            var target = $(e.currentTarget).data('export-target') || 'openedx',
+                targetStatusUrl = statusUrl;
             e.preventDefault();
+            if (target !== 'openedx') {
+                targetStatusUrl += (targetStatusUrl.indexOf('?') === -1 ? '?' : '&')
+                    + 'target=' + encodeURIComponent(target);
+            }
             $submitBtn.hide();
             Export.reset(library);
-            Export.start(statusUrl).then(onComplete);
+            Export.start(targetStatusUrl).then(onComplete);
             $.ajax({
                 type: 'POST',
                 url: window.location.pathname,
-                data: {},
+                data: {target: target},
                 success: function(result, textStatus, xhr) {
                     if (xhr.status === 200) {
                         setTimeout(function() { Export.pollStatus(result); }, 1000);
