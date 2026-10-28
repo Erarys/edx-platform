@@ -50,8 +50,14 @@
     .course-analytics a:focus-visible { outline: 3px solid #62a9d5; outline-offset: 4px; }
     .course-analytics .details-runs { margin-bottom: 22px; }
     .course-analytics .details-runs summary { cursor: pointer; font-weight: 700; padding: 8px 0; }
+    .course-analytics .details-run-search { margin: 16px 0 0; }
+    .course-analytics .details-run-search label { display: block; margin-bottom: 7px; color: #475467; font-size: 14px; font-weight: 600; }
+    .course-analytics .details-run-search input { width: 100%; max-width: 520px; padding: 10px 12px; background: #fff; color: #172033; border: 1px solid #cdd8e3; border-radius: 6px; box-shadow: none; }
+    .course-analytics .details-run-search input:focus { outline: 2px solid #39799f; outline-offset: 2px; }
     .course-analytics .details-run-list { max-height: 320px; overflow-y: auto; padding: 0; border: 0; margin: 16px 0; }
     .course-analytics .details-run { display: flex; align-items: baseline; gap: 14px; padding: 12px 0; border-bottom: 1px solid #edf1f6; }
+    .course-analytics .details-run[hidden], .course-analytics .details-run-empty[hidden] { display: none; }
+    .course-analytics .details-run-empty { margin: 12px 0; padding: 14px; background: #f5f8fb; border-radius: 6px; color: #667085; }
     .course-analytics .details-run label { flex: 1; overflow-wrap: anywhere; cursor: pointer; }
     .course-analytics .details-run input { margin-right: 8px; }
     .course-analytics .details-run a { flex-shrink: 0; }
@@ -96,10 +102,14 @@
                 <p class="details-muted">${_("Select one or more runs, or view all runs for the entire lifetime of the course.")}</p>
                 <form method="get" action="${selection_url}" id="runSelectionForm">
                     <input type="hidden" name="selection" value="1" />
+                    <div class="details-run-search">
+                        <label for="runSearch">${_("Search by run ID or course name")}</label>
+                        <input type="search" id="runSearch" placeholder="${_('For example: c1 or course name')}" autocomplete="off" />
+                    </div>
                     <fieldset class="details-run-list">
                         <legend>${_("Course runs")}</legend>
                         % for run in available_runs:
-                            <div class="details-run">
+                            <div class="details-run" data-run-id="${str(run.id)} ${run.id.run}" data-course-name="${run.display_name or ''}">
                                 <label>
                                     <input type="checkbox" name="run" value="${run.id}" ${'checked' if str(run.id) in selected_ids else ''} />
                                     <strong>${run.id.run}</strong> — ${run.display_name or run.id}
@@ -108,6 +118,7 @@
                                 <a href="${selection_url}?run=${str(run.id) | u}">${_("Only this run")}</a>
                             </div>
                         % endfor
+                        <p class="details-run-empty" id="runSearchEmpty" hidden>${_("No course runs match your search.")}</p>
                     </fieldset>
                     <div class="details-run-actions">
                         <button type="submit" id="applyRuns">${_("Apply selection")}</button>
@@ -221,11 +232,37 @@
     (function () {
         var form = document.getElementById("runSelectionForm");
         var applyButton = document.getElementById("applyRuns");
+        var searchInput = document.getElementById("runSearch");
+        var runRows = Array.prototype.slice.call(form.querySelectorAll(".details-run"));
+        var emptyState = document.getElementById("runSearchEmpty");
+
         function updateSelection() {
             applyButton.disabled = !form.querySelector('input[name="run"]:checked');
         }
+
+        function filterRuns() {
+            var query = searchInput.value.toLocaleLowerCase().trim();
+            var visibleCount = 0;
+
+            runRows.forEach(function (row) {
+                var searchText = [
+                    row.getAttribute("data-run-id") || "",
+                    row.getAttribute("data-course-name") || ""
+                ].join(" ").toLocaleLowerCase();
+                var isVisible = searchText.indexOf(query) !== -1;
+                row.hidden = !isVisible;
+                if (isVisible) {
+                    visibleCount += 1;
+                }
+            });
+
+            emptyState.hidden = visibleCount !== 0;
+        }
+
         form.addEventListener("change", updateSelection);
+        searchInput.addEventListener("input", filterRuns);
         updateSelection();
+        filterRuns();
     })();
 </script>
 </%block>
