@@ -21,6 +21,7 @@ import logging
 import jwt
 import urllib.parse
 import random
+import unicodedata
 from datetime import datetime, timedelta
 
 from django.http import HttpResponseRedirect
@@ -213,6 +214,39 @@ def translate_direction(value):
 
     return DIRECTION_TRANSLATIONS.get(value, {}).get(language, value)
 #
+
+
+def _normalize_course_identity_value(value):
+    """Normalize editable course metadata before using it for grouping."""
+    if not value:
+        return ""
+    return " ".join(unicodedata.normalize("NFKC", str(value)).casefold().split())
+
+
+def _course_group_key(course):
+    """Return the fields that must match for records to be runs of one course."""
+    return (
+        course.id.org,
+        course.id.course,
+        _normalize_course_identity_value(course.display_name),
+        _normalize_course_identity_value(course.faculty),
+        _normalize_course_identity_value(course.directions),
+        _normalize_course_identity_value(course.language),
+    )
+
+
+def _deduplicate_courses(courses):
+    """Keep the first (normally newest) course from each course group."""
+    unique_courses = []
+    seen_groups = set()
+    for course in courses:
+        group_key = _course_group_key(course)
+        if group_key not in seen_groups:
+            seen_groups.add(group_key)
+            unique_courses.append(course)
+    return unique_courses
+
+
 @user_passes_test(lambda u: u.is_staff)
 def analyze(request):
     course_org_filter = ["Test_kaznu", "rty", "123", "Demo"]
@@ -229,17 +263,22 @@ def analyze(request):
         .exclude(org__in=course_org_filter)
         .exclude(display_name__in=course_name_filter)
     )
-    # Count each nonempty title once, even across different course codes and runs.
+    # Count each normalized nonempty title once.
     unique_course_names = {
-        name.strip()
+        _normalize_course_identity_value(name)
         for name in all_courses_qs.values_list("display_name", flat=True)
         if name and name.strip()
     }
 
-    # Include every run starting this year, regardless of its end date or title.
-    current_year_courses = list(all_courses_qs.filter(
+    # Keep one row per course while retaining its total number of launches.
+    current_year_runs = list(all_courses_qs.filter(
         start__gte=year_start,
         start__lt=next_year_start,
+    ))
+    current_year_courses = _deduplicate_courses(sorted(
+        current_year_runs,
+        key=lambda course: course.start,
+        reverse=True,
     ))
     max_year = current_year + 1
 
@@ -288,16 +327,12 @@ def analyze(request):
         for language, total in language_counter.most_common()
     ]
 
-    top_courses = sorted(
-        current_year_courses,
-        key=lambda course: course.start,
-        reverse=True
-    )
+    top_courses = current_year_courses
 
-    # Group runs across years by course identity, not by their editable titles.
+    # Do not combine courses that share an ID but differ by name or learning metadata.
     course_run_counts = Counter(
-        (course_key.org, course_key.course)
-        for course_key in all_courses_qs.values_list("id", flat=True)
+        _course_group_key(course)
+        for course in all_courses_qs
     )
 
     courses_json = [
@@ -308,7 +343,7 @@ def analyze(request):
             "directions": translate_direction(course.directions),
             "language": course.language or "",
             "start": course.start.strftime("%d.%m.%Y") if course.start else "",
-            "run_count": course_run_counts.get((course.id.org, course.id.course), 1),
+            "run_count": course_run_counts.get(_course_group_key(course), 1),
             "url": reverse("course_details", kwargs={"course_id": str(course.id)}),
         }
         for course in top_courses
@@ -356,11 +391,14 @@ def course_details(request, course_id):
         raise Http404("Invalid course ID") from exc
 
     course = get_object_or_404(CourseOverview, id=course_key)
-    # The run component and editable display name are not part of course identity.
-    available_runs = [
-        run for run in CourseOverview.objects.filter(org=course_key.org).order_by("-start", "id")
-        if (run.id.org, run.id.course) == (course_key.org, course_key.course)
-    ]
+    # Match the stable course ID and normalized learning metadata. This prevents
+    # unrelated courses that reused an ID from being merged into the statistics.
+    course_group_key = _course_group_key(course)
+    available_runs_by_id = {}
+    for run in CourseOverview.objects.filter(org=course_key.org).order_by("-start", "id"):
+        if _course_group_key(run) == course_group_key:
+            available_runs_by_id.setdefault(str(run.id), run)
+    available_runs = list(available_runs_by_id.values())
     available_ids = {str(run.id) for run in available_runs}
     if request.GET.get("scope") == "all":
         selected_ids = available_ids
