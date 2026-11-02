@@ -1,3 +1,10 @@
+/* SDG 4 publication editor.
+ *
+ * The form works without JavaScript; this script only makes it easier:
+ * drag-and-drop file zones, a visible list of chosen files, file type checks
+ * before upload, "add / remove course" controls, protection against losing
+ * unsaved work, and chunked uploads for large files.
+ */
 (function () {
     'use strict';
     var form = document.getElementById('sdg4-course-form');
@@ -6,6 +13,18 @@
     var addCourse = form.querySelector('[data-add-course]');
     var courseTemplate = document.getElementById('sdg4-empty-course');
     var courseTotal = document.getElementById('id_course-TOTAL_FORMS');
+    var EXTENSIONS = {lecture: ['.pdf'], video: ['.mp4', '.webm', '.ogv']};
+    var dirty = false;
+    var submitting = false;
+
+    function message(name, names) {
+        return (form.dataset[name] || '').replace('{names}', names || '');
+    }
+
+    function visibleCourses() {
+        return Array.from(courseList ? courseList.querySelectorAll('[data-course-editor]') : [])
+            .filter(function (editor) { return !editor.hidden; });
+    }
 
     function renumberCourses() {
         if (!courseList) { return; }
@@ -18,25 +37,147 @@
                 heading.textContent = courseList.dataset.courseLabel.replace('{number}', String(number));
             }
         });
+        // The only remaining course cannot be removed: an empty form is not useful.
+        var visible = visibleCourses();
+        visible.forEach(function (editor) {
+            var remove = editor.querySelector('[data-remove-course]');
+            if (remove) { remove.hidden = visible.length < 2; }
+        });
+        if (addCourse && courseTotal) {
+            addCourse.disabled = parseInt(courseTotal.value, 10) >= parseInt(addCourse.dataset.maxTabs, 10);
+        }
+    }
+
+    function courseType(editor) {
+        var checked = editor.querySelector('input[name$="-type"]:checked');
+        return checked && checked.value === 'video' ? 'video' : 'lecture';
+    }
+
+    function extensionOf(name) {
+        var dot = name.lastIndexOf('.');
+        return dot === -1 ? '' : name.slice(dot).toLowerCase();
     }
 
     function activeMaterials(container) {
         return Array.from(container.querySelectorAll('[data-material-form]')).filter(function (material) {
             var deleted = material.querySelector('input[name$="-DELETE"]');
-            return !deleted || !deleted.checked;
+            return !material.hidden && (!deleted || !deleted.checked);
         });
     }
 
+    function formatSize(bytes) {
+        if (bytes >= 1024 * 1024 * 1024) { return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB'; }
+        if (bytes >= 1024 * 1024) { return (bytes / (1024 * 1024)).toFixed(1) + ' MB'; }
+        return Math.max(1, Math.round(bytes / 1024)) + ' KB';
+    }
+
+    /* ---- Drop zone: one place for all files of a course ---- */
+
+    function setFiles(input, files) {
+        if (!window.DataTransfer) { return false; }
+        var transfer = new DataTransfer();
+        files.forEach(function (file) { transfer.items.add(file); });
+        input.files = transfer.files;
+        return true;
+    }
+
+    function showZoneError(zone, text) {
+        var error = zone.querySelector('[data-dropzone-error]');
+        if (!error) { return; }
+        error.textContent = text;
+        error.hidden = !text;
+        zone.classList.toggle('sdg4-field-invalid', Boolean(text));
+    }
+
+    function renderFileList(zone, editor) {
+        var input = zone.querySelector('input[type="file"]');
+        var list = zone.querySelector('[data-file-list]');
+        if (!input || !list) { return; }
+        list.innerHTML = '';
+        var files = Array.from(input.files || []);
+        var allowed = EXTENSIONS[courseType(editor)];
+        var wrong = files.filter(function (file) { return allowed.indexOf(extensionOf(file.name)) === -1; });
+        var limit = parseInt(form.dataset.uploadLimit, 10);
+        var tooLarge = files.filter(function (file) { return file.size > limit; });
+        files.forEach(function (file, index) {
+            var item = document.createElement('li');
+            if (wrong.indexOf(file) !== -1 || tooLarge.indexOf(file) !== -1) { item.className = 'sdg4-file-bad'; }
+            var name = document.createElement('span');
+            name.className = 'sdg4-file-name';
+            name.textContent = file.name;
+            var size = document.createElement('span');
+            size.className = 'sdg4-file-size';
+            size.textContent = formatSize(file.size);
+            item.appendChild(name);
+            item.appendChild(size);
+            if (window.DataTransfer) {
+                var remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'sdg4-icon-button';
+                remove.setAttribute('aria-label', message('msgRemoveFile') + ': ' + file.name);
+                remove.title = message('msgRemoveFile');
+                remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+                remove.addEventListener('click', function () {
+                    var rest = Array.from(input.files).filter(function (_file, position) { return position !== index; });
+                    setFiles(input, rest);
+                    renderFileList(zone, editor);
+                });
+                item.appendChild(remove);
+            }
+            list.appendChild(item);
+        });
+        zone.classList.toggle('sdg4-dropzone-filled', files.length > 0);
+        if (wrong.length) {
+            showZoneError(zone, message(courseType(editor) === 'video' ? 'msgWrongVideo' : 'msgWrongPdf',
+                wrong.map(function (file) { return file.name; }).join(', ')));
+        } else if (tooLarge.length) {
+            showZoneError(zone, form.dataset.sizeError);
+        } else {
+            showZoneError(zone, '');
+        }
+    }
+
+    function prepareDropzone(zone, editor) {
+        var input = zone.querySelector('input[type="file"]');
+        if (!input) { return; }
+        input.addEventListener('change', function () { dirty = true; renderFileList(zone, editor); });
+        ['dragenter', 'dragover'].forEach(function (name) {
+            zone.addEventListener(name, function (event) {
+                event.preventDefault();
+                zone.classList.add('sdg4-dropzone-over');
+            });
+        });
+        ['dragleave', 'dragend', 'drop'].forEach(function (name) {
+            zone.addEventListener(name, function () { zone.classList.remove('sdg4-dropzone-over'); });
+        });
+        zone.addEventListener('drop', function (event) {
+            event.preventDefault();
+            var dropped = Array.from((event.dataTransfer && event.dataTransfer.files) || []);
+            if (!dropped.length) { return; }
+            // Dropping adds to the files already chosen instead of replacing them.
+            if (!setFiles(input, Array.from(input.files || []).concat(dropped))) { return; }
+            dirty = true;
+            renderFileList(zone, editor);
+        });
+    }
+
+    /* ---- Course type: PDF slides or video ---- */
+
     function updateCourse(editor) {
-        var type = editor.querySelector('select[name$="-type"]');
-        var isVideo = type && type.value === 'video';
-        editor.querySelectorAll('[data-presentation-only]').forEach(function (section) {
-            section.hidden = isVideo;
+        var type = courseType(editor);
+        var isVideo = type === 'video';
+        editor.querySelectorAll('[data-video-only]').forEach(function (element) { element.hidden = !isVideo; });
+        editor.querySelectorAll('[data-lecture-only]').forEach(function (element) { element.hidden = isVideo; });
+        editor.querySelectorAll('input[type="file"]').forEach(function (input) {
+            input.accept = EXTENSIONS[type].join(',');
         });
-        activeMaterials(editor).forEach(function (material) {
-            var input = material.querySelector('input[type="file"][name$="-file"]');
-            if (input) { input.accept = isVideo ? '.mp4,.ogv,.webm' : '.pdf'; }
-        });
+        var zone = editor.querySelector('[data-dropzone]');
+        if (zone) { renderFileList(zone, editor); }
+    }
+
+    function updateLessonsHeading(editor) {
+        var heading = editor.querySelector('[data-lessons-heading]');
+        if (heading) { heading.hidden = activeMaterials(editor).length === 0; }
     }
 
     function prepareMaterial(material, editor) {
@@ -56,6 +197,8 @@
                 var deleted = material.querySelector('input[name$="-DELETE"]');
                 if (deleted) { deleted.checked = true; }
                 material.hidden = true;
+                dirty = true;
+                updateLessonsHeading(editor);
             });
         }
         updateCourse(editor);
@@ -64,8 +207,9 @@
     function prepareCourse(editor) {
         if (editor.dataset.courseReady === 'true') { return; }
         editor.dataset.courseReady = 'true';
-        var type = editor.querySelector('select[name$="-type"]');
-        if (type) { type.addEventListener('change', function () { updateCourse(editor); }); }
+        editor.querySelectorAll('input[name$="-type"]').forEach(function (radio) {
+            radio.addEventListener('change', function () { updateCourse(editor); });
+        });
         var removeCourse = editor.querySelector('[data-remove-course]');
         var deletedCourse = editor.querySelector('input[name^="course-"][name$="-DELETE"]');
         if (deletedCourse && ['on', 'true', 'True', '1'].indexOf(deletedCourse.value) !== -1) {
@@ -73,12 +217,19 @@
         }
         if (removeCourse) {
             removeCourse.addEventListener('click', function () {
+                if (visibleCourses().length < 2) { return; }
+                if (!window.confirm(message('msgRemoveCourse'))) { return; }
                 if (deletedCourse) { deletedCourse.value = 'on'; }
                 editor.querySelectorAll('input[type="file"]').forEach(function (input) { input.value = ''; });
+                // A removed course must not block the browser's required-field check.
+                editor.querySelectorAll('[required]').forEach(function (input) { input.required = false; });
                 editor.hidden = true;
+                dirty = true;
                 renumberCourses();
             });
         }
+        var zone = editor.querySelector('[data-dropzone]');
+        if (zone) { prepareDropzone(zone, editor); }
         editor.querySelectorAll('[data-material-form]').forEach(function (material) {
             prepareMaterial(material, editor);
         });
@@ -96,10 +247,13 @@
                 formset.querySelector('.sdg4-material-forms').appendChild(material);
                 total.value = index + 1;
                 prepareMaterial(material, editor);
-                material.scrollIntoView({behavior: 'smooth', block: 'center'});
+                updateLessonsHeading(editor);
+                var first = material.querySelector('input[name$="-file_url"]');
+                if (first) { first.focus(); }
             });
         }
         updateCourse(editor);
+        updateLessonsHeading(editor);
     }
 
     form.querySelectorAll('[data-course-editor]').forEach(function (editor) {
@@ -120,22 +274,73 @@
             courseTotal.value = slot;
             prepareCourse(editor);
             renumberCourses();
+            dirty = true;
             editor.scrollIntoView({behavior: 'smooth', block: 'start'});
-            if (slot >= maximum) { addCourse.disabled = true; }
+            var title = editor.querySelector('input[name$="-topic_ru"]');
+            if (title) { title.focus({preventScroll: true}); }
         });
     }
 
     form.querySelectorAll('details').forEach(function (section) {
         if (section.querySelector('.errorlist')) { section.open = true; }
     });
+    var summary = form.querySelector('[data-error-summary]');
+    if (summary) { summary.focus(); }
+
+    form.addEventListener('input', function () { dirty = true; });
+    form.addEventListener('change', function () { dirty = true; });
+    window.addEventListener('beforeunload', function (event) {
+        if (!dirty || submitting) { return undefined; }
+        event.preventDefault();
+        event.returnValue = message('msgLeave');
+        return event.returnValue;
+    });
+
+    /* ---- Checks before sending ---- */
+
+    function courseHasLessons(editor) {
+        var zone = editor.querySelector('[data-dropzone] input[type="file"]');
+        if (zone && zone.files && zone.files.length) { return true; }
+        return activeMaterials(editor).some(function (material) {
+            if (material.dataset.hasSource === 'true') { return true; }
+            var file = material.querySelector('input[type="file"]');
+            var url = material.querySelector('input[name$="-file_url"]');
+            return (file && file.files && file.files.length) || (url && url.value.trim());
+        });
+    }
+
+    function checkBeforeSubmit(isDraft) {
+        var problem = null;
+        visibleCourses().forEach(function (editor) {
+            var zone = editor.querySelector('[data-dropzone]');
+            if (!zone) { return; }
+            renderFileList(zone, editor);
+            if (zone.classList.contains('sdg4-field-invalid') && zone.querySelector('[data-dropzone-error]:not([hidden])')) {
+                problem = problem || zone;
+                return;
+            }
+            if (!isDraft && !courseHasLessons(editor)) {
+                showZoneError(zone, form.dataset.msgNoFiles);
+                problem = problem || zone;
+            }
+        });
+        if (problem) {
+            problem.scrollIntoView({behavior: 'smooth', block: 'center'});
+            var input = problem.querySelector('input[type="file"]');
+            if (input) { input.focus({preventScroll: true}); }
+            return false;
+        }
+        return true;
+    }
 
     function selectedFiles() {
         return Array.from(form.querySelectorAll('input[type="file"]')).reduce(function (files, input) {
             if (input.closest('[hidden]')) { return files; }
             var editor = input.closest('[data-course-editor]');
-            var type = editor && editor.querySelector('select[name$="-type"]');
-            var kind = input.name === 'photo' ? 'image' : 'presentation';
-            if (input.name.indexOf('materials-') === 0 && type && type.value === 'video') { kind = 'video'; }
+            var kind = 'image';
+            if (input.name !== 'photo') {
+                kind = editor && courseType(editor) === 'video' ? 'video' : 'presentation';
+            }
             return files.concat(Array.from(input.files || []).map(function (file) {
                 return {input: input, file: file, kind: kind};
             }));
@@ -237,22 +442,26 @@
     }
 
     form.addEventListener('submit', function (event) {
+        var submitter = event.submitter;
+        var isDraft = Boolean(submitter && submitter.value === 'draft');
+        if (submitting) { event.preventDefault(); return; }
+        if (!checkBeforeSubmit(isDraft)) { event.preventDefault(); return; }
+        var buttons = Array.from(form.querySelectorAll('button[type="submit"]'));
         var files = selectedFiles();
-        var limit = parseInt(form.dataset.uploadLimit, 10);
-        if (files.some(function (entry) { return entry.file.size > limit; })) {
-            event.preventDefault();
-            window.alert(form.dataset.sizeError);
+        submitting = true;
+        if (!files.length || !window.XMLHttpRequest || !window.FormData) {
+            // Ordinary submission: only block a second click, which used to
+            // create the same publication twice.
+            window.setTimeout(function () { buttons.forEach(function (button) { button.disabled = true; }); }, 0);
             return;
         }
-        if (!files.length || !window.XMLHttpRequest || !window.FormData) { return; }
         event.preventDefault();
-        var submitter = event.submitter;
         var progressBox = form.querySelector('[data-upload-progress]');
         var progress = progressBox.querySelector('progress');
         var percent = progressBox.querySelector('[data-upload-percent]');
         var status = progressBox.querySelector('[data-upload-status]');
-        var buttons = Array.from(form.querySelectorAll('button[type="submit"]'));
         progressBox.hidden = false;
+        progressBox.classList.remove('sdg4-upload-failed');
         progressBox.scrollIntoView({behavior: 'smooth', block: 'center'});
         buttons.forEach(function (button) { button.disabled = true; });
         var totalBytes = files.reduce(function (total, entry) { return total + entry.file.size; }, 0);
@@ -262,6 +471,12 @@
             progress.value = value;
             progress.textContent = value + '%';
             percent.textContent = value + '%';
+        }
+        function failed(text) {
+            submitting = false;
+            buttons.forEach(function (button) { button.disabled = false; });
+            status.textContent = text || form.dataset.uploadError;
+            progressBox.classList.add('sdg4-upload-failed');
         }
         var completedBytes = 0;
         var tokens = [];
@@ -290,20 +505,16 @@
                     window.location.assign(response.redirect);
                     return;
                 }
+                // The server returned the form with error messages; files that
+                // were already uploaded are kept by their hidden tokens.
                 document.open();
                 document.write(request.responseText);
                 document.close();
             });
-            request.addEventListener('error', function () {
-                buttons.forEach(function (button) { button.disabled = false; });
-                status.textContent = form.dataset.uploadError;
-                progressBox.classList.add('sdg4-upload-failed');
-            });
+            request.addEventListener('error', function () { failed(form.dataset.uploadError); });
             request.send(data);
         }).catch(function (error) {
-            buttons.forEach(function (button) { button.disabled = false; });
-            status.textContent = error.message || form.dataset.uploadError;
-            progressBox.classList.add('sdg4-upload-failed');
+            failed(error.message);
         });
     });
 }());

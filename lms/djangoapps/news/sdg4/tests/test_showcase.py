@@ -84,7 +84,7 @@ def course_payload(action="publish", name="Иванова Алия Сергее�
     return data
 
 
-class ShowcaseTests(TestCase):
+class ShowcaseTestBase(TestCase):
     def setUp(self):
         temp_root = Path(__file__).resolve().parents[5] / "test_root"
         temp_root.mkdir(exist_ok=True)
@@ -164,10 +164,13 @@ class ShowcaseTests(TestCase):
             author=author or self.staff,
         )
 
+
+
+class ShowcaseTests(ShowcaseTestBase):
     def test_editor_starts_with_one_tab_and_can_add_more(self):
         response = self.client.get(reverse("sdg4_create"))
         self.assertContains(response, "Course 1")
-        self.assertContains(response, "Add course")
+        self.assertContains(response, "Add another course")
         self.assertContains(response, 'name="course-TOTAL_FORMS" value="1"')
         self.assertContains(response, "data-course-number")
         self.assertContains(response, 'data-course-label="Course {number}"')
@@ -180,7 +183,7 @@ class ShowcaseTests(TestCase):
         self.assertContains(response, 'data-upload-limit="1073741824"')
         self.assertContains(response, "data-upload-progress")
 
-    def test_publishing_creates_exactly_three_generic_public_tabs(self):
+    def test_publishing_creates_three_public_tabs_titled_by_topic(self):
         row, document, url = self.publish()
         self.assertEqual(document["schema"], 3)
         self.assertEqual(len(document["courses"]), 3)
@@ -190,7 +193,9 @@ class ShowcaseTests(TestCase):
         self.assertContains(response, "Course 1")
         self.assertContains(response, "Course 2")
         self.assertContains(response, "Course 3")
-        self.assertNotContains(response, "Тема 1")
+        # The course title entered by the author is shown, not only "Course N".
+        self.assertContains(response, "Тема 1")
+        self.assertContains(response, "Тема 2")
         self.assertNotContains(response, "Open presentation")
         self.assertContains(response, "Иванова Алия Сергеевна")
 
@@ -207,7 +212,7 @@ class ShowcaseTests(TestCase):
 
         editor = self.client.get(reverse("sdg4_edit", args=[row.pk]))
         self.assertContains(editor, 'name="course-TOTAL_FORMS" value="1"')
-        self.assertContains(editor, "Add course")
+        self.assertContains(editor, "Add another course")
 
     def test_removed_tab_is_not_required_or_published(self):
         data = course_payload()
@@ -415,7 +420,7 @@ class ShowcaseTests(TestCase):
             "sdg4_download",
             args=[document["faculty"], document["slug"], 1, item["id"]],
         )
-        self.assertContains(page, f'<a href="{download_url}" download>slides.pdf</a>', html=True)
+        self.assertContains(page, f'href="{download_url}" download="slides.pdf"')
         self.assertContains(page, f'data="{view_url}"')
         self.assertNotContains(page, "Creative Commons license")
         browser_view = self.client.get(view_url)
@@ -540,3 +545,96 @@ class ShowcaseTests(TestCase):
         document = read_document(row)
         self.assertEqual(len(document["courses"]), 3)
         self.assertEqual(self.client.get(reverse("sdg4_teacher", args=[document["faculty"], document["slug"]])).status_code, 404)
+
+
+class SimplifiedEditorTests(ShowcaseTestBase):
+    """The shortest path: name, faculty, course title and files."""
+
+    def minimal_payload(self, **extra):
+        data = {
+            "name_ru": "Сапарова Дана",
+            "faculty": FACULTIES[1][0],
+            "action": "publish",
+            "course-TOTAL_FORMS": "1",
+            "course-1-type": "lecture",
+            "course-1-language": "ru",
+            "course-1-topic_ru": "Основы биологии",
+            "course-1-lecture_files": [pdf("Лекция 1.pdf"), pdf("Лекция 2.pdf")],
+            "materials-1-TOTAL_FORMS": "0",
+            "materials-1-INITIAL_FORMS": "0",
+        }
+        data.update(extra)
+        return data
+
+    def test_minimal_publication_needs_only_name_faculty_title_and_files(self):
+        response = self.client.post(reverse("sdg4_create"), self.minimal_payload())
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        document = read_document(News.objects.get())
+        course = document["courses"][0]
+        self.assertEqual([item["title"] for item in course["materials"]], ["Лекция 1", "Лекция 2"])
+        self.assertEqual(course["programme"], "")
+        self.assertEqual(course["published_at"], timezone.localdate().isoformat())
+
+    def test_course_without_files_gets_a_plain_message(self):
+        data = self.minimal_payload()
+        data.pop("course-1-lecture_files")
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Add at least one file or link to this course.")
+        self.assertNotContains(response, "Please submit at least")
+        self.assertContains(response, "data-error-summary")
+        # Nothing is published yet, so the main button still says "Publish".
+        self.assertContains(response, 'value="publish"')
+        self.assertNotContains(response, "Save published changes")
+        self.assertFalse(News.objects.exists())
+
+    def test_missing_title_is_listed_in_the_error_summary(self):
+        response = self.client.post(reverse("sdg4_create"), self.minimal_payload(**{"course-1-topic_ru": ""}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'href="#id_course-1-topic_ru"')
+
+    def test_video_files_can_be_dropped_into_the_shared_file_zone(self):
+        video = SimpleUploadedFile("Урок.mp4", b"\x00\x00\x00\x18ftypisomvideo", "video/mp4")
+        response = self.client.post(
+            reverse("sdg4_create"),
+            self.minimal_payload(**{"course-1-type": "video", "course-1-lecture_files": video}),
+        )
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        document = read_document(News.objects.get())
+        self.assertEqual(document["courses"][0]["materials"][0]["title"], "Урок")
+        page = self.client.get(response.url)
+        self.assertContains(page, "<video")
+        self.assertNotContains(page, "crossorigin")
+
+    def test_pdf_is_rejected_in_a_video_course(self):
+        response = self.client.post(
+            reverse("sdg4_create"),
+            self.minimal_payload(**{"course-1-type": "video"}),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "file type does not match")
+
+    @override_settings(SDG4_UPLOAD_CHUNK_BYTES=256 * 1024)
+    def test_large_video_in_the_shared_zone_uses_chunked_upload(self):
+        content = b"\x00\x00\x00\x18ftypisom" + b"v" * (300 * 1024)
+        staged = self.stage_upload("course-1-lecture_files", "video", "big.mp4", content)
+        data = self.minimal_payload(**{"course-1-type": "video", views.STAGED_UPLOAD_FIELD: staged["token"]})
+        data.pop("course-1-lecture_files")
+        response = self.client.post(reverse("sdg4_create"), data)
+        self.assertEqual(response.status_code, 302, response.content.decode())
+        material = read_document(News.objects.get())["courses"][0]["materials"][0]
+        with default_storage.open(material["file_path"], "rb") as stored:
+            self.assertEqual(stored.read(), content)
+
+    def test_editor_offers_three_steps_and_a_no_validation_draft_button(self):
+        response = self.client.get(reverse("sdg4_create") + "?new=1")
+        self.assertContains(response, 'id="sdg4-step-1"')
+        self.assertContains(response, 'id="sdg4-step-3"')
+        self.assertContains(response, "data-dropzone")
+        self.assertContains(response, 'value="draft" formnovalidate')
+        self.assertContains(response, 'type="radio"')
+
+    def test_toolbar_new_publication_link_always_creates_a_new_page(self):
+        self.publish()
+        response = self.client.get(reverse("sdg4_index"))
+        self.assertContains(response, reverse("sdg4_create") + "?new=1")

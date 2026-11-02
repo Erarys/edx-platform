@@ -147,7 +147,8 @@ def staged_field_kind(field_name, requested_kind=""):
     if field_name == "photo":
         return "image"
     if re.fullmatch(r"course-\d+-lecture_files", field_name):
-        return "presentation"
+        # The shared drop zone accepts PDF slides or video lessons.
+        return requested_kind if requested_kind in {"presentation", "video"} else "presentation"
     if re.fullmatch(r"materials-\d+-\d+-file", field_name) and requested_kind in {"presentation", "video"}:
         return requested_kind
     return ""
@@ -754,10 +755,12 @@ def teacher(request, faculty, teacher):
     courses = [
         {
             "number": index,
-            "title": _("Course {number}").format(number=index),
+            "label": _("Course {number}").format(number=index),
+            "title": localized((source.get("course") or {}).get("topic")),
+            "type": (source.get("course") or {}).get("type", "mixed"),
             "url": f"{base_url}?tab={index}#course-panel",
         }
-        for index, _source in enumerate(sources, 1)
+        for index, source in enumerate(sources, 1)
     ]
     course = selected_source.get("course")
     material_context = []
@@ -792,10 +795,14 @@ def teacher(request, faculty, teacher):
     selected = {
         **(course or {}),
         "number": number,
-        "title": _("Course {number}").format(number=number),
+        "label": _("Course {number}").format(number=number),
+        "title": localized(course.get("topic")) if course else "",
         "materials": material_context,
         "type": course.get("type") if course else "mixed",
-        "published_at": (row.published_at or row.created_at).date().isoformat(),
+        # Each course keeps the date it was first published; older data falls
+        # back to the publication date of the page.
+        "published_at": (course or {}).get("published_at")
+        or (row.published_at or row.created_at).date().isoformat(),
     }
     profile_document = canonical_document
     profile = profile_document["profile"]
@@ -1517,6 +1524,35 @@ def editor_document(request, news_id):
     return None, row, document
 
 
+def editor_error_summary(teacher_form, bundles):
+    """Plain list of problems shown at the top of the editor, with field anchors."""
+    summary = []
+
+    def collect(form, prefix_label=""):
+        for name, errors in form.errors.items():
+            if name == "__all__":
+                summary.extend((prefix_label, str(error), "") for error in errors)
+                continue
+            field = form.fields.get(name)
+            label = str(field.label) if field is not None else name
+            anchor = form[name].id_for_label if field is not None else ""
+            heading = f"{prefix_label} · {label}" if prefix_label else label
+            summary.extend((heading, str(error), anchor) for error in errors)
+
+    collect(teacher_form)
+    number = 0
+    for course_form, formset, deleted in bundles:
+        if deleted:
+            continue
+        number += 1
+        course_label = str(_("Course {number}").format(number=number))
+        collect(course_form, course_label)
+        summary.extend((course_label, str(error), "") for error in formset.non_form_errors())
+        for material_form in formset:
+            collect(material_form, course_label)
+    return summary
+
+
 def save_editor_submission(request, row, teacher_form, bundles, moderation_status, staged):
     try:
         saved_row, result = save_page(
@@ -1558,7 +1594,9 @@ def edit(request, news_id=None):
         staged_uploads, staged_files, staged_error = materialize_staged_uploads(request)
     bound_data = request.POST.copy() if request.method == "POST" else None
     moderation_status = requested_moderation_status(request.user, row, bound_data)
-    publishing = moderation_status != News.ModerationStatus.DRAFT
+    # An opened form is shown as for publishing (the main button), so required
+    # fields are marked; "Save draft" skips these checks on submission.
+    publishing = bound_data is None or moderation_status != News.ModerationStatus.DRAFT
     teacher_form = TeacherForm(
         bound_data,
         request.FILES or None,
@@ -1612,5 +1650,8 @@ def edit(request, news_id=None):
             "empty_materials": empty_materials,
             "max_tabs": max_tabs,
             "staged_upload_tokens": [token for token, _payload in staged_uploads],
+            "staged_upload_names": [payload["name"] for _token, payload in staged_uploads],
+            "upload_limit": upload_limit_bytes(),
+            "error_summary": editor_error_summary(teacher_form, bundles),
         },
     )

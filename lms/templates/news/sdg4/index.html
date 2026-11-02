@@ -4,74 +4,79 @@
 from django.urls import reverse
 from django.utils.translation import gettext as _, pgettext
 %>
-<header class="sdg4-feed-hero">
-  <div class="sdg4-feed-hero-copy">
-    <p class="sdg4-eyebrow">OPEN KAZNU · ${_("Open educational resources")}</p>
+<header class="sdg4-hero">
+  <div class="sdg4-hero-copy">
+    <p class="sdg4-eyebrow">Open KazNU · ${_("Open educational resources")}</p>
     <h1>${_("Open learning resources from KazNU teachers")}</h1>
-    <p>${_("Presentation courses and video courses in Kazakh, Russian and English — open to everyone.")}</p>
+    <p class="sdg4-hero-lead">${_("Presentation courses and video courses in Kazakh, Russian and English — open to everyone.")}</p>
     <div class="sdg4-actions">
-      <a class="sdg4-button" href="${reverse('sdg4_create')}">${_("Add teacher resources")}</a>
+      <a class="sdg4-button sdg4-button-large" href="#sdg4-resources">${_("Find a teacher")}</a>
+      <a class="sdg4-button sdg4-button-secondary sdg4-button-large" href="${reverse('sdg4_create')}">${_("Add teacher resources")}</a>
     </div>
   </div>
-  <div class="sdg4-feed-hero-mark" aria-label="${_('Sustainable Development Goal 4')}">
-    <span class="sdg4-feed-hero-number">4</span>
-    <span>${_("Quality")}<br />${_("education")}</span>
+  <div class="sdg4-goal-mark" role="img" aria-label="${_('Sustainable Development Goal 4')}">
+    <span class="sdg4-goal-number">4</span>
+    <span class="sdg4-goal-name">${_("Quality")}<br />${_("education")}</span>
     <svg viewBox="0 0 112 72" aria-hidden="true"><path d="M55 18C42 8 26 6 8 6v46c18 0 33 4 47 12m0-46C68 8 84 6 102 6v46c-18 0-33 4-47 12V18Z"/><path d="M2 13v46c22 0 35 3 53 10 18-7 31-10 53-10V13"/></svg>
   </div>
 </header>
 
-<div class="sdg4-feed-layout">
-  <section id="sdg4-resources" class="sdg4-feed" aria-labelledby="sdg4-resources-title">
-    <div class="sdg4-feed-heading">
-      <div><p class="sdg4-eyebrow">${_("Open лекториум catalogue")}</p><h2 id="sdg4-resources-title">${_("Teachers")}</h2></div>
-      <span>${_('{count} teachers').format(count=len(authors))}</span>
+<div class="sdg4-layout">
+  <section id="sdg4-resources" class="sdg4-catalogue" aria-labelledby="sdg4-resources-title">
+    <div class="sdg4-section-head">
+      <h2 id="sdg4-resources-title">${_("Teachers")}</h2>
+      <span class="sdg4-count">${_('{count} teachers').format(count=len(authors))}</span>
     </div>
     % if authors:
       <form class="sdg4-filters" role="search" hidden>
-        <div class="sdg4-search-field"><label for="sdg4-search">${_("Search teachers")}</label><span class="sdg4-search-input"><span aria-hidden="true">⌕</span><input id="sdg4-search" type="search" placeholder="${_('Teacher name, position or department')}" /></span></div>
-        <div class="sdg4-faculty-field"><label for="sdg4-faculty-filter">${_("Faculty")}</label><select id="sdg4-faculty-filter"><option value="">${_("All faculties")}</option>
+        <div class="sdg4-filter-search"><label for="sdg4-search">${_("Search teachers")}</label>
+          <span class="sdg4-search-input"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="sdg4-search" type="search" autocomplete="off" placeholder="${_('Teacher name, position or department')}" /></span></div>
+        <div class="sdg4-filter-faculty"><label for="sdg4-faculty-filter">${_("Faculty")}</label><select id="sdg4-faculty-filter"><option value="">${_("All faculties")}</option>
           % for slug, name in faculties:
             <option value="${name}">${name}</option>
           % endfor
         </select></div>
       </form>
       <p class="sdg4-result-count" role="status" aria-live="polite" data-result-label="${_('Teachers found: {count}')}"></p>
-      <div class="sdg4-feed-list">
+      <ul class="sdg4-card-grid">
         % for item in authors:
-          <article class="sdg4-feed-card sdg4-reveal" data-resource-card data-faculty="${item['faculty']}">
-            <div class="sdg4-feed-byline">
+          <li class="sdg4-teacher-card sdg4-reveal" data-resource-card data-faculty="${item['faculty']}">
+            <div class="sdg4-teacher-card-head">
               % if item['photo_url']:
-                <img src="${item['photo_url']}" alt="" width="36" height="36" loading="lazy" />
+                <img class="sdg4-avatar" src="${item['photo_url']}" alt="" width="56" height="56" loading="lazy" />
               % else:
-                <span class="sdg4-feed-avatar" aria-hidden="true">${item['name'][:1]}</span>
+                <span class="sdg4-avatar" aria-hidden="true">${item['name'][:1]}</span>
               % endif
-              <div><a href="${item['url']}">${item['name']}</a><span>${item['department']}</span></div>
+              <div>
+                <h3><a class="sdg4-card-link" href="${item['url']}">${item['name']}</a></h3>
+                % if item['position']:
+                  <p class="sdg4-card-sub">${item['position']}</p>
+                % endif
+              </div>
             </div>
-            <div class="sdg4-feed-meta" aria-label="${_('Teacher information')}">
-              <span class="sdg4-feed-topic">${item['faculty']}</span>
-              <span>${_('{count} courses').format(count=item['tab_count'])}</span>
-              <span aria-label="${_('Views')}">◉ ${item['view_count']}</span>
-            </div>
-            % if item['position']:
-              <p class="sdg4-feed-summary">${item['position']}</p>
+            % if item['department']:
+              <p class="sdg4-card-text">${item['department']}</p>
             % endif
-            <a class="sdg4-feed-more" href="${item['url']}">${_("Open learning resources")} <span aria-hidden="true">→</span></a>
-          </article>
+            <p class="sdg4-tag">${item['faculty']}</p>
+            <div class="sdg4-card-meta">
+              <span>${_('{count} courses').format(count=item['tab_count'])}</span>
+              <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span class="sdg4-visually-hidden">${_("Views")}:</span> ${item['view_count']}</span>
+            </div>
+          </li>
         % endfor
-      </div>
+      </ul>
       <p class="sdg4-empty" id="sdg4-no-results" hidden>${_("No teachers match your search.")}</p>
     % else:
-      <div class="sdg4-empty sdg4-empty-feed"><strong>${_("The teacher catalogue is being prepared")}</strong><p>${_("Teachers will appear here after their resources are approved by an administrator.")}</p></div>
+      <div class="sdg4-empty"><strong>${_("The teacher catalogue is being prepared")}</strong><p>${_("Teachers will appear here after their resources are approved by an administrator.")}</p></div>
     % endif
   </section>
 
-  <aside class="sdg4-feed-sidebar" aria-label="${_("About the initiative")}">
-    <section id="sdg4-about"><p class="sdg4-eyebrow">${_("About the project")}</p><h2>${_("Knowledge without borders")}</h2><p>${preamble}</p></section>
-    <section class="sdg4-side-goals"><p class="sdg4-eyebrow">${_("SDG 4 targets")}</p><div><strong>4.3</strong><p>${target_43}</p></div><div><strong>4.4</strong><p>${target_44}</p></div></section>
-    <section class="sdg4-moderation-note"><span aria-hidden="true">✓</span><div><strong>${_("Quality through moderation")}</strong><p>${_("Every community member can submit a material. It appears in the public feed after administrator approval.")}</p></div></section>
-    <section class="sdg4-side-faculties"><p class="sdg4-eyebrow">${pgettext("SDG 4 showcase", "Faculties")}</p><ul>
+  <aside class="sdg4-sidebar" aria-label="${_("About the initiative")}">
+    <section class="sdg4-panel" id="sdg4-about"><p class="sdg4-eyebrow">${_("About the project")}</p><h2>${_("Knowledge without borders")}</h2><p>${preamble}</p></section>
+    <section class="sdg4-panel sdg4-goals"><p class="sdg4-eyebrow">${_("SDG 4 targets")}</p><div><strong>4.3</strong><p>${target_43}</p></div><div><strong>4.4</strong><p>${target_44}</p></div></section>
+    <section class="sdg4-panel sdg4-faculty-nav"><p class="sdg4-eyebrow">${pgettext("SDG 4 showcase", "Faculties")}</p><ul>
       % for slug, name in faculties:
-        <li><a href="${reverse('sdg4_faculty', args=[slug])}">${name}<span aria-hidden="true">→</span></a></li>
+        <li><a href="${reverse('sdg4_faculty', args=[slug])}"><span>${name}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a></li>
       % endfor
     </ul></section>
   </aside>

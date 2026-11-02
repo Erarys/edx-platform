@@ -5,45 +5,53 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 %>
 <%def name="pagetitle()">${_('E-learning resources — {name}').format(name=teacher_name)}</%def>
-<nav class="sdg4-breadcrumb" aria-label="${_('Breadcrumbs')}"><a href="${reverse('sdg4_index')}">${_("Teachers")}</a><span aria-hidden="true"> / </span><a href="${reverse('sdg4_faculty', args=[faculty_slug])}">${faculty_name}</a><span aria-hidden="true"> / </span>${teacher_name}</nav>
-% if can_edit_sdg4:
-  <p class="sdg4-article-edit"><a href="${edit_url}">${_("Edit this course")}</a></p>
-% endif
-<header class="sdg4-teacher-hero">
+<nav class="sdg4-breadcrumb" aria-label="${_('Breadcrumbs')}"><a href="${reverse('sdg4_index')}">${_("Teachers")}</a><span aria-hidden="true">/</span><a href="${reverse('sdg4_faculty', args=[faculty_slug])}">${faculty_name}</a><span aria-hidden="true">/</span><span>${teacher_name}</span></nav>
+<header class="sdg4-profile">
   % if photo_url:
-    <img class="sdg4-photo" src="${photo_url}" alt="${_('Photo of {name}').format(name=teacher_name)}" />
+    <img class="sdg4-profile-photo" src="${photo_url}" alt="${_('Photo of {name}').format(name=teacher_name)}" />
+  % else:
+    <span class="sdg4-profile-photo sdg4-avatar" aria-hidden="true">${teacher_name[:1]}</span>
   % endif
-  <div>
+  <div class="sdg4-profile-text">
     <p class="sdg4-eyebrow">${_("E-learning resources")}</p>
     <h1>${teacher_name}</h1>
-    % if profile['position']:
-      <p>${profile['position']}</p>
-    % endif
-    % if profile['degree']:
-      <p>${profile['degree']}</p>
-    % endif
-    % if profile['department']:
-      <p>${profile['department']}</p>
-    % endif
-    <p>${faculty_name}</p>
+    <ul class="sdg4-profile-facts">
+      % for value in (profile['position'], profile['degree'], profile['department']):
+        % if value:
+          <li>${value}</li>
+        % endif
+      % endfor
+      <li><a href="${reverse('sdg4_faculty', args=[faculty_slug])}">${faculty_name}</a></li>
+    </ul>
   </div>
+  % if can_edit_sdg4:
+    <a class="sdg4-button sdg4-button-secondary sdg4-profile-edit" href="${edit_url}">${_("Edit")}</a>
+  % endif
 </header>
-<nav class="sdg4-tabs" aria-label="${_('Teacher courses')}">
-  % for course in courses:
-    <a href="${course['url']}" aria-current="${'page' if course['number'] == selected['number'] else 'false'}">${course['title']}</a>
-  % endfor
-</nav>
+
+% if len(courses) > 1:
+  <nav class="sdg4-tabs" aria-label="${_('Teacher courses')}">
+    % for course in courses:
+      <a class="sdg4-tab" href="${course['url']}" aria-current="${'page' if course['number'] == selected['number'] else 'false'}">
+        <span class="sdg4-tab-label">${course['label']}</span>
+        <span class="sdg4-tab-title">${course['title'] or course['label']}</span>
+      </a>
+    % endfor
+  </nav>
+% endif
+
 <section id="course-panel" class="sdg4-course" aria-labelledby="sdg4-course-title" tabindex="-1">
-  <h2 id="sdg4-course-title">${selected['title']}</h2>
+  <p class="sdg4-eyebrow">${selected['label']}</p>
+  <h2 id="sdg4-course-title">${selected['title'] or selected['label']}</h2>
   % if annotation:
     <p class="sdg4-annotation">${annotation}</p>
   % endif
   <dl class="sdg4-meta">
-    % if material_language:
-      <div><dt>${_("Language of materials")}</dt><dd>${material_language}</dd></div>
-    % endif
     % if discipline:
       <div><dt>${_("Discipline")}</dt><dd>${discipline}</dd></div>
+    % endif
+    % if material_language:
+      <div><dt>${_("Language of materials")}</dt><dd>${material_language}</dd></div>
     % endif
     % if selected.get('programme'):
       <div><dt>${_("Educational programme code")}</dt><dd>${selected['programme']}</dd></div>
@@ -55,12 +63,15 @@ from django.utils.translation import gettext as _
   </dl>
   <ol class="sdg4-materials">
     % for item in selected['materials']:
-      <li>
+      <li class="sdg4-material">
         % if item['kind'] == 'presentation':
-          <h3><a href="${item['download_url']}" download>${item.get('download_label') or item.get('title') or _("Presentation")}</a></h3>
+          <div class="sdg4-material-head">
+            <h3>${item.get('title') or _("Presentation")}</h3>
+            <a class="sdg4-button sdg4-button-secondary sdg4-button-small" href="${item['download_url']}" download="${item.get('download_label') or ''}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>${_("Download")}<span class="sdg4-visually-hidden">: ${item.get('download_label') or item.get('title') or _("Presentation")}</span></a>
+          </div>
           % if item.get('format') == 'PDF':
             <% view_url = item.get('view_url') or item.get('url') %>
-            <div class="sdg4-document-preview"><object data="${view_url}" type="application/pdf" class="sdg4-document-viewer" aria-label="${item.get('title') or _('Presentation')}"><a href="${view_url}" target="_blank" rel="noopener">${item.get('download_label') or item.get('title') or _("Presentation")}</a></object></div>
+            <div class="sdg4-document-preview"><object data="${view_url}" type="application/pdf" class="sdg4-document-viewer" aria-label="${item.get('title') or _('Presentation')}"><p><a href="${view_url}" target="_blank" rel="noopener">${item.get('download_label') or item.get('title') or _("Presentation")}</a></p></object></div>
           % endif
         % elif item.get('embed'):
           <h3>${item.get('title') or _("Material")}</h3>
@@ -68,7 +79,7 @@ from django.utils.translation import gettext as _
         % else:
           <h3>${item.get('title') or _("Material")}</h3>
           <% video_url = item.get('source') or item.get('url') %>
-          <video class="sdg4-video" controls preload="metadata" aria-label="${item.get('title') or _('Video')}" crossorigin="anonymous">
+          <video class="sdg4-video" controls preload="metadata" playsinline aria-label="${item.get('title') or _('Video')}">
             <source src="${video_url}" />
             <a href="${video_url}">${_("Open video")}</a>
           </video>

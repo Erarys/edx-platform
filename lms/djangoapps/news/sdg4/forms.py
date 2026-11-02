@@ -25,16 +25,28 @@ YOUTUBE_HOSTS = {
     "www.youtube-nocookie.com",
 }
 
-def translated_fields(form, names, initial, publishing=True):
+def translated_fields(form, names, initial, publishing=True, required=("name",), publishing_required=()):
+    """Add RU/KZ/EN variants of each field.
+
+    Only the Russian variant can be required: ``required`` names always,
+    ``publishing_required`` names only when the page is being published.
+    Everything else is optional so that a first publication needs as few
+    fields as possible.
+    """
     for name, label, limit, multiline in names:
         for code, short in LANGUAGES:
             key = f"{name}_{code}"
+            is_required = code == "ru" and (
+                name in required or (publishing and name in publishing_required)
+            )
+            # The Russian field is the main one and shows the plain label.
+            field_label = label if code == "ru" else f"{label} ({short})"
             form.fields[key] = forms.CharField(
-                label=f"{label} ({short})",
+                label=field_label,
                 max_length=limit,
                 widget=forms.Textarea(attrs={"rows": 3}) if multiline else forms.TextInput(),
                 initial=initial.get(name, {}).get(code, ""),
-                required=code == "ru" and (publishing or name == "name"),
+                required=is_required,
             )
             # A Russian-only update must not erase translations absent from POST.
             if form.is_bound and code != "ru" and form.add_prefix(key) not in form.data:
@@ -81,6 +93,10 @@ class TeacherForm(forms.Form):
             ),
             profile,
             publishing=publishing,
+            required=("name",),
+        )
+        self.fields["name_ru"].widget.attrs.update(
+            {"autocomplete": "name", "placeholder": _("For example: Ivanova Aliya Sergeevna")}
         )
 
     def clean_photo(self):
@@ -139,15 +155,23 @@ def validate_article_upload(upload, kind):
         raise ValidationError(_("The uploaded media file is not valid."))
 
 
+COURSE_FILE_EXTENSIONS = {
+    "lecture": ARTICLE_EXTENSIONS["presentation"],
+    "video": ARTICLE_EXTENSIONS["video"],
+}
+
+
 class CourseForm(forms.Form):
     DELETE = forms.BooleanField(required=False, widget=forms.HiddenInput)
-    type = forms.ChoiceField(label=_("Course type"), choices=COURSE_TYPES)
+    type = forms.ChoiceField(label=_("What are you uploading?"), choices=COURSE_TYPES, widget=forms.RadioSelect)
     language = forms.ChoiceField(label=_("Language of materials"), choices=LANGUAGES)
-    programme = forms.CharField(label=_("Educational programme code"), max_length=200)
+    programme = forms.CharField(label=_("Educational programme code"), max_length=200, required=False)
+    # The field name is kept for stored uploads and the chunk API, but it now
+    # accepts the files of either course type: PDF slides or video lessons.
     lecture_files = MultipleFileField(
-        label=_("Upload presentations"),
+        label=_("Files"),
         required=False,
-        help_text=_("Select PDF files. Lesson titles will use the file names."),
+        help_text=_("You can select several files at once. Lesson titles will use the file names."),
         widget=MultipleFileInput(attrs={"accept": ".pdf"}),
     )
 
@@ -169,9 +193,15 @@ class CourseForm(forms.Form):
             ),
             course,
             publishing=publishing,
+            required=(),
+            publishing_required=("topic",),
+        )
+        self.fields["topic_ru"].label = _("Course title")
+        self.fields["topic_ru"].widget.attrs["placeholder"] = _("For example: Fundamentals of programming")
+        self.fields["lecture_files"].widget.attrs["accept"] = ",".join(
+            sorted(COURSE_FILE_EXTENSIONS["video" if self.initial.get("type") == "video" else "lecture"])
         )
         deleted = bool(self.is_bound and self.data.get(self.add_prefix("DELETE")))
-        self.fields["programme"].required = publishing and not deleted
         if not publishing or deleted:
             for name, field in self.fields.items():
                 if name != "DELETE":
@@ -179,10 +209,12 @@ class CourseForm(forms.Form):
 
     def clean_lecture_files(self):
         files = self.cleaned_data["lecture_files"]
-        if files and self.cleaned_data.get("type") != "lecture":
-            raise ValidationError(_("The file type does not match this material."))
+        course_type = self.cleaned_data.get("type") or "lecture"
         for upload in files:
-            validate_presentation_upload(upload)
+            if course_type == "lecture":
+                validate_presentation_upload(upload)
+            else:
+                validate_article_upload(upload, "video")
         return files
 
 
@@ -192,9 +224,9 @@ def material_title(filename):
 
 class MaterialForm(forms.Form):
     title = forms.CharField(label=_("Lesson title"), max_length=250, required=False)
-    file = forms.FileField(label=_("Presentation or video file"), required=False)
+    file = forms.FileField(label=_("Replace file"), required=False)
     file_url = forms.CharField(
-        label=_("Existing file URL or YouTube link"),
+        label=_("YouTube link"),
         max_length=2000,
         required=False,
         validators=[validate_media_url],
@@ -314,7 +346,9 @@ class MaterialFormSet(BaseFormSet):
         self.course_type = course_type
         self.publishing = publishing
         self.bulk_count = bulk_count
-        self.min_num = 1 if publishing and not bulk_count else 0
+        # Empty "add a link" rows are simply ignored; clean() reports a course
+        # without any lesson in plain words instead.
+        self.min_num = 0
         kwargs["initial"] = self.materials
         super().__init__(*args, **kwargs)
 
@@ -336,7 +370,7 @@ class MaterialFormSet(BaseFormSet):
         if count > self.max_num:
             raise ValidationError(_("A course can contain at most 200 lessons."))
         if self.publishing and not count:
-            raise ValidationError(_("Add at least one lesson to this course."))
+            raise ValidationError(_("Add at least one file or link to this course."))
 
 
 Materials = formset_factory(
@@ -345,7 +379,9 @@ Materials = formset_factory(
     extra=0,
     can_delete=True,
     min_num=1,
-    validate_min=True,
+    # The friendly "add at least one lesson" check lives in MaterialFormSet.clean;
+    # Django's generic "Please submit at least 1 form" message confused authors.
+    validate_min=False,
     max_num=200,
     validate_max=True,
     absolute_max=200,

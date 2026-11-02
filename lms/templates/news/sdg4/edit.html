@@ -6,113 +6,244 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 %>
 <%def name="field(bound, css='')">
-  <div class="sdg4-field ${css}">${bound.errors}<label for="${bound.id_for_label}">${bound.label}${' *' if bound.field.required else ''}</label>${bound}
+  <div class="sdg4-field ${css}${' sdg4-field-invalid' if bound.errors else ''}">
+    <label for="${bound.id_for_label}">${bound.label}
+      % if bound.field.required:
+        <span class="sdg4-required" aria-hidden="true">*</span>
+      % endif
+    </label>
+    ${bound}
     % if bound.help_text:
       <span class="helptext">${bound.help_text}</span>
     % endif
+    ${bound.errors}
   </div>
 </%def>
-<%def name="course_editor(slot, course_form, formset)">
-  <fieldset class="sdg4-tab-editor" data-course-editor><legend><span data-course-number>${_('Course {number}').format(number=slot)}</span></legend>
-    <span hidden>${course_form['DELETE']}</span>
-    <button type="button" class="sdg4-remove-tab" data-remove-course>${_("Remove course")}</button>
-    ${course_form.non_field_errors()}
-    <div class="sdg4-form-grid">${field(course_form['type'])}${field(course_form['language'])}${field(course_form['programme'])}</div>
-    ${field(course_form['topic_ru'])}${field(course_form['discipline_ru'])}${field(course_form['annotation_ru'])}
-    <details><summary>${_("Course translations (KZ / EN)")}</summary>
-      % for code in ('kk', 'en'):
-        <h3>${'KZ' if code == 'kk' else 'EN'}</h3>
-        <div class="sdg4-form-grid">${field(course_form[f'topic_{code}'])}${field(course_form[f'discipline_{code}'])}</div>
-        ${field(course_form[f'annotation_{code}'])}
+<%def name="type_choices(bound)">
+  <div class="sdg4-field sdg4-type-field">
+    <span class="sdg4-label" id="${bound.auto_id}-label">${bound.label}</span>
+    <div class="sdg4-choice-grid" role="radiogroup" aria-labelledby="${bound.auto_id}-label">
+      % for radio in bound:
+        <label class="sdg4-choice" for="${radio.id_for_label}">
+          ${radio.tag()}
+          <span class="sdg4-choice-icon" aria-hidden="true">
+            % if radio.data['value'] == 'video':
+              <svg viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg>
+            % else:
+              <svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+            % endif
+          </span>
+          <span class="sdg4-choice-text"><strong>${radio.choice_label}</strong>
+            <small>${_("MP4, WebM or a YouTube link") if radio.data['value'] == 'video' else _("PDF files")}</small>
+          </span>
+        </label>
       % endfor
-    </details>
-    <div class="sdg4-presentation-bulk" data-presentation-only>${field(course_form['lecture_files'])}</div>
-    <h2>${_("Materials in display order")}</h2>
-    <p class="helptext">${_("Presentation courses accept PDF files. Video courses accept MP4, WebM, OGV or a university YouTube link. Each uploaded file may be up to 1 GB.")}</p>
+    </div>
+    ${bound.errors}
+  </div>
+</%def>
+<%def name="material_row(material, is_new=False)">
+  <li class="sdg4-lesson${' sdg4-lesson-new' if is_new else ''}" data-material-form
+      data-has-source="${'true' if (material.material.get('file_path') or material.material.get('file_url')) else 'false'}">
+    <span class="sdg4-lesson-icon" aria-hidden="true"></span>
+    <div class="sdg4-lesson-body">
+      ${material.non_field_errors()}
+      ${field(material['title'], 'sdg4-lesson-title')}
+      % if is_new:
+        ${field(material['file_url'])}
+      % else:
+        % if material.material.get('file_path'):
+          <p class="sdg4-lesson-source">${_("File uploaded")}</p>
+        % elif material.material.get('file_url'):
+          <p class="sdg4-lesson-source">${material.material.get('file_url')}</p>
+        % endif
+        <details class="sdg4-lesson-replace"${' open' if (material['file'].errors or material['file_url'].errors) else ''}>
+          <summary>${_("Replace file or link")}</summary>
+          ${field(material['file'])}
+          <div data-video-only>${field(material['file_url'])}</div>
+        </details>
+      % endif
+    </div>
+    <span hidden>${material['DELETE']}</span>
+    <button type="button" class="sdg4-icon-button" data-remove-material aria-label="${_('Remove')}" title="${_('Remove')}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+    </button>
+  </li>
+</%def>
+<%def name="course_editor(slot, course_form, formset)">
+  <fieldset class="sdg4-course-card" data-course-editor>
+    <legend><span class="sdg4-course-badge" data-course-number>${_('Course {number}').format(number=slot)}</span></legend>
+    <span hidden>${course_form['DELETE']}</span>
+    <button type="button" class="sdg4-text-button sdg4-remove-course" data-remove-course>${_("Remove course")}</button>
+    ${course_form.non_field_errors()}
+    ${type_choices(course_form['type'])}
+    ${field(course_form['topic_ru'], 'sdg4-field-wide')}
+
+    <div class="sdg4-dropzone${' sdg4-field-invalid' if course_form['lecture_files'].errors else ''}" data-dropzone>
+      ${course_form['lecture_files']}
+      <label for="${course_form['lecture_files'].id_for_label}" class="sdg4-dropzone-label">
+        <svg class="sdg4-dropzone-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-5 5m5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+        <strong data-lecture-only>${_("Drag PDF files here")}</strong>
+        <strong data-video-only>${_("Drag video files here")}</strong>
+        <span class="sdg4-dropzone-or">${_("or")}</span>
+        <span class="sdg4-button sdg4-button-small">${_("Choose files")}</span>
+        <span class="helptext">${course_form['lecture_files'].help_text} ${_("Up to 1 GB per file.")}</span>
+      </label>
+      <ul class="sdg4-file-list" data-file-list aria-live="polite"></ul>
+      <p class="sdg4-inline-error" data-dropzone-error role="alert" hidden></p>
+      ${course_form['lecture_files'].errors}
+    </div>
+
     ${formset.management_form}
     % if formset.non_form_errors():
       <div class="sdg4-errors" role="alert">${formset.non_form_errors()}</div>
     % endif
     <div class="sdg4-formset" data-prefix="${formset.prefix}">
-      <div class="sdg4-material-forms">
+      <h3 class="sdg4-lessons-heading"${'' if formset.forms else ' hidden'} data-lessons-heading>${_("Lessons in this course")}</h3>
+      <ol class="sdg4-material-forms sdg4-lessons">
         % for material in formset:
-          <fieldset class="sdg4-material-form" data-material-form><legend>${_("Material")}</legend>
-            % if material.material.get('file_path'):
-              <p class="helptext">${_("An uploaded file is already attached. Leave the upload field empty to keep it.")}</p>
-            % endif
-            ${material.non_field_errors()}${field(material['title'])}${field(material['file'])}${field(material['file_url'])}
-            <span hidden>${material['DELETE']}</span>
-            <button type="button" data-remove-material>${_("Remove")}</button>
-          </fieldset>
+          ${material_row(material, is_new=not (material.material.get('file_path') or material.material.get('file_url')))}
         % endfor
-      </div>
-      <template class="sdg4-empty-form">
-        <% material = formset.empty_form %>
-        <fieldset class="sdg4-material-form" data-material-form><legend>${_("Material")}</legend>${field(material['title'])}${field(material['file'])}${field(material['file_url'])}<span hidden>${material['DELETE']}</span><button type="button" data-remove-material>${_("Remove")}</button></fieldset>
-      </template>
-      <button type="button" class="sdg4-add-material">+ ${_("Add material")}</button>
+      </ol>
+      <template class="sdg4-empty-form">${material_row(formset.empty_form, is_new=True)}</template>
+      <button type="button" class="sdg4-text-button sdg4-add-material" data-video-only>+ ${_("Add a YouTube link")}</button>
     </div>
+
+    <details class="sdg4-more"${' open' if any(course_form[name].errors for name in ('language', 'programme', 'discipline_ru', 'annotation_ru')) else ''}>
+      <summary>${_("More about the course (optional)")}</summary>
+      <div class="sdg4-form-grid">${field(course_form['language'])}${field(course_form['programme'])}</div>
+      ${field(course_form['discipline_ru'])}${field(course_form['annotation_ru'])}
+      <details class="sdg4-more sdg4-more-nested"><summary>${_("Course translations (KZ / EN)")}</summary>
+        % for code in ('kk', 'en'):
+          <div class="sdg4-form-grid">${field(course_form[f'topic_{code}'])}${field(course_form[f'discipline_{code}'])}</div>
+          ${field(course_form[f'annotation_{code}'])}
+        % endfor
+      </details>
+    </details>
   </fieldset>
 </%def>
-<nav class="sdg4-breadcrumb"><a href="${reverse('sdg4_manage')}">${_("Manage SDG 4 resources")}</a></nav>
-<header class="sdg4-edit-intro"><p class="sdg4-eyebrow">OPEN KAZNU · ${_("Open educational resources")}</p><h1>${_("Educational resources") if row else _("Add teacher resources")}</h1>
-  <p>${_("Complete the teacher profile and add presentation or video courses. You can publish one course now and add more later.")}</p>
+
+<div class="sdg4-narrow">
+<nav class="sdg4-breadcrumb" aria-label="${_('Breadcrumbs')}"><a href="${reverse('sdg4_manage')}">${_("My publications")}</a><span aria-hidden="true">/</span><span>${_("Edit") if row else _("New publication")}</span></nav>
+
+<header class="sdg4-edit-intro">
+  <h1>${_("Edit publication") if row else _("New publication")}</h1>
+  <p>${_("Three simple steps: who the author is, which files to show, and publish. Fields marked * are required.")}</p>
   % if row:
-    <p class="sdg4-status sdg4-status-${moderation_status}">${row.get_moderation_status_display()}</p>
+    <p class="sdg4-status sdg4-status-${row.moderation_status}">${row.get_moderation_status_display()}</p>
   % endif
 </header>
+
 % if request.GET.get('saved'):
-  <p class="sdg4-saved" role="status">${_("Draft saved. You can return to it and continue later.")}</p>
+  <p class="sdg4-notice sdg4-notice-success" role="status">${_("Draft saved. You can return to it and continue later.")}</p>
 % endif
 % if request.GET.get('submitted'):
-  <p class="sdg4-saved sdg4-submitted" role="status">${_("The resources have been sent for moderation. They will appear in the public catalogue after administrator approval.")}</p>
+  <p class="sdg4-notice sdg4-notice-info" role="status">${_("The resources have been sent for moderation. They will appear in the public catalogue after administrator approval.")}</p>
 % endif
-<form id="sdg4-course-form" method="post" action="${reverse('sdg4_edit', args=[row.pk]) if row else reverse('sdg4_create')}" enctype="multipart/form-data" class="sdg4-edit sdg4-course-editor-form" data-upload-limit="1073741824" data-upload-start-url="${reverse('sdg4_upload_start')}" data-upload-chunk-url="${reverse('sdg4_upload_chunk')}" data-upload-complete-url="${reverse('sdg4_upload_complete')}" data-size-error="${_("Each file must be no larger than 1 GB.")}" data-upload-error="${_("The upload could not be completed. Check your connection and try again.")}">
+</div>
+
+<form id="sdg4-course-form" method="post" action="${reverse('sdg4_edit', args=[row.pk]) if row else reverse('sdg4_create')}" enctype="multipart/form-data" class="sdg4-edit"
+      data-upload-limit="${upload_limit}"
+      data-upload-start-url="${reverse('sdg4_upload_start')}" data-upload-chunk-url="${reverse('sdg4_upload_chunk')}" data-upload-complete-url="${reverse('sdg4_upload_complete')}"
+      data-size-error="${_("Each file must be no larger than 1 GB.")}"
+      data-upload-error="${_("The upload could not be completed. Check your connection and try again.")}"
+      data-msg-no-files="${_("Add at least one file or link to this course.")}"
+      data-msg-wrong-pdf="${_("This course accepts only PDF files: {names}")}"
+      data-msg-wrong-video="${_("This course accepts only MP4, WebM or OGV video: {names}")}"
+      data-msg-remove-course="${_("Remove this course and all its lessons from the form?")}"
+      data-msg-leave="${_("You have unsaved changes. Leave the page?")}"
+      data-msg-remove-file="${_('Remove')}">
   <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}" />
   <input type="hidden" name="revision" value="${document.get('revision', '')}" />
   % for upload_token in staged_upload_tokens:
     <input type="hidden" name="_sdg4_staged_upload" value="${upload_token}" />
   % endfor
-  % if teacher_form.errors or any(form.errors or formset.errors or formset.non_form_errors() for form, formset, deleted in bundles if not deleted):
-    <div class="sdg4-errors" role="alert"><p>${_("Please correct the errors below. Reselect uploaded files before submitting again.")}</p>${teacher_form.non_field_errors()}</div>
-  % endif
-  <fieldset><legend>01 · ${_("Teacher profile")}</legend>
-    <div class="sdg4-form-grid">${field(teacher_form['name_ru'])}${field(teacher_form['faculty'])}${field(teacher_form['position_ru'])}${field(teacher_form['degree_ru'])}${field(teacher_form['department_ru'])}${field(teacher_form['photo'])}</div>
-  </fieldset>
-  <input type="hidden" id="id_course-TOTAL_FORMS" name="course-TOTAL_FORMS" value="${len(bundles)}" />
-  <div class="sdg4-course-list" data-course-list data-course-label="${_('Course {number}')}">
-    % for slot, (course_form, formset, deleted) in enumerate(bundles, 1):
-      ${course_editor(slot, course_form, formset)}
-    % endfor
-  </div>
-  <template id="sdg4-empty-course">${course_editor('__tab__', empty_course_form, empty_materials)}</template>
-  <button type="button" class="sdg4-add-tab" data-add-course data-max-tabs="${max_tabs}">+ ${_("Add course")}</button>
-  <details class="sdg4-translations"><summary>${_("Teacher profile translations (KZ / EN)")}</summary>
-    % for code in ('kk', 'en'):
-      <h2>${'KZ' if code == 'kk' else 'EN'}</h2>
-      <div class="sdg4-form-grid">
-        % for name in ('name', 'position', 'degree', 'department'):
-          ${field(teacher_form[f'{name}_{code}'])}
+
+  % if error_summary:
+    <div class="sdg4-errors sdg4-error-summary" role="alert" tabindex="-1" data-error-summary>
+      <h2>${_("Please correct the errors below.")}</h2>
+      <ul>
+        % for heading, message, anchor in error_summary:
+          <li>
+            % if anchor:
+              <a href="#${anchor}">${heading}</a>:
+            % elif heading:
+              <strong>${heading}</strong>:
+            % endif
+            ${message}
+          </li>
         % endfor
-      </div>
-    % endfor
-  </details>
-  <section class="sdg4-upload-progress" data-upload-progress hidden aria-live="polite">
-    <strong>${_("Uploading files")}</strong><span data-upload-percent>0%</span>
-    <progress value="0" max="100">0%</progress>
-    <p data-upload-status>${_("Do not close this page until the upload is complete.")}</p>
-  </section>
-  <div class="sdg4-save-actions">
-    % if can_publish_sdg4:
-      % if moderation_status == 'published':
-        <button class="sdg4-button" type="submit" name="action" value="save">${_("Save published changes")}</button>
-      % else:
-        <button class="sdg4-button" type="submit" name="action" value="publish">${_("Publish")}</button>
+      </ul>
+      % if staged_upload_names:
+        <p>${_("These files are already uploaded and will be kept — you do not need to select them again: {names}").format(names=", ".join(staged_upload_names))}</p>
       % endif
+    </div>
+  % endif
+
+  <section class="sdg4-step" aria-labelledby="sdg4-step-1">
+    <div class="sdg4-step-head"><span class="sdg4-step-number" aria-hidden="true">1</span><h2 id="sdg4-step-1">${_("Who is the author?")}</h2></div>
+    <div class="sdg4-form-grid">
+      ${field(teacher_form['name_ru'])}
+      <div>
+        ${field(teacher_form['faculty'])}
+        % if row:
+          <p class="helptext sdg4-locked-note">${_("The faculty cannot be changed after the first save.")}</p>
+        % endif
+      </div>
+    </div>
+    <details class="sdg4-more"${' open' if any(teacher_form[name].errors for name in ('position_ru', 'degree_ru', 'department_ru', 'photo')) else ''}>
+      <summary>${_("Position, department and photo (optional)")}</summary>
+      <div class="sdg4-form-grid">${field(teacher_form['position_ru'])}${field(teacher_form['degree_ru'])}${field(teacher_form['department_ru'])}${field(teacher_form['photo'])}</div>
+      <details class="sdg4-more sdg4-more-nested"><summary>${_("Teacher profile translations (KZ / EN)")}</summary>
+        % for code in ('kk', 'en'):
+          <div class="sdg4-form-grid">
+            % for name in ('name', 'position', 'degree', 'department'):
+              ${field(teacher_form[f'{name}_{code}'])}
+            % endfor
+          </div>
+        % endfor
+      </details>
+    </details>
+  </section>
+
+  <section class="sdg4-step" aria-labelledby="sdg4-step-2">
+    <div class="sdg4-step-head"><span class="sdg4-step-number" aria-hidden="true">2</span><h2 id="sdg4-step-2">${_("Add files")}</h2></div>
+    <p class="sdg4-step-hint">${_("One course is one set of lessons: for example, all lecture slides of one discipline. You can add more courses later.")}</p>
+    <input type="hidden" id="id_course-TOTAL_FORMS" name="course-TOTAL_FORMS" value="${len(bundles)}" />
+    <div class="sdg4-course-list" data-course-list data-course-label="${_('Course {number}')}">
+      % for slot, (course_form, formset, deleted) in enumerate(bundles, 1):
+        ${course_editor(slot, course_form, formset)}
+      % endfor
+    </div>
+    <template id="sdg4-empty-course">${course_editor('__tab__', empty_course_form, empty_materials)}</template>
+    <button type="button" class="sdg4-add-course" data-add-course data-max-tabs="${max_tabs}">+ ${_("Add another course")}</button>
+  </section>
+
+  <section class="sdg4-step sdg4-step-final" aria-labelledby="sdg4-step-3">
+    <div class="sdg4-step-head"><span class="sdg4-step-number" aria-hidden="true">3</span><h2 id="sdg4-step-3">${_("Publish")}</h2></div>
+    % if can_publish_sdg4:
+      <p class="sdg4-step-hint">${_("The materials will appear in the public catalogue right after publishing.")}</p>
     % else:
-      <button class="sdg4-button" type="submit" name="action" value="submit">${_("Submit for moderation")}</button>
+      <p class="sdg4-step-hint">${_("An administrator will check the materials. After approval they will appear in the public catalogue.")}</p>
     % endif
-    <button type="submit" name="action" value="draft">${_("Save draft")}</button>
-  </div>
+    <div class="sdg4-upload-progress" data-upload-progress hidden aria-live="polite">
+      <div class="sdg4-upload-progress-head"><strong>${_("Uploading files")}</strong><span data-upload-percent>0%</span></div>
+      <progress value="0" max="100">0%</progress>
+      <p data-upload-status>${_("Do not close this page until the upload is complete.")}</p>
+    </div>
+    <div class="sdg4-save-actions">
+      % if can_publish_sdg4:
+        % if row and row.moderation_status == 'published':
+          <button class="sdg4-button sdg4-button-large" type="submit" name="action" value="save">${_("Save published changes")}</button>
+        % else:
+          <button class="sdg4-button sdg4-button-large" type="submit" name="action" value="publish">${_("Publish")}</button>
+        % endif
+      % else:
+        <button class="sdg4-button sdg4-button-large" type="submit" name="action" value="submit">${_("Submit for moderation")}</button>
+      % endif
+      <button class="sdg4-button sdg4-button-secondary" type="submit" name="action" value="draft" formnovalidate>${_("Save draft")}</button>
+    </div>
+    <p class="helptext">${_("A draft is visible only to you. You can finish it later.")}</p>
+  </section>
 </form>
 <script src="${static.url('js/sdg4-editor.js')}" defer></script>

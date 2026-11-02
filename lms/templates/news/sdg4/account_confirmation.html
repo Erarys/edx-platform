@@ -3,11 +3,10 @@
 <%!
 from django.utils.translation import gettext as _
 %>
-<section class="sdg4-account-confirmation" aria-labelledby="sdg4-confirm-account-title">
-  <span class="sdg4-confirmation-icon" aria-hidden="true">✉</span>
-  <p class="sdg4-eyebrow">OPEN KAZNU · ${_("Account confirmation")}</p>
+<section class="sdg4-dialog sdg4-dialog-center" aria-labelledby="sdg4-confirm-account-title">
+  <span class="sdg4-dialog-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span>
   <h1 id="sdg4-confirm-account-title">${_("Confirm your account to create publications")}</h1>
   <p>${_("Your account has not been activated yet. Open the message sent to {email} and follow the activation link, then sign in again.").format(email=account_email)}</p>
   <p>${_("If the message is missing, check the spam folder or open your learner dashboard to request another activation email.")}</p>
-  <a class="sdg4-button" href="/dashboard">${_("Open learner dashboard")}</a>
+  <a class="sdg4-button sdg4-button-large" href="/dashboard">${_("Open learner dashboard")}</a>
 </section>

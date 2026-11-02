@@ -4,15 +4,37 @@
 from django.urls import reverse
 from django.utils.translation import gettext as _, pgettext
 %>
-<nav class="sdg4-breadcrumb" aria-label="${_('Breadcrumbs')}"><a href="${reverse('sdg4_index')}">${pgettext("SDG 4 showcase", "Faculties")}</a><span aria-hidden="true"> / </span>${faculty_name}</nav>
-<h1>${faculty_name}</h1>
-<h2>${_("Teachers")}</h2>
+<%def name="pagetitle()">${faculty_name}</%def>
+<nav class="sdg4-breadcrumb" aria-label="${_('Breadcrumbs')}"><a href="${reverse('sdg4_index')}">${pgettext("SDG 4 showcase", "Faculties")}</a><span aria-hidden="true">/</span><span>${faculty_name}</span></nav>
+<header class="sdg4-page-head">
+  <h1>${faculty_name}</h1>
+  <p class="sdg4-count">${_('{count} teachers').format(count=len(teachers))}</p>
+</header>
 % if teachers:
-  <ul class="sdg4-teachers">
+  <ul class="sdg4-card-grid sdg4-card-grid-wide">
     % for teacher in teachers:
-      <li><a href="${teacher['url']}">${teacher['name']}</a><p>${teacher['position']}</p><p>${_('{count} courses').format(count=teacher['tab_count'])}</p></li>
+      <li class="sdg4-teacher-card">
+        <div class="sdg4-teacher-card-head">
+          % if teacher['photo_url']:
+            <img class="sdg4-avatar" src="${teacher['photo_url']}" alt="" width="56" height="56" loading="lazy" />
+          % else:
+            <span class="sdg4-avatar" aria-hidden="true">${teacher['name'][:1]}</span>
+          % endif
+          <div>
+            <h2 class="sdg4-card-title"><a class="sdg4-card-link" href="${teacher['url']}">${teacher['name']}</a></h2>
+            % if teacher['position']:
+              <p class="sdg4-card-sub">${teacher['position']}</p>
+            % endif
+          </div>
+        </div>
+        % if teacher['department']:
+          <p class="sdg4-card-text">${teacher['department']}</p>
+        % endif
+        <div class="sdg4-card-meta"><span>${_('{count} courses').format(count=teacher['tab_count'])}</span></div>
+      </li>
     % endfor
   </ul>
 % else:
-  <p class="sdg4-empty">${_("Resources for this faculty have not been published yet.")}</p>
+  <div class="sdg4-empty"><strong>${_("Resources for this faculty have not been published yet.")}</strong>
+    <p><a href="${reverse('sdg4_index')}">${_("Back to all teachers")}</a></p></div>
 % endif

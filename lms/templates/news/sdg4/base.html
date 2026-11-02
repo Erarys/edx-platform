@@ -5,18 +5,19 @@
 from django.urls import reverse
 from django.utils.translation import gettext as _
 %>
-<%def name="pagetitle()">${_("Открытый лекториум")}</%def>
+<%def name="pagetitle()">${_("Open educational resources")}</%def>
 <%def name="head_extra(**pageargs)">
   <link rel="stylesheet" href="${static.url('sdg4/showcase.css')}" />
 </%def>
 <main id="main" class="sdg4" tabindex="-1">
   % if can_manage_sdg4:
-    <p class="sdg4-editor-link"><a href="${reverse('sdg4_manage')}">${_("My publications")}</a>
+    <nav class="sdg4-toolbar" aria-label="${_('Author tools')}">
+      <a class="sdg4-toolbar-link" href="${reverse('sdg4_manage')}">${_("My publications")}</a>
       % if can_moderate_sdg4:
-        <a href="${reverse('sdg4_moderation')}">${_("Moderation and access")}</a>
+        <a class="sdg4-toolbar-link" href="${reverse('sdg4_moderation')}">${_("Moderation and access")}</a>
       % endif
-      <a class="sdg4-editor-create" href="${reverse('sdg4_create')}">+ ${_("Create")}</a>
-    </p>
+      <a class="sdg4-button sdg4-button-small" href="${reverse('sdg4_create')}?new=1">+ ${_("New publication")}</a>
+    </nav>
   % endif
   ${next.body()}
 </main>
