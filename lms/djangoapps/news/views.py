@@ -26,13 +26,20 @@ from datetime import datetime, timedelta
 
 from django.http import HttpResponseRedirect
 
-from django.http import Http404, HttpResponseBadRequest, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 
 
 from django.db.models.functions import ExtractYear, TruncMonth
 from django.db.models import Avg, Count, Exists, Min, OuterRef, Q
+
+from .analytics_export import (
+    REPORT_PERIOD_LABELS,
+    build_analytics_workbook,
+    get_report_period,
+    get_report_rows,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -377,9 +384,31 @@ def analyze(request):
         "year_data": json.dumps([row["total"] for row in courses_by_year]),
 
         "courses_json": json.dumps(courses_json, ensure_ascii=False),
+        "report_download_url": reverse("analytics_report_download"),
+        "report_periods": REPORT_PERIOD_LABELS.items(),
     }
 
     return render_to_response("news/analyze.html", context, request=request)
+
+
+@user_passes_test(lambda u: u.is_staff)
+def download_analytics_report(request):
+    """Download course analytics for the selected current calendar period."""
+    try:
+        period = get_report_period(request.GET.get("period", "week"))
+    except ValueError:
+        return HttpResponseBadRequest(_("Select a valid report period."))
+
+    report_rows = get_report_rows(period)
+    workbook = build_analytics_workbook(report_rows, period)
+    filename = f"course_analytics_{period.key}_{period.filename_label}.xlsx"
+    response = HttpResponse(
+        workbook,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @user_passes_test(lambda u: u.is_staff)

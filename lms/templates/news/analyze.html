@@ -89,6 +89,76 @@
         white-space: nowrap;
     }
 
+    .report-download {
+        align-items: end;
+        background: var(--analytics-surface);
+        border: 1px solid var(--analytics-border-soft);
+        border-radius: var(--analytics-radius-md);
+        box-shadow: var(--analytics-shadow-soft);
+        display: grid;
+        gap: 16px;
+        grid-template-columns: minmax(0, 1fr) minmax(210px, 280px) auto;
+        margin-bottom: 18px;
+        padding: 18px;
+    }
+
+    .report-download__title {
+        color: var(--analytics-text);
+        font-size: 16px;
+        font-weight: 700;
+        margin: 0 0 5px;
+    }
+
+    .report-download__note {
+        color: var(--analytics-muted);
+        font-size: 13px;
+        margin: 0;
+    }
+
+    .report-download__field label {
+        color: var(--analytics-muted);
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
+
+    .report-download__field select {
+        background: #fff;
+        border: 1px solid var(--analytics-border);
+        border-radius: var(--analytics-radius-sm);
+        box-sizing: border-box;
+        color: var(--analytics-text);
+        font: inherit;
+        min-height: 42px;
+        padding: 8px 36px 8px 12px;
+        width: 100%;
+    }
+
+    .report-download__field select:focus,
+    .report-download__button:focus {
+        outline: 2px solid var(--analytics-accent);
+        outline-offset: 2px;
+    }
+
+    .report-download__button {
+        background: var(--analytics-accent-dark);
+        border: 1px solid var(--analytics-accent-dark);
+        border-radius: var(--analytics-radius-sm);
+        color: #fff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        min-height: 42px;
+        padding: 9px 18px;
+        white-space: nowrap;
+    }
+
+    .report-download__button:hover {
+        background: var(--analytics-accent-strong);
+        border-color: var(--analytics-accent-strong);
+    }
+
     .analytics-summary {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -436,6 +506,15 @@
         .analytics-date {
             white-space: normal;
         }
+
+        .report-download {
+            align-items: stretch;
+            grid-template-columns: 1fr;
+        }
+
+        .report-download__button {
+            width: 100%;
+        }
     }
 
     @media (max-width: 640px) {
@@ -476,6 +555,24 @@
             </div>
             <div class="analytics-date">${_("Updated")}: ${generated_at}</div>
         </header>
+
+        <form class="report-download" action="${report_download_url}" method="get">
+            <div>
+                <h2 class="report-download__title">Скачать отчёт в Excel</h2>
+                <p class="report-download__note">
+                    На первом листе будет таблица, на втором — графики по активности, полу и возрасту.
+                </p>
+            </div>
+            <div class="report-download__field">
+                <label for="reportPeriod">Период отчёта</label>
+                <select id="reportPeriod" name="period">
+                    % for period_key, period_label in report_periods:
+                    <option value="${period_key}">${period_label}</option>
+                    % endfor
+                </select>
+            </div>
+            <button class="report-download__button" type="submit">Скачать Excel</button>
+        </form>
 
         <section class="analytics-summary" aria-label="${_('Short summary')}">
             <div class="summary-card">
