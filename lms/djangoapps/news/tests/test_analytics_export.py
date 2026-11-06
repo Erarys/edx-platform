@@ -33,7 +33,7 @@ class AnalyticsExportTests(SimpleTestCase):
         with self.assertRaises(ValueError):
             get_report_period("year", self.now)
 
-    def test_workbook_contains_table_and_native_charts(self):
+    def test_workbook_matches_reference_table_and_contains_native_chart(self):
         period = get_report_period("week", self.now)
         rows = [
             {
@@ -41,14 +41,8 @@ class AnalyticsExportTests(SimpleTestCase):
                 "course_name": "Тестовый курс",
                 "course_period": "01.11.2026 — 30.11.2026",
                 "active_users": 25,
-                "male_students": 10,
-                "female_students": 15,
-                "age_under_25": 8,
-                "age_26_35": 7,
-                "age_36_50": 6,
-                "age_over_50": 4,
                 "finished_students": 12,
-                "report_period": period.date_label,
+                "report_period": period.spreadsheet_label,
             }
         ]
 
@@ -58,8 +52,7 @@ class AnalyticsExportTests(SimpleTestCase):
             self.assertIn("xl/worksheets/sheet1.xml", names)
             self.assertIn("xl/worksheets/sheet2.xml", names)
             self.assertIn("xl/charts/chart1.xml", names)
-            self.assertIn("xl/charts/chart2.xml", names)
-            self.assertIn("xl/charts/chart3.xml", names)
+            self.assertNotIn("xl/charts/chart2.xml", names)
             for name in names:
                 if name.endswith((".xml", ".rels")):
                     ElementTree.fromstring(archive.read(name))
@@ -67,6 +60,8 @@ class AnalyticsExportTests(SimpleTestCase):
             report_xml = archive.read("xl/worksheets/sheet1.xml").decode()
             self.assertIn("Тестовый курс", report_xml)
             self.assertIn("<v>25</v>", report_xml)
+            self.assertIn("Зарегистрировано", report_xml)
+            self.assertNotIn("Мужчины", report_xml)
 
     def test_empty_workbook_explains_that_no_data_is_available(self):
         period = get_report_period("month", self.now)
@@ -77,4 +72,4 @@ class AnalyticsExportTests(SimpleTestCase):
             report_xml = archive.read("xl/worksheets/sheet1.xml").decode()
             charts_xml = archive.read("xl/worksheets/sheet2.xml").decode()
             self.assertIn("За выбранный период данные отсутствуют.", report_xml)
-            self.assertIn("Нет данных для построения графиков.", charts_xml)
+            self.assertIn("Нет данных для построения графика.", charts_xml)
