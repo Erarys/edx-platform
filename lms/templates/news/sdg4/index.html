@@ -28,6 +28,26 @@ from django.utils.translation import gettext as _, pgettext
       <span class="sdg4-count">${_('{count} teachers').format(count=len(authors))}</span>
     </div>
     % if authors:
+      <style>
+        /* Поле «Search teachers» на 20% уже исходной ширины.
+           Стиль лежит в шаблоне и с !important, чтобы его не перебивали глобальные стили edX и кеш статики. */
+        #sdg4-resources form.sdg4-filters .sdg4-filter-search {
+          width: 80% !important;
+          max-width: 80% !important;
+          min-width: 0 !important;
+        }
+        #sdg4-resources form.sdg4-filters #sdg4-search {
+          width: 100% !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        @media (max-width: 720px) {
+          #sdg4-resources form.sdg4-filters .sdg4-filter-search {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+        }
+      </style>
       <form class="sdg4-filters" role="search" hidden>
         <div class="sdg4-filter-search"><label for="sdg4-search">${_("Search teachers")}</label>
           <span class="sdg4-search-input"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="sdg4-search" type="search" autocomplete="off" placeholder="${_('Teacher name, position or department')}" /></span></div>
