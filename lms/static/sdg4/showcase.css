@@ -171,7 +171,7 @@
 .sdg4-section-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; margin: 0 0 16px; }
 .sdg4-section-head h2 { font-size: 1.75rem; }
 
-.sdg4-filters { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; margin: 0 0 8px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow); }
+.sdg4-filters { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 8fr); gap: 12px; margin: 0 0 8px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow); }
 .sdg4-filters label { display: block; margin: 0 0 6px 2px; color: var(--muted); font-size: .8125rem; font-weight: 600; }
 .sdg4-search-input { position: relative; display: block; }
 .sdg4-search-input svg { position: absolute; top: 50%; left: 14px; color: var(--muted); font-size: 1.125rem; transform: translateY(-50%); pointer-events: none; }

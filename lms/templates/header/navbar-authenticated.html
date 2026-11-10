@@ -67,9 +67,6 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
 
 <div class="nav-links">
   <div class="main">
-    <div class="mobile-nav-item hidden-mobile nav-item">
-      <a href="${reverse('sdg4_index')}">${_("OpenLektorium")}</a>
-    </div>
     % if show_dashboard_tabs:
       <div class="mobile-nav-item hidden-mobile nav-item nav-tab">
         <a class="${'active ' if reverse('dashboard') == request.path else ''}tab-nav-link"
@@ -129,6 +126,11 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
       % endif
 
     % endif
+    <div class="mobile-nav-item hidden-mobile nav-item" style="margin-top: 3px !important; padding: 0 !important;">
+      <a href="${reverse('sdg4_index')}">
+        ${_("OpenLektorium")}
+      </a>
+    </div>
   </div>
  <div class="secondary">
    <%include file="user_dropdown.html" args="online_help_token=online_help_token"/>
