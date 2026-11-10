@@ -399,6 +399,66 @@
       outline: none;
     }
 
+    .marathon-banner {
+      align-items: center;
+      background: linear-gradient(125deg, #102a43, var(--courses-blue) 75%, var(--courses-blue-bright));
+      border-radius: var(--courses-radius);
+      box-shadow: var(--courses-shadow);
+      color: #fff;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px 28px;
+      justify-content: space-between;
+      margin-bottom: 38px;
+      overflow: hidden;
+      padding: 26px 30px;
+      position: relative;
+      text-decoration: none !important;
+      transition: box-shadow var(--courses-transition), transform var(--courses-transition);
+    }
+
+    .marathon-banner:hover,
+    .marathon-banner:focus-visible {
+      box-shadow: var(--courses-shadow-hover);
+      outline: none;
+      transform: translateY(-3px);
+    }
+
+    .marathon-banner__label {
+      color: #d3985c;
+      display: block;
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .marathon-banner__title {
+      color: #fff;
+      display: block;
+      font-size: clamp(1.5rem, 3.4vw, 2.1rem);
+      font-weight: 850;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+
+    .marathon-banner__text {
+      color: rgba(255, 255, 255, 0.82);
+      display: block;
+      font-size: 0.95rem;
+      margin-top: 6px;
+    }
+
+    .marathon-banner__cta {
+      background: #f6efe3;
+      border-radius: 999px;
+      color: #102a43;
+      flex: 0 0 auto;
+      font-weight: 800;
+      padding: 12px 20px;
+    }
+
     .no-results {
       color: var(--courses-muted);
       grid-column: 1 / -1;
@@ -497,6 +557,15 @@
     </section>
 
     <main class="courses-container">
+      <a class="marathon-banner" href="/coursera-marathon">
+        <span>
+          <span class="marathon-banner__label">26 октября — 20 декабря 2026</span>
+          <span class="marathon-banner__title">Coursera Марафон</span>
+          <span class="marathon-banner__text">Два трека, шесть номинаций и призы для студентов и преподавателей КазНУ</span>
+        </span>
+        <span class="marathon-banner__cta">Участвовать <span aria-hidden="true">&#8599;</span></span>
+      </a>
+
       <section class="filter-box" aria-labelledby="filterTitle">
         <div class="filter-header">
           <h2 id="filterTitle">${_("Filter Courses")}</h2>

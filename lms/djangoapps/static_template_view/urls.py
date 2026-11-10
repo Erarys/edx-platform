@@ -20,6 +20,7 @@ urlpatterns = [
     path('media-kit', views.render, {'template': 'media-kit.html'}, name="media-kit"),
     path('copyright', views.render, {'template': 'copyright.html'}, name="copyright"),
     path('competition', views.render, {'template': 'competition.html'}, name="competition"),
+    path('coursera-marathon', views.render, {'template': 'coursera_marathon.html'}, name="coursera_marathon"),
     path('catalog_transfer', views.render, {'template': 'catalog_transfer.html'}, name="catalog_transfer"),
     path('catalog', RedirectView.as_view(pattern_name='catalog_transfer', permanent=False), name="catalog"),
     path('author', views.render, {'template': 'author.html'}, name="author"),
