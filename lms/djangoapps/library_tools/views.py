@@ -2,6 +2,8 @@
 
 import logging
 import math
+import secrets
+import string
 import uuid
 from functools import wraps
 from itertools import zip_longest
@@ -18,18 +20,27 @@ from django.views.decorators.http import require_http_methods
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import LibraryLocator
+from organizations.api import ensure_organization
 
 from common.djangoapps.edxmako.shortcuts import render_to_response
 from common.djangoapps.student.auth import has_studio_read_access, has_studio_write_access
-from common.djangoapps.student.roles import GlobalStaff
+from common.djangoapps.student.roles import CourseInstructorRole, CourseStaffRole, GlobalStaff
 from xmodule.matching_block import MAX_PAIRS, MAX_TEXT_LENGTH, normalize_pairs
+from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.exceptions import DuplicateCourseError
 
 from . import excel, questions
 
 LOG = logging.getLogger(__name__)
 PREVIEW_KEY = 'library_tools.preview.v1'
+NEW_LIBRARY_PREVIEW_KEY = 'library_tools.new_library_preview.v1'
 FEEDBACK_KEY = 'library_tools.feedback.v1'
+NEW_LIBRARY_ORG = 'KazNU'
+LIBRARY_CODE_LENGTH = 6
+MAX_LIBRARY_FILES = 20
+MAX_LIBRARY_QUESTIONS = questions.MAX_QUESTIONS
+MAX_LIBRARY_NAME_LENGTH = 255
 
 
 def admin_required(view):
@@ -79,6 +90,170 @@ def _inventory(store, library):
 def _redirect(library_id=''):
     url = reverse('library_tools')
     return HttpResponseRedirect(url + ('?' + urlencode({'library': library_id}) if library_id else ''))
+
+
+def _parse_upload(upload, allow_csv=False):
+    """Read and validate one bounded question-bank upload."""
+    if upload is None:
+        raise ValueError('Выберите файл Excel .xlsx.')
+    if upload.size > excel.MAX_UPLOAD_BYTES:
+        raise ValueError('Файл превышает 5 МБ.')
+    content = upload.read(excel.MAX_UPLOAD_BYTES + 1)
+    filename = str(upload.name or '')
+    if filename.lower().endswith('.xlsx'):
+        return excel.parse_xlsx(content)
+    if allow_csv and filename.lower().endswith('.csv'):
+        return excel.Upload(questions=questions.parse_csv(content))
+    if allow_csv:
+        raise ValueError('Поддерживается Excel .xlsx или прежний CSV UTF-8. Формат .xls не поддерживается.')
+    raise ValueError('Для создания библиотеки нужен файл Excel .xlsx. Формат .xls не поддерживается.')
+
+
+def _library_name(upload):
+    """Derive a safe display name from an uploaded .xlsx filename."""
+    filename = str(upload.name or '').replace('\\', '/').rsplit('/', 1)[-1]
+    if not filename.lower().endswith('.xlsx'):
+        raise ValueError('Для создания библиотеки нужен файл Excel .xlsx.')
+    display_name = questions.clean_text(filename[:-5])
+    if not display_name:
+        raise ValueError('Название Excel-файла не может быть пустым.')
+    if len(display_name) > MAX_LIBRARY_NAME_LENGTH:
+        raise ValueError(f'Название файла без расширения должно быть не длиннее {MAX_LIBRARY_NAME_LENGTH} символов.')
+    return filename, display_name
+
+
+def _library_code(reserved):
+    """Return a short random code that is unused in KazNU and in this batch."""
+    for _attempt in range(100):
+        code = ''.join(secrets.choice(string.ascii_lowercase) for _ in range(LIBRARY_CODE_LENGTH))
+        if code.casefold() not in reserved:
+            reserved.add(code.casefold())
+            return code
+    raise RuntimeError('Не удалось подобрать свободный код библиотеки. Повторите загрузку.')
+
+
+def _new_library_preview(store, uploads):
+    """Validate all files before allowing the first library write."""
+    if not uploads:
+        raise ValueError('Выберите хотя бы один файл Excel .xlsx.')
+    if len(uploads) > MAX_LIBRARY_FILES:
+        raise ValueError(f'За одну загрузку можно создать не более {MAX_LIBRARY_FILES} библиотек.')
+
+    reserved = {
+        item.location.library_key.library.casefold()
+        for item in store.get_libraries()
+        if item.location.library_key.org.casefold() == NEW_LIBRARY_ORG.casefold()
+    }
+    items = []
+    validation_errors = []
+    total_questions = 0
+    for upload in uploads:
+        try:
+            filename, display_name = _library_name(upload)
+            parsed = _parse_upload(upload)
+            validation_errors.extend({
+                'filename': filename,
+                'row': error.get('row'),
+                'detail': error['detail'],
+            } for error in parsed.errors)
+            total_questions += len(parsed.questions)
+            items.append({
+                'filename': filename,
+                'display_name': display_name,
+                'org': NEW_LIBRARY_ORG,
+                'code': _library_code(reserved),
+                'questions': [question.to_dict() for question in parsed.questions],
+                'warnings': parsed.warnings,
+                'created': False,
+            })
+        except ValueError as error:
+            filename = str(upload.name or 'Excel-файл').replace('\\', '/').rsplit('/', 1)[-1]
+            validation_errors.append({'filename': filename, 'row': None, 'detail': str(error)})
+
+    if total_questions > MAX_LIBRARY_QUESTIONS:
+        validation_errors.append({
+            'filename': 'Все файлы',
+            'row': None,
+            'detail': f'За одну операцию можно добавить не более {MAX_LIBRARY_QUESTIONS} вопросов.',
+        })
+    if validation_errors:
+        return None, validation_errors
+    return {'token': str(uuid.uuid4()), 'libraries': items}, []
+
+
+def _grant_library_access(library_key, user):
+    """Make the uploader an explicit Studio owner as well as a global admin."""
+    CourseInstructorRole(library_key).add_users(user)
+    CourseStaffRole(library_key).add_users(user)
+
+
+def _create_libraries(store, user, preview):
+    """Create the staged libraries and append their questions idempotently."""
+    results = []
+    batch_id = uuid.UUID(preview['token'])
+    ensure_organization(NEW_LIBRARY_ORG)
+    for item in preview['libraries']:
+        key = LibraryLocator(org=item['org'], library=item['code'])
+        result = {
+            'filename': item['filename'],
+            'display_name': item['display_name'],
+            'id': str(key),
+            'status': '',
+            'detail': '',
+            'questions': [],
+            'exists': False,
+        }
+        try:
+            library = store.get_library(key.for_branch('library'), remove_branch=False)
+            if library is None:
+                try:
+                    with store.default_store(ModuleStoreEnum.Type.split):
+                        library = store.create_library(
+                            org=item['org'],
+                            library=item['code'],
+                            user_id=user.id,
+                            fields={'display_name': item['display_name']},
+                        )
+                    item['created'] = True
+                    created = True
+                except DuplicateCourseError:
+                    library = store.get_library(key.for_branch('library'), remove_branch=False)
+                    if library is None:
+                        raise
+                    created = False
+            else:
+                created = False
+
+            if not created and not item.get('created'):
+                raise ValueError('Случайный код уже занят другой библиотекой. Загрузите файл заново.')
+            if questions.clean_text(library.display_name or '') != item['display_name']:
+                raise ValueError('Библиотека с этим кодом имеет другое название. Загрузите файл заново.')
+
+            result['exists'] = True
+            _grant_library_access(library.location.library_key, user)
+            question_preview = {
+                'token': str(uuid.uuid5(batch_id, item['code'])),
+                'questions': item['questions'],
+            }
+            result['questions'] = _import(store, library, user, question_preview)
+            failed = sum(row['status'] == 'failed' for row in result['questions'])
+            if failed:
+                result.update(
+                    status='failed',
+                    detail=f'Библиотека создана, но не удалось добавить вопросов: {failed}. Повторите подтверждение.',
+                )
+            else:
+                result.update(
+                    status='created' if created else 'already_created',
+                    detail='Библиотека и вопросы созданы.' if created else 'Повторная операция завершена без дубликатов.',
+                )
+        except (ValueError, RuntimeError) as error:
+            result.update(status='failed', detail=str(error))
+        except Exception:  # pylint: disable=broad-except
+            LOG.exception('Could not create library from Excel: org=%s code=%s', item['org'], item['code'])
+            result.update(status='failed', detail='Не удалось создать библиотеку. Проверьте журнал LMS.')
+        results.append(result)
+    return results
 
 
 def _matching_form_values(data):
@@ -185,30 +360,64 @@ def _import(store, library, user, preview):
 def library_tools(request):
     """Library list, Excel export, full-file validation, and confirmed append-only import."""
     store = modulestore()
+    action = request.POST.get('action', '') if request.method == 'POST' else request.GET.get('action', '')
     selected_id = request.POST.get('library', '') if request.method == 'POST' else request.GET.get('library', '')
     library = _library(store, request.user, selected_id, write=request.method == 'POST') if selected_id else None
     if library:
         selected_id = str(library.location.library_key.for_branch(None).for_version(None))
     if request.method == 'POST':
-        action = request.POST.get('action', '')
+        if action == 'preview_libraries':
+            request.session.pop(NEW_LIBRARY_PREVIEW_KEY, None)
+            try:
+                staged, validation_errors = _new_library_preview(
+                    store,
+                    request.FILES.getlist('library_files'),
+                )
+                if validation_errors:
+                    request.session[FEEDBACK_KEY] = {
+                        'error': 'В Excel-файлах есть ошибки. Ни одна библиотека не создана.',
+                        'library_validation_errors': validation_errors,
+                    }
+                else:
+                    request.session[NEW_LIBRARY_PREVIEW_KEY] = staged
+            except (RuntimeError, ValueError) as error:
+                request.session[FEEDBACK_KEY] = {'error': str(error)}
+            return _redirect(selected_id)
+        if action == 'create_libraries':
+            preview = request.session.get(NEW_LIBRARY_PREVIEW_KEY)
+            if not preview or preview['token'] != request.POST.get('token'):
+                request.session[FEEDBACK_KEY] = {'error': 'Проверка файлов устарела. Загрузите Excel-файлы заново.'}
+                return _redirect(selected_id)
+            try:
+                results = _create_libraries(store, request.user, preview)
+            except Exception:  # pylint: disable=broad-except
+                LOG.exception('Could not start Excel library import for user=%s', request.user.id)
+                request.session[FEEDBACK_KEY] = {
+                    'error': 'Не удалось начать создание библиотек. Ни одна новая запись этой попыткой не подтверждена.',
+                }
+                return _redirect(selected_id)
+            request.session[FEEDBACK_KEY] = {'library_results': results}
+            request.session[NEW_LIBRARY_PREVIEW_KEY] = preview
+            if not any(result['status'] == 'failed' for result in results):
+                request.session.pop(NEW_LIBRARY_PREVIEW_KEY, None)
+            first_library = next((result['id'] for result in results if result.get('exists')), selected_id)
+            LOG.info(
+                'Excel library import user=%s created=%s failed=%s',
+                request.user.id,
+                sum(result['status'] == 'created' for result in results),
+                sum(result['status'] == 'failed' for result in results),
+            )
+            return _redirect(first_library)
+        if action == 'cancel_libraries':
+            request.session.pop(NEW_LIBRARY_PREVIEW_KEY, None)
+            return _redirect(selected_id)
         if not library:
             request.session[FEEDBACK_KEY] = {'error': 'Сначала выберите библиотеку.'}
             return _redirect()
         if action == 'preview':
             request.session.pop(PREVIEW_KEY, None)
             try:
-                upload = request.FILES.get('questions_file')
-                if upload is None:
-                    raise ValueError('Выберите файл Excel .xlsx.')
-                if upload.size > excel.MAX_UPLOAD_BYTES:
-                    raise ValueError('Файл превышает 5 МБ.')
-                content = upload.read(excel.MAX_UPLOAD_BYTES + 1)
-                if upload.name.lower().endswith('.xlsx'):
-                    parsed = excel.parse_xlsx(content)
-                elif upload.name.lower().endswith('.csv'):
-                    parsed = excel.Upload(questions=questions.parse_csv(content))
-                else:
-                    raise ValueError('Поддерживается Excel .xlsx или прежний CSV UTF-8. Формат .xls не поддерживается.')
+                parsed = _parse_upload(request.FILES.get('questions_file'), allow_csv=True)
                 if parsed.errors:
                     request.session[FEEDBACK_KEY] = {
                         'error': 'В файле есть ошибки. Исправьте указанные строки и загрузите файл заново. Вопросы не добавлены.',
@@ -273,7 +482,6 @@ def library_tools(request):
             request.session[FEEDBACK_KEY] = {'error': 'Неизвестная команда.'}
         return _redirect(selected_id)
 
-    action = request.GET.get('action', '')
     if action == 'template':
         example = questions.Question('Пример вопроса', 'Сколько будет 2 + 2?', 'single', ['3', '4', '5'], ['B'])
         examples = [(example, ''), (questions.Question('Выберите простые числа', 'Выберите простые числа.', 'multi',
@@ -304,6 +512,7 @@ def library_tools(request):
     if preview and preview['library'] != selected_id:
         preview = None
     feedback = request.session.pop(FEEDBACK_KEY, {})
+    new_library_preview = request.session.get(NEW_LIBRARY_PREVIEW_KEY)
     matching_form = feedback.get('matching_form') or {
         'title': 'Сопоставление',
         'question': 'Соедините каждый элемент слева с подходящим элементом справа.',
@@ -316,7 +525,8 @@ def library_tools(request):
         'libraries': page, 'library_total': len(libraries), 'search': search,
         'selected_library': library, 'selected_id': selected_id,
         'supported_count': len(supported), 'unsupported': unsupported,
-        'preview': preview, 'feedback': feedback, 'csrf_token': get_token(request),
+        'preview': preview, 'new_library_preview': new_library_preview,
+        'feedback': feedback, 'csrf_token': get_token(request),
         'matching_count': sum(key.block_type == 'matching' for key in library.children) if library else 0,
         'matching_form': matching_form,
         'tools_url': reverse('library_tools'), 'course_admin_url': reverse('course_admin'),

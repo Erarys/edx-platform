@@ -35,7 +35,7 @@ def answer_display(item):
     td { border-bottom: 1px solid #e6edf5; padding: 12px; vertical-align: top; overflow-wrap: anywhere; }
     tbody tr:nth-child(even) { background: #fafcff; }
     .question { white-space: pre-wrap; } .answer-list { margin: 8px 0; padding-left: 22px; }
-    .status-created, .status-already_added { color: #276038; } .status-failed { color: #8f2727; }
+    .status-created, .status-already_created, .status-already_added { color: #276038; } .status-failed { color: #8f2727; }
     .pagination { margin-top: 18px; justify-content: flex-end; }
     code { font-family: Consolas, monospace; background: #edf2f8; padding: 2px 5px; border-radius: 3px; }
     details summary { cursor: pointer; font-weight: bold; }
@@ -69,6 +69,46 @@ def answer_display(item):
       <div class="muted key">${feedback['matching_created']['id']}</div>
     </div>
   % endif
+  % if feedback.get('library_validation_errors'):
+    <section class="panel" aria-labelledby="library-validation-heading">
+      <h2 id="library-validation-heading">Ошибки файлов (${len(feedback['library_validation_errors'])})</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>Excel-файл</th><th>Строка</th><th>Что исправить</th></tr></thead>
+        <tbody>
+        % for error in feedback['library_validation_errors']:
+          <tr><td>${error['filename']}</td><td>${error['row'] if error.get('row') else '—'}</td><td>${error['detail']}</td></tr>
+        % endfor
+        </tbody>
+      </table></div>
+    </section>
+  % endif
+  % if feedback.get('library_results'):
+    <section class="panel" aria-labelledby="library-results-heading">
+      <h2 id="library-results-heading">Результат создания библиотек</h2>
+      <p>Создано: <strong>${sum(item['status'] == 'created' for item in feedback['library_results'])}</strong>.
+        Уже было создано этой операцией: <strong>${sum(item['status'] == 'already_created' for item in feedback['library_results'])}</strong>.
+        Ошибок: <strong>${sum(item['status'] == 'failed' for item in feedback['library_results'])}</strong>.</p>
+      <div class="scroll"><table>
+        <thead><tr><th>Excel-файл</th><th>Библиотека</th><th>Вопросы</th><th>Результат</th></tr></thead>
+        <tbody>
+        % for item in feedback['library_results']:
+          <tr>
+            <td>${item['filename']}</td>
+            <td><strong>${item['display_name']}</strong><div class="muted key">${item['id']}</div>
+              % if item.get('exists'):
+                <a href="${tools_url}?library=${item['id'] | u}">Открыть библиотеку</a>
+              % endif
+            </td>
+            <td>Создано: ${sum(row['status'] == 'created' for row in item['questions'])}<br>
+              Уже добавлено: ${sum(row['status'] == 'already_added' for row in item['questions'])}<br>
+              Ошибок: ${sum(row['status'] == 'failed' for row in item['questions'])}</td>
+            <td class="status-${item['status']}">${item['detail']}</td>
+          </tr>
+        % endfor
+        </tbody>
+      </table></div>
+    </section>
+  % endif
   % if feedback.get('validation_errors'):
     <section class="panel" aria-labelledby="validation-heading">
       <h2 id="validation-heading">Ошибки файла (${len(feedback['validation_errors'])})</h2>
@@ -100,6 +140,57 @@ def answer_display(item):
           </tbody>
         </table></div>
       </details>
+    </section>
+  % endif
+
+  <section class="panel" aria-labelledby="new-libraries-heading">
+    <h2 id="new-libraries-heading">Создать библиотеки из Excel</h2>
+    <p>Каждый файл <code>.xlsx</code> создаёт отдельную Library V1 и сразу добавляет в неё вопросы.</p>
+    <ul>
+      <li>Название библиотеки — имя Excel-файла без <code>.xlsx</code>.</li>
+      <li>Организация — <code>KazNU</code>.</li>
+      <li>Код — шесть случайных строчных латинских букв, например <code>zpnsdf</code>.</li>
+    </ul>
+    <p class="muted">Можно выбрать до 20 файлов и суммарно до 2000 вопросов. Сначала все файлы проверяются; при ошибке ни одна библиотека не создаётся.
+      Используйте тот же формат вопросов, что и при добавлении в существующую библиотеку.</p>
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}">
+      <input type="hidden" name="library" value="${selected_id}">
+      <input type="hidden" name="action" value="preview_libraries">
+      <label for="library-files">Excel-файлы (.xlsx)</label>
+      <input id="library-files" type="file" name="library_files" multiple
+             accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+      <div class="toolbar">
+        <button type="submit">Проверить файлы</button>
+        <a class="button secondary" href="${template_url}">Скачать шаблон Excel</a>
+      </div>
+    </form>
+  </section>
+
+  % if new_library_preview:
+    <section class="panel" aria-labelledby="new-library-preview-heading">
+      <h2 id="new-library-preview-heading">Будет создано библиотек: ${len(new_library_preview['libraries'])}</h2>
+      <p class="muted">Проверьте названия и автоматически сгенерированные коды. Запись начнётся только после подтверждения.</p>
+      <div class="scroll"><table>
+        <thead><tr><th>Excel-файл</th><th>Новая библиотека</th><th>Вопросов</th><th>Предупреждения</th></tr></thead>
+        <tbody>
+        % for item in new_library_preview['libraries']:
+          <tr>
+            <td>${item['filename']}</td>
+            <td><strong>${item['display_name']}</strong><div class="muted key">library-v1:${item['org']}+${item['code']}</div></td>
+            <td>${len(item['questions'])}</td>
+            <td>${len(item.get('warnings', []))}</td>
+          </tr>
+        % endfor
+        </tbody>
+      </table></div>
+      <form method="post" class="toolbar" style="margin-top: 18px;" id="confirm-library-import">
+        <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}">
+        <input type="hidden" name="library" value="${selected_id}">
+        <input type="hidden" name="token" value="${new_library_preview['token']}">
+        <button type="submit" name="action" value="create_libraries">Создать библиотеки (${len(new_library_preview['libraries'])})</button>
+        <button type="submit" name="action" value="cancel_libraries" class="secondary">Отменить</button>
+      </form>
     </section>
   % endif
 
@@ -276,15 +367,16 @@ def answer_display(item):
   </section>
 </main>
 <script>
-  const importForm = document.getElementById('confirm-import');
-  if (importForm) {
+  ['confirm-import', 'confirm-library-import'].forEach(function (formId) {
+    const importForm = document.getElementById(formId);
+    if (!importForm) return;
     importForm.addEventListener('submit', function () {
       this.querySelectorAll('button').forEach(button => {
         button.style.pointerEvents = 'none';
         button.setAttribute('aria-disabled', 'true');
       });
     });
-  }
+  });
   const matchingPairs = document.getElementById('matching-pairs');
   const addMatchingPair = document.getElementById('add-matching-pair');
   function refreshMatchingPairButtons() {

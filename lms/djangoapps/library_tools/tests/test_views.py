@@ -25,6 +25,7 @@ class LibraryToolsTests(SimpleTestCase):
         self.store.get_library.return_value = self.library
         self.store.get_libraries.return_value = [self.library]
         self.store.bulk_operations.side_effect = lambda *args, **kwargs: nullcontext()
+        self.store.default_store.side_effect = lambda *args, **kwargs: nullcontext()
         self.question = questions.Question('Тест', 'Вопрос?', 'single', ['Да', 'Нет'], ['A'], 2)
         self.preview = {'library': str(self.key), 'token': str(uuid.uuid4()), 'questions': [self.question.to_dict()]}
 
@@ -215,6 +216,116 @@ class LibraryToolsTests(SimpleTestCase):
         self.assertNotIn(views.PREVIEW_KEY, request.session)
         self.assertEqual(request.session[views.FEEDBACK_KEY]['validation_errors'][0]['row'], 3)
         self.store.create_child.assert_not_called()
+
+    def test_excel_file_stages_a_new_library_without_a_selected_library(self):
+        file = SimpleUploadedFile('Социология.xlsx', excel.xlsx_bytes([(self.question, '')]))
+        request = self.request('post', {'action': 'preview_libraries', 'library_files': file})
+        response, _ = self.run_view(request)
+        self.assertEqual(response.status_code, 302)
+        preview = request.session[views.NEW_LIBRARY_PREVIEW_KEY]
+        self.assertEqual(len(preview['libraries']), 1)
+        item = preview['libraries'][0]
+        self.assertEqual(item['display_name'], 'Социология')
+        self.assertEqual(item['org'], 'KazNU')
+        self.assertRegex(item['code'], r'^[a-z]{6}$')
+        self.assertEqual(item['questions'][0]['question'], self.question.question)
+        self.store.create_library.assert_not_called()
+        self.store.create_child.assert_not_called()
+
+    def test_one_invalid_excel_prevents_the_whole_library_batch(self):
+        valid = SimpleUploadedFile('valid.xlsx', excel.xlsx_bytes([(self.question, '')]))
+        invalid = SimpleUploadedFile('broken.xlsx', b'not an xlsx file')
+        request = self.request('post', {
+            'action': 'preview_libraries',
+            'library_files': [valid, invalid],
+        })
+        self.run_view(request)
+        self.assertNotIn(views.NEW_LIBRARY_PREVIEW_KEY, request.session)
+        feedback = request.session[views.FEEDBACK_KEY]
+        self.assertIn('error', feedback)
+        self.assertEqual(feedback['library_validation_errors'][0]['filename'], 'broken.xlsx')
+        self.store.create_library.assert_not_called()
+
+    def test_confirmed_excel_creates_library_and_questions(self):
+        code = 'zpnsdf'
+        key = LibraryLocator('KazNU', code)
+        library = SimpleNamespace(
+            location=key.for_branch('library').make_usage_key('library', 'library'),
+            display_name='Социология',
+            children=[],
+        )
+        preview = {
+            'token': str(uuid.uuid4()),
+            'libraries': [{
+                'filename': 'Социология.xlsx',
+                'display_name': 'Социология',
+                'org': 'KazNU',
+                'code': code,
+                'questions': [self.question.to_dict()],
+                'warnings': [],
+                'created': False,
+            }],
+        }
+        self.store.get_library.return_value = None
+        self.store.create_library.return_value = library
+        request = self.request('post', {'action': 'create_libraries', 'token': preview['token']})
+        request.session[views.NEW_LIBRARY_PREVIEW_KEY] = preview
+        with patch.object(views, 'ensure_organization') as ensure_org, \
+             patch.object(views, '_grant_library_access') as grant_access:
+            response, _ = self.run_view(request)
+
+        self.assertEqual(response.status_code, 302)
+        ensure_org.assert_called_once_with('KazNU')
+        grant_access.assert_called_once_with(library.location.library_key, request.user)
+        self.store.create_library.assert_called_once_with(
+            org='KazNU',
+            library=code,
+            user_id=1,
+            fields={'display_name': 'Социология'},
+        )
+        args, kwargs = self.store.create_child.call_args
+        self.assertEqual(args, (1, library.location, 'problem'))
+        self.assertEqual(kwargs['fields']['data'], questions.question_xml(self.question))
+        result = request.session[views.FEEDBACK_KEY]['library_results'][0]
+        self.assertEqual(result['status'], 'created')
+        self.assertTrue(result['exists'])
+        self.assertNotIn(views.NEW_LIBRARY_PREVIEW_KEY, request.session)
+
+    def test_retrying_created_library_does_not_duplicate_questions(self):
+        code = 'zpnsdf'
+        key = LibraryLocator('KazNU', code)
+        batch_token = str(uuid.uuid4())
+        question_token = uuid.uuid5(uuid.UUID(batch_token), code)
+        block_id = uuid.uuid5(question_token, str(self.question.row)).hex
+        library = SimpleNamespace(
+            location=key.for_branch('library').make_usage_key('library', 'library'),
+            display_name='Социология',
+            children=[key.make_usage_key('problem', block_id)],
+        )
+        preview = {
+            'token': batch_token,
+            'libraries': [{
+                'filename': 'Социология.xlsx',
+                'display_name': 'Социология',
+                'org': 'KazNU',
+                'code': code,
+                'questions': [self.question.to_dict()],
+                'warnings': [],
+                'created': True,
+            }],
+        }
+        self.store.get_library.return_value = library
+        with patch.object(views, 'ensure_organization'), patch.object(views, '_grant_library_access'):
+            results = views._create_libraries(self.store, SimpleNamespace(id=1), preview)
+        self.assertEqual(results[0]['status'], 'already_created')
+        self.assertEqual(results[0]['questions'][0]['status'], 'already_added')
+        self.store.create_library.assert_not_called()
+        self.store.create_child.assert_not_called()
+
+    def test_library_name_uses_only_filename_without_extension(self):
+        filename, display_name = views._library_name(SimpleNamespace(name=r'C:\fakepath\Физика.xlsx'))
+        self.assertEqual(filename, 'Физика.xlsx')
+        self.assertEqual(display_name, 'Физика')
 
     def test_zero_supported_questions_still_downloads_excel_with_reasons(self):
         self.library.children = [self.key.make_usage_key('problem', 'unsupported')]
