@@ -1,0 +1,106 @@
+## mako
+## Пункт меню «Конкурсы» с выпадающим списком: Coursera Марафон + страница конкурсов.
+## На компьютере — раскрывается по клику. В мобильном меню показываются два обычных пункта.
+<%page expression_filter="h" args="link_class=''"/>
+<%!
+from django.utils.translation import gettext as _
+%>
+
+<style>
+.kz-nav-dropdown {
+  position: relative;
+}
+.kz-nav-dropdown > summary {
+  list-style: none;
+  cursor: pointer;
+  color: white !important;
+  font-size: 14px !important;
+  font-weight: bold !important;
+  padding: 0 6px !important;
+  line-height: 1.2 !important;
+  user-select: none;
+  white-space: nowrap;
+}
+.kz-nav-dropdown > summary::-webkit-details-marker { display: none; }
+.kz-nav-dropdown > summary::marker { content: ""; }
+.kz-nav-dropdown > summary .kz-caret {
+  display: inline-block;
+  font-size: 11px;
+  margin-left: 4px;
+  transition: transform 150ms;
+}
+.kz-nav-dropdown[open] > summary .kz-caret { transform: rotate(180deg); }
+.kz-nav-dropdown > summary:focus-visible { outline: 3px solid #ffd54f; outline-offset: 3px; }
+
+.kz-nav-dropdown__panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  z-index: 1000;
+  min-width: 240px;
+  background: #ffffff;
+  border: 1px solid #d5dce8;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(16, 42, 67, 0.20);
+  padding: 6px;
+}
+.kz-nav-dropdown__panel a {
+  display: block;
+  color: #1a263c !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+  padding: 12px 16px !important;
+  border-radius: 8px;
+  text-decoration: none !important;
+  white-space: nowrap;
+}
+.kz-nav-dropdown__panel a:hover,
+.kz-nav-dropdown__panel a:focus-visible {
+  background: #eaf0fb;
+  outline: none;
+}
+
+/* Мобильные копии пунктов: в шапке скрыты, в мобильном меню (бургер) видны */
+.nav-links .kz-mobile-only { display: none !important; }
+
+@media (max-width: 1024px) {
+  .kz-nav-dropdown > summary { color: #1a263c !important; }
+}
+</style>
+
+<details class="nav-item hidden-mobile kz-nav-dropdown">
+  <summary>${_("Competition")}<span class="kz-caret" aria-hidden="true">▼</span></summary>
+  <div class="kz-nav-dropdown__panel">
+    <a href="/coursera-marathon">Coursera Марафон</a>
+    <a href="/competition">${_("Competition")}</a>
+  </div>
+</details>
+
+<div class="mobile-nav-item hidden-mobile nav-item kz-mobile-only">
+  <a href="/coursera-marathon" class="${link_class}">Coursera Марафон</a>
+</div>
+<div class="mobile-nav-item hidden-mobile nav-item kz-mobile-only">
+  <a href="/competition" class="${link_class}">${_("Competition")}</a>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  if (window.kzNavDropdownReady) { return; }
+  window.kzNavDropdownReady = true;
+  // Закрываем список при клике мимо него и по Escape
+  document.addEventListener("click", function (e) {
+    var open = document.querySelectorAll(".kz-nav-dropdown[open]");
+    Array.prototype.forEach.call(open, function (d) {
+      if (!d.contains(e.target)) { d.removeAttribute("open"); }
+    });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") { return; }
+    Array.prototype.forEach.call(document.querySelectorAll(".kz-nav-dropdown[open]"), function (d) {
+      d.removeAttribute("open");
+      d.querySelector("summary").focus();
+    });
+  });
+})();
+</script>

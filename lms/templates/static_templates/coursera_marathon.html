@@ -4,597 +4,446 @@
 <%block name="pagetitle">Coursera Марафон — 2026</%block>
 
 <%block name="headextra">
-  <meta name="description" content="Coursera Марафон КазНУ: два трека для студентов и преподавателей, шесть номинаций, призы и калькулятор конкурсных показателей.">
+  <meta name="description" content="Coursera Марафон КазНУ: номинации для студентов и преподавателей, призы, калькулятор результата и условия участия.">
   <style>
+    /* Простой и крупный дизайн: большой шрифт, высокий контраст, без анимаций */
     .cm-page {
       --cm-navy: #102a43;
-      --cm-navy-2: #1a263c;
-      --cm-blue: #1e40af;
-      --cm-bright: #2563eb;
-      --cm-sky: #60a5fa;
-      --cm-cream: #f6efe3;
-      --cm-gold: #d3985c;
-      --cm-bg: #f5f8ff;
-      --cm-card: #ffffff;
-      --cm-text: #1f2937;
-      --cm-muted: #5b6b80;
-      --cm-border: #dce5f2;
-      --cm-ok: #15803d;
-      --cm-ok-bg: #ecfdf3;
-      --cm-warn: #b45309;
-      --cm-warn-bg: #fff7ed;
-      --cm-radius: 18px;
-      --cm-shadow: 0 14px 36px rgba(16, 42, 67, 0.10);
-      background: var(--cm-bg);
+      --cm-blue: #1d4ed8;
+      --cm-light: #eef3fb;
+      --cm-gold: #b7791f;
+      --cm-text: #1a202c;
+      --cm-muted: #4a5568;
+      --cm-border: #cbd5e1;
+      --cm-ok: #166534;
+      --cm-warn: #9a3412;
+      background: #f7f9fc;
       color: var(--cm-text);
-      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-      line-height: 1.55;
-      overflow: hidden;
+      font-family: "Segoe UI", Arial, system-ui, sans-serif;
+      font-size: 18px;
+      line-height: 1.6;
     }
     .cm-page *, .cm-page *::before, .cm-page *::after { box-sizing: border-box; }
     .cm-page h1, .cm-page h2, .cm-page h3, .cm-page h4 {
-      color: inherit; font-family: inherit; letter-spacing: -0.02em; margin: 0; text-transform: none;
+      color: var(--cm-navy) !important; font-family: inherit; letter-spacing: 0; margin: 0; text-transform: none;
     }
     .cm-page p { margin: 0; }
-    .cm-page a { color: inherit; }
+    .cm-page a { color: var(--cm-blue); }
     .cm-page button { font-family: inherit; }
-    .cm-shell { margin: 0 auto; max-width: 1200px; padding: 0 24px; }
-    .cm-eyebrow {
-      align-items: center; color: var(--cm-blue); display: inline-flex; font-size: 0.75rem;
-      font-weight: 800; gap: 10px; letter-spacing: 0.14em; text-transform: uppercase;
-    }
-    .cm-tiny-line { background: currentColor; display: inline-block; height: 2px; width: 28px; }
+    .cm-page :focus-visible { outline: 3px solid #f59e0b !important; outline-offset: 2px; }
+    .cm-shell { margin: 0 auto; max-width: 1040px; padding: 0 20px; }
 
-    /* Buttons */
+    /* Секции */
+    .cm-section { padding: 48px 0; border-bottom: 1px solid #e2e8f0; }
+    .cm-section h2 { font-size: 30px; font-weight: 800; line-height: 1.25; margin-bottom: 10px; }
+    .cm-lead { color: var(--cm-muted); font-size: 18px; margin-bottom: 24px !important; max-width: 760px; }
+
+    /* Кнопки — крупные, понятные, без эффектов */
     .cm-button {
-      align-items: center; border: 0; border-radius: 999px; cursor: pointer; display: inline-flex;
-      font-size: 0.95rem; font-weight: 800; gap: 8px; justify-content: center; padding: 14px 24px;
-      text-decoration: none !important; transition: transform 200ms ease, box-shadow 200ms ease, background 200ms ease;
+      align-items: center; border: 2px solid var(--cm-navy); border-radius: 10px; cursor: pointer;
+      display: inline-flex; font-size: 18px; font-weight: 700; gap: 8px; justify-content: center;
+      min-height: 56px; padding: 12px 28px; text-decoration: none !important;
     }
-    .cm-button:hover { transform: translateY(-2px); }
-    .cm-button--primary { background: var(--cm-navy); box-shadow: 0 12px 26px rgba(16, 42, 67, 0.25); color: #fff !important; }
-    .cm-button--primary:hover, .cm-button--primary:focus-visible { background: var(--cm-blue); }
-    .cm-button--cream { background: var(--cm-cream); color: var(--cm-navy) !important; }
-    .cm-text-link { color: var(--cm-navy) !important; font-weight: 800; text-decoration: none !important; border-bottom: 2px solid var(--cm-gold); padding-bottom: 2px; }
+    .cm-button--primary { background: var(--cm-navy); color: #fff !important; }
+    .cm-button--primary:hover { background: var(--cm-blue); border-color: var(--cm-blue); }
+    .cm-button--secondary { background: #fff; color: var(--cm-navy) !important; }
+    .cm-button--secondary:hover { background: var(--cm-light); }
 
-    /* Hero */
-    .cm-hero { align-items: center; display: grid; gap: 48px; grid-template-columns: 1.1fr 1fr; padding-bottom: 64px; padding-top: 64px; }
-    .cm-hero h1 {
-      color: var(--cm-navy) !important; font-size: clamp(3rem, 8vw, 5.8rem); font-weight: 900;
-      letter-spacing: -0.055em; line-height: 0.92; margin: 22px 0 18px;
+    /* Шапка страницы */
+    .cm-hero { padding: 48px 0 40px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .cm-label { color: var(--cm-blue); font-size: 16px; font-weight: 700; margin-bottom: 8px !important; }
+    .cm-hero h1 { font-size: 44px; font-weight: 800; line-height: 1.15; margin-bottom: 14px; }
+    .cm-hero-desc { font-size: 20px; max-width: 720px; margin-bottom: 24px !important; }
+    .cm-dates {
+      background: var(--cm-light); border-left: 6px solid var(--cm-navy); border-radius: 8px;
+      font-size: 18px; margin-bottom: 32px; max-width: 720px; padding: 16px 20px;
     }
-    .cm-hero h1 span { color: var(--cm-bright); }
-    .cm-hero h1 sup { color: var(--cm-gold); font-size: 0.38em; letter-spacing: 0; vertical-align: super; }
-    .cm-motto { color: var(--cm-navy); font-size: 1.25rem; font-weight: 800; margin-bottom: 12px !important; }
-    .cm-desc { color: var(--cm-muted); font-size: 1.05rem; max-width: 520px; }
-    .cm-hero-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 24px; margin: 30px 0; }
-    .cm-date-note {
-      align-items: flex-start; background: #fff; border: 1px solid var(--cm-border); border-radius: 14px;
-      display: inline-flex; gap: 12px; max-width: 520px; padding: 14px 18px;
-    }
-    .cm-date-note strong { color: var(--cm-navy); display: block; }
-    .cm-date-note small { color: var(--cm-muted); font-size: 0.86rem; }
-    .cm-status-dot {
-      background: #22c55e; border-radius: 50%; box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.18);
-      flex: 0 0 auto; height: 10px; margin-top: 7px; width: 10px;
-    }
+    .cm-dates strong { color: var(--cm-navy); display: block; font-size: 20px; }
+    .cm-who { font-size: 20px; font-weight: 700; color: var(--cm-navy); margin-bottom: 12px !important; }
+    .cm-who-buttons { display: flex; flex-wrap: wrap; gap: 14px; }
+    .cm-who-buttons .cm-button { min-width: 240px; }
 
-    .cm-art {
-      aspect-ratio: 1 / 1; background: linear-gradient(145deg, var(--cm-navy), var(--cm-blue) 70%, var(--cm-bright));
-      border-radius: 28px; box-shadow: 0 30px 70px rgba(16, 42, 67, 0.28); color: #fff; isolation: isolate;
-      max-height: 520px; overflow: hidden; position: relative; width: 100%;
-    }
-    .cm-art-grid {
-      background-image: linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
-      background-size: 40px 40px; inset: 0; position: absolute; z-index: -1;
-    }
-    .cm-art-topline { font-size: 0.72rem; font-weight: 800; left: 26px; letter-spacing: 0.14em; position: absolute; top: 24px; }
-    .cm-art-topline span { color: var(--cm-gold); }
-    .cm-orbit { border: 1px solid rgba(255,255,255,.22); border-radius: 50%; left: 50%; position: absolute; top: 50%; transform: translate(-50%, -50%); }
-    .cm-orbit--1 { height: 38%; width: 38%; }
-    .cm-orbit--2 { border-style: dashed; height: 62%; width: 62%; animation: cm-spin 60s linear infinite; }
-    .cm-orbit--3 { height: 86%; width: 86%; border-color: rgba(255,255,255,.12); }
-    @keyframes cm-spin { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
-    .cm-art-star { color: var(--cm-gold); font-size: 2rem; position: absolute; right: 30px; top: 60px; }
-    .cm-art-core {
-      background: var(--cm-cream); border-radius: 50%; color: var(--cm-navy); display: flex; flex-direction: column;
-      height: 34%; justify-content: center; left: 50%; position: absolute; text-align: center; top: 50%;
-      transform: translate(-50%, -50%); width: 34%;
-    }
-    .cm-art-core span { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.12em; }
-    .cm-art-core strong { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 900; line-height: 1; }
-    .cm-art-core small { color: var(--cm-muted); font-size: 0.68rem; }
-    .cm-art-label {
-      backdrop-filter: blur(8px); background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.28);
-      border-radius: 999px; font-size: 0.85rem; font-weight: 800; padding: 8px 14px; position: absolute;
-    }
-    .cm-art-label span { color: var(--cm-gold); margin-right: 8px; }
-    .cm-art-label--1 { left: 8%; top: 26%; }
-    .cm-art-label--2 { bottom: 24%; right: 7%; }
-    .cm-art-bottom {
-      align-items: center; bottom: 22px; display: flex; font-size: 0.85rem; gap: 14px; left: 26px; position: absolute; right: 26px;
-    }
-    .cm-art-bottom b { color: var(--cm-gold); font-size: 1.3rem; }
-    .cm-art-bottom i { background: rgba(255,255,255,.3); height: 18px; width: 1px; }
-    .cm-art-bottom svg { fill: none; height: 34px; margin-left: auto; stroke: var(--cm-gold); stroke-width: 1.6; width: 34px; }
-
-    .cm-ticker { background: var(--cm-navy); color: var(--cm-cream); font-size: 0.8rem; font-weight: 800; letter-spacing: 0.14em; padding: 16px 0; }
-    .cm-ticker .cm-shell { display: flex; flex-wrap: wrap; gap: 18px 28px; justify-content: center; }
-    .cm-ticker .cm-sep { color: var(--cm-gold); }
-
-    /* Sections */
-    .cm-section { padding-bottom: 80px; padding-top: 80px; }
-    .cm-section-heading { align-items: flex-end; display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; margin-bottom: 36px; }
-    .cm-section-heading h2 { color: var(--cm-navy) !important; font-size: clamp(2rem, 4.5vw, 3rem); font-weight: 900; line-height: 1.05; margin-top: 12px; }
-    .cm-section-heading > p { color: var(--cm-muted); max-width: 360px; }
-
-    /* Tracks */
-    .cm-tabs { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; margin-bottom: 28px; }
+    /* Переключатель: студент / преподаватель */
+    .cm-tabs { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin-bottom: 28px; }
     .cm-tab {
-      align-items: center; background: #fff; border: 2px solid var(--cm-border); border-radius: var(--cm-radius);
-      color: var(--cm-navy); cursor: pointer; display: flex; gap: 14px; padding: 18px 22px; text-align: left;
-      transition: border-color 200ms, background 200ms, color 200ms;
+      background: #fff; border: 3px solid var(--cm-border); border-radius: 10px; color: var(--cm-navy);
+      cursor: pointer; font-size: 20px; font-weight: 700; min-height: 64px; padding: 12px 18px; text-align: center;
     }
-    .cm-tab:hover { border-color: var(--cm-sky); }
+    .cm-tab:hover { border-color: var(--cm-navy); }
     .cm-tab[aria-selected="true"] { background: var(--cm-navy); border-color: var(--cm-navy); color: #fff; }
-    .cm-tab strong { font-size: 1.15rem; }
-    .cm-tab-icon svg { fill: none; height: 32px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; width: 32px; }
-    .cm-tab-arrow { margin-left: auto; font-size: 1.2rem; }
+    .cm-tab[aria-selected="true"]::before { content: "✓ "; }
     .cm-panel[hidden] { display: none !important; }
-    .cm-track-intro { margin-bottom: 26px; max-width: 760px; }
-    .cm-track-intro h3 { color: var(--cm-navy) !important; font-size: 1.6rem; font-weight: 850; margin-bottom: 8px; }
-    .cm-track-intro p { color: var(--cm-muted); }
+    .cm-panel > p { margin-bottom: 20px !important; }
 
-    .cm-awards { display: grid; gap: 20px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    /* Номинации */
+    .cm-awards { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .cm-award {
-      background: #fff; border: 1px solid var(--cm-border); border-radius: var(--cm-radius); box-shadow: var(--cm-shadow);
-      display: flex; flex-direction: column; overflow: hidden; padding: 24px; position: relative;
+      background: #fff; border: 1px solid var(--cm-border); border-top: 6px solid var(--cm-navy);
+      border-radius: 10px; display: flex; flex-direction: column; padding: 22px;
     }
-    .cm-award--first { background: var(--cm-navy); border-color: var(--cm-navy); color: #fff; }
-    .cm-award-top { align-items: center; display: flex; justify-content: space-between; margin-bottom: 22px; }
-    .cm-place { background: var(--cm-cream); border-radius: 999px; color: var(--cm-navy); font-size: 0.75rem; font-weight: 900; padding: 5px 11px; }
-    .cm-gift { align-items: center; display: inline-flex; font-size: 0.85rem; font-weight: 800; gap: 6px; }
-    .cm-gift svg { fill: none; height: 30px; stroke: var(--cm-gold); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; width: 30px; }
-    .cm-award-number { color: rgba(16, 42, 67, 0.07); font-size: 6rem; font-weight: 900; line-height: 1; position: absolute; right: 16px; top: 54px; }
-    .cm-award--first .cm-award-number { color: rgba(255,255,255,.08); }
-    .cm-award h4 { font-size: 1.45rem; font-weight: 900; line-height: 1.1; margin-bottom: 14px; position: relative; }
-    .cm-criterion { color: var(--cm-muted); flex-grow: 1; margin-bottom: 20px !important; }
-    .cm-award--first .cm-criterion { color: rgba(255,255,255,.82); }
-    .cm-award-detail { border-top: 1px solid var(--cm-border); color: var(--cm-muted); font-size: 0.86rem; padding-top: 14px; }
-    .cm-award--first .cm-award-detail { border-color: rgba(255,255,255,.18); color: rgba(255,255,255,.75); }
-    .cm-award-detail span { color: var(--cm-gold); display: block; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.12em; margin-bottom: 4px; }
-    .cm-awards-note { color: var(--cm-muted); font-size: 0.9rem; margin-top: 18px !important; }
-    .cm-shared-note {
-      background: var(--cm-cream); border-radius: 14px; color: var(--cm-navy); display: flex; flex-wrap: wrap;
-      gap: 6px 14px; margin-top: 26px; padding: 16px 20px;
+    .cm-award-place { color: var(--cm-gold); font-size: 16px; font-weight: 800; margin-bottom: 6px !important; }
+    .cm-award h3 { font-size: 22px; font-weight: 800; line-height: 1.25; margin-bottom: 10px; }
+    .cm-award .cm-criterion { flex-grow: 1; margin-bottom: 14px !important; }
+    .cm-award-detail { border-top: 1px solid #e2e8f0; color: var(--cm-muted); font-size: 16px; padding-top: 12px; }
+    .cm-note {
+      background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; font-size: 17px;
+      margin-top: 20px; padding: 16px 20px;
     }
 
-    /* Calculator */
-    .cm-calc { background: #eaf0fb; }
-    .cm-calc-badge { background: var(--cm-navy); border-radius: 999px; color: #fff; font-size: 0.82rem; font-weight: 800; padding: 8px 14px; }
-    .cm-calc-intro { color: var(--cm-muted); margin: -16px 0 28px !important; max-width: 760px; }
-    .cm-calc-layout { align-items: start; display: grid; gap: 24px; grid-template-columns: 1.35fr 1fr; }
-    .cm-card { background: #fff; border: 1px solid var(--cm-border); border-radius: var(--cm-radius); box-shadow: var(--cm-shadow); padding: 26px; }
+    /* Калькулятор */
+    .cm-calc { background: var(--cm-light); }
+    .cm-calc-for { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    .cm-calc-for span { font-weight: 700; }
+    .cm-calc-for .cm-button { min-height: 48px; padding: 8px 18px; font-size: 17px; }
+    .cm-calc-for .cm-button[aria-pressed="true"] { background: var(--cm-navy); color: #fff !important; }
+    .cm-calc-layout { align-items: start; display: grid; gap: 20px; grid-template-columns: 1.4fr 1fr; }
+    .cm-card { background: #fff; border: 1px solid var(--cm-border); border-radius: 10px; padding: 24px; }
     .cm-form[hidden] { display: none !important; }
-    .cm-form-heading { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 20px; }
-    .cm-form-heading h3 { color: var(--cm-navy) !important; font-size: 1.2rem; font-weight: 850; }
-    .cm-example { background: none; border: 0; color: var(--cm-blue); cursor: pointer; font-size: 0.88rem; font-weight: 800; padding: 4px 0; }
-    .cm-example:hover { text-decoration: underline; }
-    .cm-field-grid { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
-    .cm-field { margin-bottom: 16px; }
-    .cm-field label { color: var(--cm-navy); display: block; font-size: 0.92rem; font-weight: 800; margin: 0; }
-    .cm-field p, .cm-field small { color: var(--cm-muted); display: block; font-size: 0.8rem; margin: 2px 0 8px; }
+    .cm-form h3 { font-size: 22px; font-weight: 800; margin-bottom: 18px; }
+    .cm-field { margin-bottom: 20px; }
+    .cm-field label { color: var(--cm-navy); display: block; font-size: 18px; font-weight: 700; margin: 0; }
+    .cm-field p { color: var(--cm-muted); font-size: 16px; margin: 2px 0 8px !important; }
     .cm-page .cm-field input, .cm-page .cm-discipline input[type="number"] {
-      background: #fff; border: 2px solid #e1e7f0; border-radius: 12px; box-shadow: none; color: var(--cm-text);
-      font: inherit; font-size: 15px; height: auto; min-height: 46px; padding: 10px 14px; width: 100%;
+      background: #fff; border: 2px solid #94a3b8; border-radius: 8px; box-shadow: none; color: var(--cm-text);
+      font: inherit; font-size: 20px; height: auto; min-height: 52px; padding: 10px 14px; width: 100%; max-width: 280px;
     }
-    .cm-page .cm-field input:focus, .cm-page .cm-discipline input:focus { border-color: var(--cm-bright); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12); outline: none; }
+    .cm-page .cm-field input:focus, .cm-page .cm-discipline input:focus { border-color: var(--cm-blue); outline: none; box-shadow: 0 0 0 3px rgba(29,78,216,.25); }
     .cm-page .cm-field input[aria-invalid="true"], .cm-page .cm-discipline input[aria-invalid="true"] { border-color: #dc2626; }
-    .cm-fieldset { border: 1px solid var(--cm-border); border-radius: 14px; margin: 0 0 18px; padding: 18px; }
-    .cm-fieldset legend { align-items: center; color: var(--cm-navy); display: inline-flex; font-size: 1rem; font-weight: 850; gap: 8px; margin: 0; padding: 0 6px; width: auto; border: 0; }
-    .cm-fieldset legend span { background: var(--cm-navy); border-radius: 6px; color: #fff; font-size: 0.72rem; padding: 2px 7px; }
-    .cm-fieldset-help { color: var(--cm-muted); font-size: 0.85rem; margin-bottom: 14px !important; }
-    .cm-check { align-items: flex-start; color: var(--cm-text); cursor: pointer; display: flex; font-size: 0.9rem; gap: 10px; margin: 8px 0 0; }
-    .cm-check input { accent-color: var(--cm-blue); flex: 0 0 auto; height: 18px; margin: 2px 0 0; width: 18px; }
+    .cm-fieldset { border: 1px solid var(--cm-border); border-radius: 10px; margin: 0 0 20px; padding: 18px; }
+    .cm-fieldset legend { border: 0; color: var(--cm-navy); font-size: 19px; font-weight: 800; margin: 0; padding: 0 6px; width: auto; }
+    .cm-fieldset-help { color: var(--cm-muted); font-size: 16px; margin-bottom: 14px !important; }
+    .cm-check { align-items: flex-start; cursor: pointer; display: flex; font-size: 17px; gap: 12px; margin: 10px 0 0; }
+    .cm-check input { accent-color: var(--cm-navy); flex: 0 0 auto; height: 24px; margin: 2px 0 0; width: 24px; }
     .cm-discipline {
       align-items: end; border-bottom: 1px dashed var(--cm-border); display: grid; gap: 12px;
-      grid-template-columns: minmax(0, 1fr) auto auto; padding: 10px 0;
+      grid-template-columns: 1fr auto; padding: 14px 0;
     }
-    .cm-discipline label.cm-dlabel { color: var(--cm-navy); display: block; font-size: 0.88rem; font-weight: 800; }
-    .cm-discipline small { color: var(--cm-muted); display: block; font-size: 0.78rem; margin-bottom: 6px; }
-    .cm-discipline .cm-check { margin: 0 0 12px; white-space: nowrap; }
+    .cm-discipline .cm-discipline-input { grid-column: 1 / -1; }
+    .cm-discipline label.cm-dlabel { color: var(--cm-navy); display: block; font-size: 17px; font-weight: 700; }
+    .cm-discipline small { color: var(--cm-muted); display: block; font-size: 15px; margin-bottom: 6px; }
+    .cm-discipline .cm-check { margin: 0; align-self: center; }
     .cm-remove {
-      background: #fff; border: 1px solid var(--cm-border); border-radius: 10px; color: var(--cm-muted); cursor: pointer;
-      font-size: 1.2rem; height: 40px; line-height: 1; margin-bottom: 3px; width: 40px;
+      background: #fff; border: 2px solid var(--cm-border); border-radius: 8px; color: #b91c1c; cursor: pointer;
+      font-size: 15px; font-weight: 700; min-height: 48px; margin-bottom: 2px; padding: 0 12px;
     }
-    .cm-remove:hover { border-color: #dc2626; color: #dc2626; }
     .cm-remove:disabled { cursor: not-allowed; opacity: 0.4; }
-    .cm-add { background: none; border: 2px dashed var(--cm-border); border-radius: 12px; color: var(--cm-blue); cursor: pointer; font-weight: 800; margin-top: 12px; padding: 10px 14px; width: 100%; }
-    .cm-add:hover { border-color: var(--cm-sky); }
-    .cm-error { background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; color: #b91c1c; font-size: 0.9rem; margin-bottom: 14px !important; padding: 10px 14px; }
-    .cm-error[hidden] { display: none; }
-    .cm-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 16px; }
-    .cm-reset { background: none; border: 0; color: var(--cm-muted); cursor: pointer; font-weight: 700; text-decoration: underline; }
-    .cm-privacy { align-items: flex-start; color: var(--cm-muted); display: flex; font-size: 0.84rem; gap: 10px; margin-top: 18px; }
-    .cm-privacy svg { fill: none; flex: 0 0 auto; height: 20px; stroke: var(--cm-blue); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; width: 20px; }
-
-    .cm-results { background: var(--cm-navy); border-radius: var(--cm-radius); color: #fff; padding: 26px; position: sticky; top: 20px; }
-    .cm-results .cm-eyebrow { color: var(--cm-gold); }
-    .cm-result-heading { align-items: center; display: flex; justify-content: space-between; margin-bottom: 10px; }
-    .cm-result-spark { color: var(--cm-gold); font-size: 1.5rem; }
-    .cm-result-state { color: rgba(255,255,255,.75); font-size: 0.9rem; margin-bottom: 16px !important; }
-    .cm-result-item { border-top: 1px solid rgba(255,255,255,.14); padding: 16px 0; }
-    .cm-result-title { align-items: center; display: flex; font-size: 0.95rem !important; font-weight: 800; gap: 10px; }
-    .cm-result-title small { background: rgba(255,255,255,.14); border-radius: 6px; font-size: 0.7rem; padding: 2px 7px; }
-    .cm-result-value { font-size: 2.2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.15; margin: 4px 0; }
-    .cm-result-value span { color: rgba(255,255,255,.6); font-size: 0.95rem; font-weight: 700; letter-spacing: 0; margin-left: 6px; }
-    .cm-result-status { color: rgba(255,255,255,.7); font-size: 0.85rem; }
-    .cm-result-status.is-ok { color: #86efac; }
-    .cm-result-status.is-warn { color: #fdba74; }
-    .cm-result-note { background: rgba(255,255,255,.07); border-radius: 12px; font-size: 0.84rem; margin-top: 10px; padding: 14px; }
-    .cm-result-note strong { color: var(--cm-gold); display: block; margin-bottom: 4px; }
-    .cm-result-note p { color: rgba(255,255,255,.75); }
-
-    /* Steps */
-    .cm-steps { counter-reset: none; display: grid; gap: 20px; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0; }
-    .cm-steps li { background: #fff; border: 1px solid var(--cm-border); border-radius: var(--cm-radius); padding: 26px; }
-    .cm-step-number { color: var(--cm-gold); display: block; font-size: 2.2rem; font-weight: 900; margin-bottom: 10px; }
-    .cm-steps h3 { color: var(--cm-navy) !important; font-size: 1.25rem; font-weight: 850; margin-bottom: 8px; }
-    .cm-steps p { color: var(--cm-muted); }
-    .cm-organizer { align-items: center; background: #fff; border: 1px solid var(--cm-border); border-radius: var(--cm-radius); display: grid; gap: 20px; grid-template-columns: 1fr 1.4fr; margin-top: 22px; padding: 26px; }
-    .cm-organizer strong { color: var(--cm-navy); display: block; font-size: 1.15rem; margin-top: 8px; }
-    .cm-organizer p { color: var(--cm-muted); }
-
-    /* FAQ */
-    .cm-source { background: var(--cm-cream); border-radius: 999px; color: var(--cm-navy); font-size: 0.82rem; font-weight: 800; padding: 8px 14px; }
-    .cm-faq details { background: #fff; border: 1px solid var(--cm-border); border-radius: 14px; margin-bottom: 12px; }
-    .cm-faq summary { color: var(--cm-navy); cursor: pointer; font-size: 1.05rem; font-weight: 800; list-style: none; padding: 18px 54px 18px 22px; position: relative; }
-    .cm-faq summary::-webkit-details-marker { display: none; }
-    .cm-faq summary::after { color: var(--cm-blue); content: "+"; font-size: 1.5rem; line-height: 1; position: absolute; right: 22px; top: 16px; }
-    .cm-faq details[open] summary::after { content: "−"; }
-    .cm-details-body { color: var(--cm-text); padding: 0 22px 20px; }
-    .cm-details-body p { margin-bottom: 10px !important; }
-    .cm-details-body h3 { color: var(--cm-navy) !important; font-size: 1rem; font-weight: 850; margin: 16px 0 8px; }
-    .cm-formula { background: var(--cm-bg); border-left: 4px solid var(--cm-gold); border-radius: 8px; color: var(--cm-navy); font-weight: 800; padding: 12px 16px; }
-
-    /* Closing + contacts */
-    .cm-closing {
-      align-items: center; background: var(--cm-navy); border-radius: 28px; color: #fff; display: flex; flex-wrap: wrap;
-      gap: 26px; justify-content: space-between; margin-bottom: 60px; padding: 44px;
+    .cm-add {
+      background: #fff; border: 2px dashed var(--cm-navy); border-radius: 8px; color: var(--cm-navy); cursor: pointer;
+      font-size: 17px; font-weight: 700; margin-top: 14px; min-height: 52px; padding: 10px 14px; width: 100%;
     }
-    .cm-closing > span { color: var(--cm-gold); font-size: 3rem; }
-    .cm-closing div { flex: 1 1 320px; }
-    .cm-closing h2 { color: #fff !important; font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 900; line-height: 1.05; margin-bottom: 8px; }
-    .cm-closing p { color: rgba(255,255,255,.78); }
-    .cm-contacts { display: grid; gap: 24px; grid-template-columns: 1fr 1.4fr; padding-bottom: 80px; }
-    .cm-contacts h2 { color: var(--cm-navy) !important; font-size: 2rem; font-weight: 900; margin-bottom: 6px; }
-    .cm-contacts > div > p { color: var(--cm-muted); }
-    .cm-contact-card h3 { color: var(--cm-navy) !important; font-size: 1.3rem; font-weight: 850; }
-    .cm-contact-position { color: var(--cm-muted); margin-bottom: 14px !important; }
-    .cm-contact-card dl { display: grid; gap: 12px; grid-template-columns: 1fr 1.6fr; margin: 0; }
-    .cm-contact-card dt { color: var(--cm-muted); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
-    .cm-contact-card dd { color: var(--cm-navy); font-weight: 800; margin: 2px 0 0; overflow-wrap: anywhere; }
-    .cm-contact-card a { color: var(--cm-blue) !important; }
+    .cm-error { background: #fef2f2; border: 2px solid #fca5a5; border-radius: 8px; color: #991b1b; font-size: 17px; margin-bottom: 16px !important; padding: 12px 16px; }
+    .cm-error[hidden] { display: none; }
+    .cm-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+    .cm-privacy { color: var(--cm-muted); font-size: 15px; margin-top: 18px !important; }
 
-    @media (max-width: 980px) {
-      .cm-hero, .cm-calc-layout, .cm-organizer, .cm-contacts { grid-template-columns: 1fr; }
-      .cm-art { max-height: 460px; }
-      .cm-awards, .cm-steps { grid-template-columns: 1fr; }
+    .cm-results { background: #fff; border: 3px solid var(--cm-navy); border-radius: 10px; padding: 24px; position: sticky; top: 20px; }
+    .cm-results h3 { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    .cm-result-state { color: var(--cm-muted); font-size: 17px; margin-bottom: 8px !important; }
+    .cm-result-item { border-top: 1px solid #e2e8f0; padding: 14px 0; }
+    .cm-result-title { font-size: 18px !important; font-weight: 700; }
+    .cm-result-title small { color: var(--cm-gold); font-size: 16px; font-weight: 800; margin-right: 8px; }
+    .cm-result-value { color: var(--cm-navy); font-size: 34px; font-weight: 800; line-height: 1.2; margin: 2px 0; }
+    .cm-result-value span { color: var(--cm-muted); font-size: 18px; font-weight: 600; margin-left: 6px; }
+    .cm-result-status { color: var(--cm-muted); font-size: 16px; }
+    .cm-result-status.is-ok { color: var(--cm-ok); font-weight: 700; }
+    .cm-result-status.is-ok::before { content: "✓ "; }
+    .cm-result-status.is-warn { color: var(--cm-warn); font-weight: 700; }
+    .cm-result-status.is-warn::before { content: "! "; }
+    .cm-result-note { background: var(--cm-light); border-radius: 8px; font-size: 15px; margin-top: 10px; padding: 14px; }
+
+    /* Шаги */
+    .cm-steps { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0; }
+    .cm-steps li { background: #fff; border: 1px solid var(--cm-border); border-radius: 10px; padding: 22px; }
+    .cm-step-number {
+      align-items: center; background: var(--cm-navy); border-radius: 50%; color: #fff; display: flex;
+      font-size: 22px; font-weight: 800; height: 44px; justify-content: center; margin-bottom: 12px; width: 44px;
+    }
+    .cm-steps h3 { font-size: 21px; font-weight: 800; margin-bottom: 6px; }
+    .cm-organizer { background: #fff; border: 1px solid var(--cm-border); border-radius: 10px; margin-top: 16px; padding: 22px; }
+    .cm-organizer strong { color: var(--cm-navy); }
+
+    /* Вопросы */
+    .cm-faq details { background: #fff; border: 1px solid var(--cm-border); border-radius: 10px; margin-bottom: 10px; }
+    .cm-faq summary {
+      color: var(--cm-navy); cursor: pointer; font-size: 19px; font-weight: 700; list-style: none;
+      min-height: 60px; padding: 16px 60px 16px 20px; position: relative;
+    }
+    .cm-faq summary::-webkit-details-marker { display: none; }
+    .cm-faq summary::after {
+      align-items: center; background: var(--cm-light); border-radius: 50%; color: var(--cm-navy); content: "+";
+      display: flex; font-size: 24px; font-weight: 700; height: 36px; justify-content: center;
+      position: absolute; right: 14px; top: 12px; width: 36px;
+    }
+    .cm-faq details[open] summary::after { content: "−"; }
+    .cm-details-body { padding: 0 20px 20px; }
+    .cm-details-body p { margin-bottom: 10px !important; }
+    .cm-details-body h3 { font-size: 19px; font-weight: 800; margin: 16px 0 8px; }
+    .cm-formula { background: var(--cm-light); border-left: 5px solid var(--cm-navy); border-radius: 6px; color: var(--cm-navy); font-weight: 700; padding: 12px 16px; }
+
+    /* Контакты */
+    .cm-contact-card h3 { font-size: 22px; font-weight: 800; }
+    .cm-contact-card p { color: var(--cm-muted); margin-bottom: 14px !important; }
+    .cm-contact-card dl { margin: 0; }
+    .cm-contact-card dt { color: var(--cm-muted); font-size: 16px; margin-top: 10px; }
+    .cm-contact-card dd { color: var(--cm-navy); font-size: 20px; font-weight: 700; margin: 0; overflow-wrap: anywhere; }
+
+    .cm-to-top { padding: 32px 0 48px; text-align: center; }
+
+    @media (max-width: 900px) {
+      .cm-calc-layout, .cm-awards, .cm-steps { grid-template-columns: 1fr; }
       .cm-results { position: static; }
     }
     @media (max-width: 600px) {
-      .cm-shell { padding: 0 16px; }
-      .cm-hero { padding-top: 36px; }
-      .cm-section { padding-bottom: 56px; padding-top: 56px; }
-      .cm-tabs, .cm-field-grid { grid-template-columns: 1fr; }
-      .cm-discipline { grid-template-columns: 1fr auto; }
-      .cm-discipline .cm-discipline-input { grid-column: 1 / -1; }
-      .cm-art-label { font-size: 0.72rem; padding: 6px 10px; }
-      .cm-closing { padding: 28px; }
-      .cm-contact-card dl { grid-template-columns: 1fr; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .cm-orbit--2 { animation: none; }
-      .cm-button, .cm-tab { transition: none; }
+      .cm-page { font-size: 17px; }
+      .cm-hero h1 { font-size: 34px; }
+      .cm-section h2 { font-size: 26px; }
+      .cm-tabs { grid-template-columns: 1fr; }
+      .cm-who-buttons .cm-button { width: 100%; }
     }
   </style>
 </%block>
 
 <div class="cm-page" id="cm-top">
 
-  <section class="cm-hero cm-shell" aria-labelledby="cm-hero-title">
-    <div>
-      <div class="cm-eyebrow"><span class="cm-tiny-line"></span>Конкурс образовательных достижений</div>
-      <h1 id="cm-hero-title">Coursera<br><span>Марафон</span><sup>’26</sup></h1>
-      <p class="cm-motto">Учись. Развивайся. Вдохновляй!</p>
-      <p class="cm-desc">Новые знания — твой следующий шаг. Выбирай трек, завершай курсы и делись результатами в КазНУ имени аль-Фараби.</p>
-      <div class="cm-hero-actions">
-        <a class="cm-button cm-button--primary" href="#cm-tracks">Выбрать свой трек <span aria-hidden="true">↗</span></a>
-        <a class="cm-text-link" href="#cm-calculator">Рассчитать результат <span aria-hidden="true">→</span></a>
+  <!-- 1. Коротко о конкурсе -->
+  <section class="cm-hero" aria-labelledby="cm-hero-title">
+    <div class="cm-shell">
+      <p class="cm-label">Конкурс КазНУ имени аль-Фараби</p>
+      <h1 id="cm-hero-title">Coursera Марафон 2026</h1>
+      <p class="cm-hero-desc">Конкурс для студентов и преподавателей, которые проходят курсы на платформе Coursera. Победители получают призы.</p>
+      <div class="cm-dates">
+        <strong>Сроки: 26 октября — 20 декабря 2026 года</strong>
+        Учитываются результаты за весь 2026 год.
       </div>
-      <div class="cm-date-note">
-        <span class="cm-status-dot" aria-hidden="true"></span>
-        <div>
-          <strong>26 октября — 20 декабря 2026</strong>
-          <small>Проводим конкурс. Во всех номинациях учитываем результаты за <b>весь 2026 год</b>.</small>
+      <p class="cm-who">Кто вы?</p>
+      <div class="cm-who-buttons">
+        <button type="button" class="cm-button cm-button--primary cm-pick" data-track="student" data-scroll="cm-tracks">Я студент</button>
+        <button type="button" class="cm-button cm-button--primary cm-pick" data-track="teacher" data-scroll="cm-tracks">Я преподаватель</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Номинации и призы -->
+  <section id="cm-tracks" class="cm-section" aria-labelledby="cm-tracks-title">
+    <div class="cm-shell">
+      <h2 id="cm-tracks-title">Номинации и призы</h2>
+      <p class="cm-lead">Выберите вашу категорию, чтобы увидеть номинации.</p>
+
+      <div class="cm-tabs" role="tablist" aria-label="Категория участника">
+        <button id="cm-tab-student" class="cm-tab" type="button" role="tab" aria-selected="true" aria-controls="cm-panel-student" tabindex="0" data-track="student">Для студентов</button>
+        <button id="cm-tab-teacher" class="cm-tab" type="button" role="tab" aria-selected="false" aria-controls="cm-panel-teacher" tabindex="-1" data-track="teacher">Для преподавателей</button>
+      </div>
+
+      <div id="cm-panel-student" class="cm-panel" role="tabpanel" aria-labelledby="cm-tab-student" tabindex="0">
+        <p>Завершайте курсы и получайте сертификаты. Учитываются результаты за весь 2026 год.</p>
+        <div class="cm-awards">
+          <article class="cm-award">
+            <p class="cm-award-place">I место · Приз: худи</p>
+            <h3>Лидер Coursera</h3>
+            <p class="cm-criterion">Больше всех завершённых курсов с сертификатами за 2026 год.</p>
+            <p class="cm-award-detail">Проверка: сертификаты и аналитика Coursera.</p>
+          </article>
+          <article class="cm-award">
+            <p class="cm-award-place">II место · Приз: кружка</p>
+            <h3>Мультидисциплинарный студент</h3>
+            <p class="cm-criterion">Больше всех разных предметных областей Coursera (минимум один завершённый курс в каждой).</p>
+            <p class="cm-award-detail">Области — по классификации Coursera на дату подведения итогов.</p>
+          </article>
+          <article class="cm-award">
+            <p class="cm-award-place">III место · Приз: шопер</p>
+            <h3>Максимальная вовлечённость</h3>
+            <p class="cm-criterion">Больше всех часов обучения на Coursera за 2026 год.</p>
+            <p class="cm-award-detail">Проверка: данные о времени обучения из аналитики Coursera.</p>
+          </article>
         </div>
       </div>
-    </div>
 
-    <div class="cm-art" role="img" aria-label="Два трека: Обучающийся и Преподаватель">
-      <div class="cm-art-grid" aria-hidden="true"></div>
-      <span class="cm-art-topline" aria-hidden="true">ТВОЯ ТРАЕКТОРИЯ РАЗВИТИЯ <span>↗</span></span>
-      <div class="cm-orbit cm-orbit--1" aria-hidden="true"></div>
-      <div class="cm-orbit cm-orbit--2" aria-hidden="true"></div>
-      <div class="cm-orbit cm-orbit--3" aria-hidden="true"></div>
-      <span class="cm-art-star" aria-hidden="true">✳</span>
-      <div class="cm-art-core" aria-hidden="true"><span>СЛЕДУЮЩИЙ УРОВЕНЬ</span><strong>3.0</strong><small>начинается с тебя</small></div>
-      <div class="cm-art-label cm-art-label--1" aria-hidden="true"><span>01</span>Обучающийся</div>
-      <div class="cm-art-label cm-art-label--2" aria-hidden="true"><span>02</span>Преподаватель</div>
-      <div class="cm-art-bottom" aria-hidden="true">
-        <span><b>2</b> трека</span><i></i><span><b>6</b> номинаций</span>
-        <svg viewBox="0 0 40 40"><path d="M13 7h14v9c0 8-14 8-14 0V7ZM13 10H7v5c0 5 5 7 8 6m12-11h6v5c0 5-5 7-8 6M20 23v8m-7 3h14m-11-3h8"></path></svg>
+      <div id="cm-panel-teacher" class="cm-panel" role="tabpanel" aria-labelledby="cm-tab-teacher" tabindex="0" hidden>
+        <p>Используйте курсы Coursera в преподавании и проходите курсы сами. Учитываются результаты за весь 2026 год.</p>
+        <div class="cm-awards">
+          <article class="cm-award">
+            <p class="cm-award-place">I место · Приз: худи</p>
+            <h3>Амбассадор Coursera</h3>
+            <p class="cm-criterion">Самая большая доля студентов одной группы, завершивших курс Coursera по одной дисциплине.</p>
+            <p class="cm-award-detail">Условие: в группе от 11 человек, курс завершили не менее 70%.</p>
+          </article>
+          <article class="cm-award">
+            <p class="cm-award-place">II место · Приз: кружка</p>
+            <h3>Интегратор Coursera</h3>
+            <p class="cm-criterion">Больше всех дисциплин с курсами Coursera, где курс завершили не менее 5 студентов.</p>
+            <p class="cm-award-detail">Проверка: сведения об интеграции, учебная документация, отчёты Coursera.</p>
+          </article>
+          <article class="cm-award">
+            <p class="cm-award-place">III место · Приз: шопер</p>
+            <h3>Энтузиаст Coursera</h3>
+            <p class="cm-criterion">Больше всех курсов Coursera, которые преподаватель прошёл сам в 2026 году.</p>
+            <p class="cm-award-detail">Нужны: сертификат по интегрированному курсу и утверждённая карта интеграции МООК.</p>
+          </article>
+        </div>
       </div>
+
+      <p class="cm-note"><strong>Важно:</strong> один участник может победить только в одной номинации. Если он лидирует в нескольких, ему присуждается более высокое место.</p>
     </div>
   </section>
 
-  <div class="cm-ticker" aria-hidden="true">
-    <div class="cm-shell">
-      <span>ЗНАНИЯ В ДЕЙСТВИИ</span><span class="cm-sep">✦</span>
-      <span>ТВОЙ ПРОГРЕСС ИМЕЕТ ЗНАЧЕНИЕ</span><span class="cm-sep">✦</span>
-      <span>COURSERA × КАЗНУ</span><span class="cm-sep">✦</span>
-    </div>
-  </div>
-
-  <section id="cm-tracks" class="cm-section cm-shell" aria-labelledby="cm-tracks-title">
-    <div class="cm-section-heading">
-      <div><div class="cm-eyebrow">01 / Выбери направление</div><h2 id="cm-tracks-title">Два трека.<br>Твой путь к результату.</h2></div>
-      <p>Для тех, кто осваивает новое. И тех, кто помогает учиться другим.</p>
-    </div>
-
-    <div class="cm-tabs" role="tablist" aria-label="Треки марафона">
-      <button id="cm-tab-student" class="cm-tab" type="button" role="tab" aria-selected="true" aria-controls="cm-panel-student" tabindex="0" data-track="student">
-        <span class="cm-tab-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="m3 12 13-7 13 7-13 7L3 12Zm5 3v8c5 4 11 4 16 0v-8m5-3v10"></path></svg></span>
-        <strong>Обучающийся</strong><span class="cm-tab-arrow" aria-hidden="true">↗</span>
-      </button>
-      <button id="cm-tab-teacher" class="cm-tab" type="button" role="tab" aria-selected="false" aria-controls="cm-panel-teacher" tabindex="-1" data-track="teacher">
-        <span class="cm-tab-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M16 8v20M3 5c5-1 9 0 13 3 4-3 8-4 13-3v20c-5-1-9 0-13 3-4-3-8-4-13-3V5Z"></path></svg></span>
-        <strong>Преподаватель</strong><span class="cm-tab-arrow" aria-hidden="true">↗</span>
-      </button>
-    </div>
-
-    <div id="cm-panel-student" class="cm-panel" role="tabpanel" aria-labelledby="cm-tab-student" tabindex="0">
-      <div class="cm-track-intro">
-        <h3>Расширяй границы своих знаний</h3>
-        <p>Завершай курсы, получай сертификаты и расширяй круг предметных областей. Для всех номинаций учитываются результаты за весь 2026 год.</p>
-      </div>
-      <div class="cm-awards">
-        <article class="cm-award cm-award--first">
-          <div class="cm-award-top"><span class="cm-place">I место</span><span class="cm-gift">Худи <svg viewBox="0 0 40 40" aria-hidden="true"><use href="#cm-hoodie"></use></svg></span></div>
-          <span class="cm-award-number" aria-hidden="true">01</span>
-          <h4>Лидер<br>Coursera</h4>
-          <p class="cm-criterion">Максимальное число завершённых курсов с сертификатами за 2026 год.</p>
-          <div class="cm-award-detail"><span>ПОДТВЕРЖДЕНИЕ</span>Сертификаты и аналитика образовательной платформы Coursera.</div>
-        </article>
-        <article class="cm-award">
-          <div class="cm-award-top"><span class="cm-place">II место</span><span class="cm-gift">Кружка <svg viewBox="0 0 40 40" aria-hidden="true"><use href="#cm-mug"></use></svg></span></div>
-          <span class="cm-award-number" aria-hidden="true">02</span>
-          <h4>Мультидисциплинарный<br>студент</h4>
-          <p class="cm-criterion">Максимальное число разных предметных областей Coursera, в каждой из которых завершён минимум один курс в 2026 году.</p>
-          <div class="cm-award-detail"><span>КЛАССИФИКАЦИЯ</span>Предметные области фиксирует организатор на дату подведения итогов.</div>
-        </article>
-        <article class="cm-award">
-          <div class="cm-award-top"><span class="cm-place">III место</span><span class="cm-gift">Шопер <svg viewBox="0 0 40 40" aria-hidden="true"><use href="#cm-tote"></use></svg></span></div>
-          <span class="cm-award-number" aria-hidden="true">03</span>
-          <h4>Максимальная<br>вовлечённость</h4>
-          <p class="cm-criterion">Максимальное суммарное количество часов обучения на Coursera за 2026 год.</p>
-          <div class="cm-award-detail"><span>ПОДТВЕРЖДЕНИЕ</span>Данные о времени обучения из аналитики Coursera.</div>
-        </article>
-      </div>
-      <p class="cm-awards-note"><span aria-hidden="true">↳</span> Один курс учитывается один раз. Предметные области — по классификации Coursera, зафиксированной организатором на дату подведения итогов.</p>
-    </div>
-
-    <div id="cm-panel-teacher" class="cm-panel" role="tabpanel" aria-labelledby="cm-tab-teacher" tabindex="0" hidden>
-      <div class="cm-track-intro">
-        <h3>Помогай знаниям работать</h3>
-        <p>Интегрируй Coursera в преподавание, помогай учиться студентам и развивай собственные компетенции. Период учёта результатов — весь 2026 год.</p>
-      </div>
-      <div class="cm-awards">
-        <article class="cm-award cm-award--first">
-          <div class="cm-award-top"><span class="cm-place">I место</span><span class="cm-gift">Худи <svg viewBox="0 0 40 40" aria-hidden="true"><use href="#cm-hoodie"></use></svg></span></div>
-          <span class="cm-award-number" aria-hidden="true">01</span>
-          <h4>Амбассадор<br>Coursera</h4>
-          <p class="cm-criterion">Наибольшая доля студентов одной академической группы, успешно завершивших онлайн-курс Coursera в рамках одной учебной дисциплины в 2026 году.</p>
-          <div class="cm-award-detail"><span>УСЛОВИЯ УЧАСТИЯ</span>Группа от 11 человек. Курс завершили не менее 70% студентов группы.</div>
-        </article>
-        <article class="cm-award">
-          <div class="cm-award-top"><span class="cm-place">II место</span><span class="cm-gift">Кружка <svg viewBox="0 0 40 40" aria-hidden="true"><use href="#cm-mug"></use></svg></span></div>
-          <span class="cm-award-number" aria-hidden="true">02</span>
-          <h4>Интегратор<br>Coursera</h4>
-          <p class="cm-criterion">Максимальное число дисциплин с подтверждённой интеграцией Coursera, по каждой из которых не менее 5 студентов завершили курс в 2026 году.</p>
-          <div class="cm-award-detail"><span>ПОДТВЕРЖДЕНИЕ</span>Сведения об интеграции, учебная документация и отчёты Coursera.</div>
-        </article>
-        <article class="cm-award">
-          <div class="cm-award-top"><span class="cm-place">III место</span><span class="cm-gift">Шопер <svg viewBox="0 0 40 40" aria-hidden="true"><use href="#cm-tote"></use></svg></span></div>
-          <span class="cm-award-number" aria-hidden="true">03</span>
-          <h4>Энтузиаст<br>Coursera</h4>
-          <p class="cm-criterion">Наибольшее количество онлайн-курсов Coursera, успешно завершённых преподавателем в 2026 году.</p>
-          <div class="cm-award-detail"><span>ОБЯЗАТЕЛЬНОЕ УСЛОВИЕ</span>Сертификат хотя бы по одному курсу, интегрированному в 2026 году, и утверждённая карта интеграции МООК.</div>
-        </article>
-      </div>
-      <p class="cm-awards-note"><span aria-hidden="true">↳</span> Сведения о дисциплинах, группах и курсах сверяются с учебной документацией университета и отчётами Coursera.</p>
-    </div>
-
-    <div class="cm-shared-note"><b>Одно место — одна номинация.</b><span>В каждой номинации — один победитель. Если участник лидирует в нескольких, ему присуждается более высокое призовое место.</span></div>
-  </section>
-
+  <!-- 3. Калькулятор -->
   <section id="cm-calculator" class="cm-section cm-calc" aria-labelledby="cm-calc-title">
     <div class="cm-shell">
-      <div class="cm-section-heading">
-        <div><div class="cm-eyebrow">02 / Проверь свои показатели</div><h2 id="cm-calc-title">Сколько в твоём зачёте?</h2></div>
-        <span class="cm-calc-badge" id="cm-calc-badge">Обучающийся · 2026</span>
+      <h2 id="cm-calc-title">Калькулятор результата</h2>
+      <p class="cm-lead">Введите свои результаты за 2026 год и нажмите «Рассчитать». Это только предварительная проверка — итог определяет комиссия.</p>
+
+      <div class="cm-calc-for">
+        <span id="cm-calc-badge">Расчёт для студента</span>
+        <button type="button" class="cm-button cm-button--secondary cm-pick" data-track="student" aria-pressed="true">Студент</button>
+        <button type="button" class="cm-button cm-button--secondary cm-pick" data-track="teacher" aria-pressed="false">Преподаватель</button>
       </div>
-      <p class="cm-calc-intro">Введи результаты за весь 2026 год. Калькулятор покажет показатели по номинациям и проверит условия участия. Часы обучения можно указывать с дробной частью.</p>
 
       <div class="cm-calc-layout">
         <div class="cm-card">
-          <form id="cm-student-form" class="cm-form" novalidate aria-label="Расчёт для обучающегося">
-            <div class="cm-form-heading"><h3>Твои достижения за 2026 год</h3><button type="button" class="cm-example" data-example="student">Показать пример ↗</button></div>
-            <div class="cm-field-grid">
-              <div class="cm-field"><label for="cm-s-courses">Завершённые курсы</label><p id="cm-s-courses-help">С сертификатами. Каждый курс — один раз.</p><input id="cm-s-courses" type="number" min="0" step="1" inputmode="numeric" value="0" aria-describedby="cm-s-courses-help"></div>
-              <div class="cm-field"><label for="cm-s-areas">Предметные области</label><p id="cm-s-areas-help">По классификации организатора, по ≥1 курсу.</p><input id="cm-s-areas" type="number" min="0" step="1" inputmode="numeric" value="0" aria-describedby="cm-s-areas-help"></div>
-            </div>
-            <div class="cm-field"><label for="cm-s-hours">Часы обучения на Coursera</label><p id="cm-s-hours-help">Суммарное время обучения за 2026 год по данным платформы. Например, 64,5 часа.</p><input id="cm-s-hours" type="text" inputmode="decimal" value="0" aria-describedby="cm-s-hours-help"></div>
+          <form id="cm-student-form" class="cm-form" novalidate aria-label="Расчёт для студента">
+            <h3>Ваши результаты за 2026 год</h3>
+            <div class="cm-field"><label for="cm-s-courses">Сколько курсов вы завершили?</label><p id="cm-s-courses-help">Только курсы с сертификатом.</p><input id="cm-s-courses" type="number" min="0" step="1" inputmode="numeric" value="0" aria-describedby="cm-s-courses-help"></div>
+            <div class="cm-field"><label for="cm-s-areas">Сколько разных предметных областей?</label><p id="cm-s-areas-help">В каждой должен быть хотя бы один завершённый курс.</p><input id="cm-s-areas" type="number" min="0" step="1" inputmode="numeric" value="0" aria-describedby="cm-s-areas-help"></div>
+            <div class="cm-field"><label for="cm-s-hours">Сколько часов вы учились на Coursera?</label><p id="cm-s-hours-help">Можно с дробной частью, например 64,5.</p><input id="cm-s-hours" type="text" inputmode="decimal" value="0" aria-describedby="cm-s-hours-help"></div>
             <p class="cm-error" id="cm-student-error" role="alert" hidden></p>
-            <div class="cm-actions"><button type="submit" class="cm-button cm-button--primary">Рассчитать показатели <span aria-hidden="true">→</span></button><button type="reset" class="cm-reset">Сбросить</button></div>
+            <div class="cm-actions">
+              <button type="submit" class="cm-button cm-button--primary">Рассчитать</button>
+              <button type="reset" class="cm-button cm-button--secondary">Очистить</button>
+              <button type="button" class="cm-button cm-button--secondary cm-example" data-example="student">Показать пример</button>
+            </div>
           </form>
 
           <form id="cm-teacher-form" class="cm-form" novalidate aria-label="Расчёт для преподавателя" hidden>
-            <div class="cm-form-heading"><h3>Достижения преподавателя за 2026 год</h3><button type="button" class="cm-example" data-example="teacher">Показать пример ↗</button></div>
+            <h3>Результаты преподавателя за 2026 год</h3>
 
             <fieldset class="cm-fieldset">
-              <legend><span>I</span> Амбассадор Coursera</legend>
-              <p class="cm-fieldset-help">Одна академическая группа, один интегрированный онлайн-курс и одна учебная дисциплина. Условия: группа от 11 человек и доля завершивших не менее 70%.</p>
-              <div class="cm-field-grid">
-                <div class="cm-field"><label for="cm-t-group">Численность группы</label><p>Все студенты академической группы.</p><input id="cm-t-group" type="number" min="0" step="1" inputmode="numeric" value="0"></div>
-                <div class="cm-field"><label for="cm-t-completed">Завершили курс</label><p>Студенты этой же группы.</p><input id="cm-t-completed" type="number" min="0" step="1" inputmode="numeric" value="0"></div>
-              </div>
-              <label class="cm-check"><input id="cm-t-integrated" type="checkbox"><span>Онлайн-курс интегрирован в одну учебную дисциплину.</span></label>
+              <legend>I место — Амбассадор Coursera</legend>
+              <p class="cm-fieldset-help">Одна группа, один курс, одна дисциплина. Нужно: в группе от 11 человек, завершили не менее 70%.</p>
+              <div class="cm-field"><label for="cm-t-group">Сколько студентов в группе?</label><input id="cm-t-group" type="number" min="0" step="1" inputmode="numeric" value="0"></div>
+              <div class="cm-field"><label for="cm-t-completed">Сколько из них завершили курс?</label><input id="cm-t-completed" type="number" min="0" step="1" inputmode="numeric" value="0"></div>
+              <label class="cm-check"><input id="cm-t-integrated" type="checkbox"><span>Курс встроен в учебную дисциплину</span></label>
             </fieldset>
 
             <fieldset class="cm-fieldset">
-              <legend><span>II</span> Интегратор Coursera</legend>
-              <p class="cm-fieldset-help">Добавь каждую дисциплину отдельно. В зачёт идёт дисциплина с подтверждённой интеграцией, если не менее 5 студентов завершили курс в 2026 году.</p>
+              <legend>II место — Интегратор Coursera</legend>
+              <p class="cm-fieldset-help">Добавьте каждую дисциплину отдельно. Засчитывается дисциплина с подтверждённой интеграцией, где курс завершили не менее 5 студентов.</p>
               <div id="cm-discipline-list"></div>
-              <button class="cm-add" id="cm-add-discipline" type="button">+ Добавить дисциплину</button>
+              <button class="cm-add" id="cm-add-discipline" type="button">+ Добавить ещё дисциплину</button>
             </fieldset>
 
             <fieldset class="cm-fieldset">
-              <legend><span>III</span> Энтузиаст Coursera</legend>
-              <p class="cm-fieldset-help">Курсы, которые преподаватель успешно завершил в 2026 году. Для участия нужны сертификат по интегрированному курсу и утверждённая карта интеграции МООК.</p>
-              <div class="cm-field"><label for="cm-t-courses">Курсы, завершённые преподавателем</label><p>Общее число успешно завершённых онлайн-курсов за 2026 год.</p><input id="cm-t-courses" type="number" min="0" step="1" inputmode="numeric" value="0"></div>
-              <label class="cm-check"><input id="cm-t-certificate" type="checkbox"><span>Есть сертификат хотя бы по одному курсу, интегрированному в учебный процесс в 2026 году.</span></label>
-              <label class="cm-check"><input id="cm-t-map" type="checkbox"><span>Есть утверждённая карта интеграции МООК, подтверждающая эту интеграцию.</span></label>
+              <legend>III место — Энтузиаст Coursera</legend>
+              <div class="cm-field"><label for="cm-t-courses">Сколько курсов вы завершили сами?</label><p>Все успешно завершённые курсы Coursera за 2026 год.</p><input id="cm-t-courses" type="number" min="0" step="1" inputmode="numeric" value="0"></div>
+              <label class="cm-check"><input id="cm-t-certificate" type="checkbox"><span>Есть сертификат хотя бы по одному курсу, встроенному в учебный процесс в 2026 году</span></label>
+              <label class="cm-check"><input id="cm-t-map" type="checkbox"><span>Есть утверждённая карта интеграции МООК</span></label>
             </fieldset>
 
             <p class="cm-error" id="cm-teacher-error" role="alert" hidden></p>
-            <div class="cm-actions"><button type="submit" class="cm-button cm-button--primary">Рассчитать показатели <span aria-hidden="true">→</span></button><button type="reset" class="cm-reset">Сбросить</button></div>
+            <div class="cm-actions">
+              <button type="submit" class="cm-button cm-button--primary">Рассчитать</button>
+              <button type="reset" class="cm-button cm-button--secondary">Очистить</button>
+              <button type="button" class="cm-button cm-button--secondary cm-example" data-example="teacher">Показать пример</button>
+            </div>
           </form>
 
-          <div class="cm-privacy">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 7 3v5c0 4-7 8-7 8s-7-4-7-8V5l7-3Z"></path><path d="m6 10 3 3 5-6"></path></svg>
-            <p>Расчёт выполняется в браузере. Введённые показатели не отправляются организатору и не сохраняются после перезагрузки.</p>
-          </div>
+          <p class="cm-privacy">Данные никуда не отправляются и не сохраняются — расчёт идёт только на вашем компьютере.</p>
         </div>
 
-        <aside class="cm-results" aria-label="Результаты расчёта">
-          <div class="cm-result-heading"><span class="cm-eyebrow">Твой предварительный результат</span><span class="cm-result-spark" aria-hidden="true">✳</span></div>
-          <p class="cm-result-state" id="cm-result-state">Введи данные и нажми «Рассчитать показатели».</p>
+        <aside class="cm-results" id="cm-results" aria-label="Результат расчёта" tabindex="-1">
+          <h3>Ваш результат</h3>
+          <p class="cm-result-state" id="cm-result-state">Введите данные и нажмите «Рассчитать».</p>
           <div id="cm-result-content" aria-live="polite" aria-atomic="true"></div>
-          <div class="cm-result-note"><strong>Как читать результат</strong><p>Положение не предусматривает балльную шкалу. Победителей определяют сравнением подтверждённых показателей участников по каждой номинации. Расчёт не означает присуждения места.</p></div>
+          <div class="cm-result-note">Баллов в конкурсе нет. Победителей определяет комиссия, сравнивая подтверждённые результаты участников.</div>
         </aside>
       </div>
     </div>
   </section>
 
-  <section id="cm-how" class="cm-section cm-shell" aria-labelledby="cm-how-title">
-    <div class="cm-section-heading">
-      <div><div class="cm-eyebrow">03 / От знаний к признанию</div><h2 id="cm-how-title">Три шага к участию</h2></div>
-      <p>Участие добровольное. Основа результата — подтверждённые данные.</p>
-    </div>
-    <ol class="cm-steps">
-      <li><span class="cm-step-number">01</span><h3>Выбери трек</h3><p>«Обучающийся» — для студентов. «Преподаватель» — для преподавателей КазНУ имени аль-Фараби.</p></li>
-      <li><span class="cm-step-number">02</span><h3>Собери достижения</h3><p>Подготовь результаты за весь 2026 год: завершённые курсы, сертификаты, часы обучения или подтверждённые результаты интеграции Coursera.</p></li>
-      <li><span class="cm-step-number">03</span><h3>Подтверди результат</h3><p>Комиссия проверит сертификаты и аналитику Coursera, сведения о дисциплинах, учебных группах и назначенных курсах.</p></li>
-    </ol>
-    <div class="cm-organizer">
-      <div><span class="cm-eyebrow">Организатор</span><strong>Департамент по академическим вопросам<br>КазНУ имени аль-Фараби</strong></div>
-      <p>Конкурс проходит с 26 октября по 20 декабря 2026 года. Способ передачи результатов и дату подведения итогов уточнит организатор. На сайте доступен предварительный расчёт.</p>
-    </div>
-  </section>
-
-  <section id="cm-rules" class="cm-section cm-shell" aria-labelledby="cm-rules-title" style="padding-top: 0;">
-    <div class="cm-section-heading">
-      <div><div class="cm-eyebrow">04 / Всё по правилам</div><h2 id="cm-rules-title">Вопросы и условия</h2></div>
-      <span class="cm-source">Учёт результатов за весь 2026 год</span>
-    </div>
-    <div class="cm-faq">
-      <details open><summary>Какие результаты учитываются?</summary><div class="cm-details-body">
-        <p><strong>Результаты за весь 2026 год — во всех шести номинациях.</strong> Для обучающихся учитываются завершённые курсы с сертификатами, предметные области и суммарные часы обучения на Coursera. Один курс учитывается однократно; предметные области определяются по классификации Coursera, зафиксированной организатором на дату подведения итогов.</p>
-        <p>Результаты обучающихся проверяются по аналитике Coursera и сертификатам. Преподаватели представляют сведения о дисциплинах, академических группах и курсах. Сведения сверяются с учебной документацией университета и отчётами Coursera.</p>
-      </div></details>
-      <details><summary>Как распределяются призы и можно ли победить дважды?</summary><div class="cm-details-body">
-        <p>В каждом треке I месту соответствует худи, II — кружка, III — шопер. Каждое место закреплено за своей номинацией. Комиссия определяет одного победителя в каждой из шести номинаций на основании подтверждённых показателей.</p>
-        <p>Один участник может победить только в одной номинации. При лидерстве в нескольких ему присуждается более высокое призовое место. Решение комиссии оформляется протоколом.</p>
-      </div></details>
-      <details><summary>Как рассчитывается результат «Амбассадора Coursera»?</summary><div class="cm-details-body">
-        <p class="cm-formula">Завершили интегрированный курс ÷ Численность академической группы × 100%</p>
-        <p>Сравнивается доля студентов одной академической группы, завершивших онлайн-курс, интегрированный в одну учебную дисциплину. Для участия численность группы — от 11 человек, доля завершивших — не менее 70%. Например, 8 из 11 — это 72,73%.</p>
-        <p>Калькулятор отображает процент с округлением до двух знаков, а порог 70% проверяет до округления.</p>
-      </div></details>
-      <details><summary>Какие подтверждения нужны «Энтузиасту Coursera»?</summary><div class="cm-details-body">
-        <p>Учитывается общее число онлайн-курсов Coursera, успешно завершённых преподавателем в 2026 году. Обязательное условие — наличие сертификата хотя бы по одному курсу, интегрированному в учебный процесс в 2026 году. Интеграция подтверждается утверждённой картой интеграции МООК.</p>
-        <p>Калькулятор отдельно показывает число курсов и выполнение этих условий. Окончательное решение принимает комиссия после проверки документов.</p>
-      </div></details>
-      <details><summary>Что происходит при равенстве показателей?</summary><div class="cm-details-body">
-        <p>Дополнительные критерии при равенстве показателей в актуальной редакции Положения не указаны. Комиссия определяет победителей на основании подтверждённых показателей; решение оформляется протоколом.</p>
-      </div></details>
-      <details><summary>Когда проходит марафон и как передать результаты?</summary><div class="cm-details-body">
-        <p>Конкурс проводится <strong>с 26 октября по 20 декабря 2026 года</strong>. Период учёта результатов — <strong>весь 2026 год</strong> для обучающихся и преподавателей.</p>
-        <p>Способ подачи результатов и дата подведения итогов в предоставленных документах не указаны. Эти сведения уточнит организатор — Департамент по академическим вопросам КазНУ имени аль-Фараби.</p>
-      </div></details>
-      <details><summary>Условия конкурса</summary><div class="cm-details-body">
-        <h3>1. Общие положения</h3>
-        <p>1.1. Конкурс проводится в Казахском национальном университете имени аль-Фараби для стимулирования обучающихся и профессорско-преподавательского состава к использованию образовательной платформы Coursera.</p>
-        <p>1.2. Организатор — Департамент по академическим вопросам КазНУ имени аль-Фараби.</p>
-        <p>1.3. Сроки проведения конкурса: с 26 октября по 20 декабря 2026 года.</p>
-        <p>1.4. Категории участников: обучающиеся и преподаватели. Во всех номинациях учитываются результаты за весь 2026 год.</p>
-        <h3>2. Номинации и критерии</h3>
-        <p>2.1. Три номинации для обучающихся — «Лидер Coursera», «Мультидисциплинарный студент» и «Максимальная вовлечённость». Критерии, места и призы приведены в карточках трека «Обучающийся». Один курс учитывается однократно; предметные области — по классификации Coursera, зафиксированной организатором на дату подведения итогов.</p>
-        <p>2.2. Три номинации для преподавателей — «Амбассадор Coursera», «Интегратор Coursera» и «Энтузиаст Coursera». Критерии, места и призы приведены в карточках трека «Преподаватель».</p>
-        <p>2.2.1. Для «Амбассадора Coursera» сравнивается доля студентов академической группы, успешно завершивших курс Coursera, интегрированный в одну учебную дисциплину. К участию допускаются преподаватели, обеспечившие завершение курса не менее чем 70% студентов группы численностью от 11 человек.</p>
-        <p>2.2.2. Для «Интегратора Coursera» учитывается число дисциплин с подтверждённой интеграцией Coursera, по каждой из которых не менее 5 студентов завершили курс.</p>
-        <p>2.2.3. Для «Энтузиаста Coursera» учитывается число онлайн-курсов, успешно завершённых преподавателем в 2026 году. Обязательно наличие сертификата хотя бы по одному курсу, интегрированному в учебный процесс в 2026 году, что подтверждается утверждённой картой интеграции МООК.</p>
-        <h3>3. Участие и подтверждение результатов</h3>
-        <p>3.1. Участие добровольное. Период учёта результатов — весь 2026 год. Результаты обучающихся проверяются по аналитике Coursera и сертификатам.</p>
-        <p>3.2. Преподаватели представляют сведения о дисциплинах, учебных группах и курсах; сведения сверяются с учебной документацией университета и отчётами Coursera.</p>
-        <p>3.3. Один участник может победить только в одной номинации. При лидерстве в нескольких присуждается более высокое призовое место.</p>
-        <h3>4. Итоги и награждение</h3>
-        <p>4.1. Комиссия определяет по одному победителю в каждой номинации на основании подтверждённых показателей.</p>
-        <p>4.2. Решение комиссии оформляется протоколом. В каждом треке: I место — худи, II — кружка, III — шопер.</p>
-        <h3>5. Заключительные положения</h3>
-        <p>5.1. Организатор обеспечивает сбор и проверку данных, подведение итогов и награждение.</p>
-      </div></details>
+  <!-- 4. Как участвовать -->
+  <section id="cm-how" class="cm-section" aria-labelledby="cm-how-title">
+    <div class="cm-shell">
+      <h2 id="cm-how-title">Как принять участие</h2>
+      <p class="cm-lead">Участие добровольное.</p>
+      <ol class="cm-steps">
+        <li><span class="cm-step-number">1</span><h3>Выберите категорию</h3><p>Студент или преподаватель КазНУ имени аль-Фараби.</p></li>
+        <li><span class="cm-step-number">2</span><h3>Соберите результаты</h3><p>Сертификаты, завершённые курсы и часы обучения за 2026 год.</p></li>
+        <li><span class="cm-step-number">3</span><h3>Комиссия проверит</h3><p>Проверка по сертификатам, аналитике Coursera и учебной документации.</p></li>
+      </ol>
+      <div class="cm-organizer">
+        <p><strong>Организатор:</strong> Департамент по академическим вопросам КазНУ имени аль-Фараби. Как передать результаты и когда подведут итоги — сообщит организатор.</p>
+      </div>
     </div>
   </section>
 
-  <div class="cm-shell">
-    <section class="cm-closing">
-      <span aria-hidden="true">✳</span>
-      <div><h2>Твои знания.<br>Твои возможности.</h2><p>Coursera Марафон — следующий шаг в твоём развитии.</p></div>
-      <a href="#cm-tracks" class="cm-button cm-button--cream">К своему треку <span aria-hidden="true">↗</span></a>
-    </section>
-  </div>
-
-  <section id="cm-contacts" class="cm-contacts cm-shell" aria-labelledby="cm-contacts-title">
-    <div><h2 id="cm-contacts-title">Контакты для связи</h2><p>За подробной информацией обращаться:</p></div>
-    <div class="cm-card cm-contact-card">
-      <h3>Круговых Илья Игоревич</h3>
-      <p class="cm-contact-position">Руководитель Офиса академических и цифровых инноваций</p>
-      <dl>
-        <div><dt>Внутренний номер</dt><dd>3123</dd></div>
-        <div><dt>Электронная почта</dt><dd><a href="mailto:Ilya.Krugovykh2@kaznu.edu.kz">Ilya.Krugovykh2@kaznu.edu.kz</a></dd></div>
-      </dl>
+  <!-- 5. Вопросы и условия -->
+  <section id="cm-rules" class="cm-section" aria-labelledby="cm-rules-title">
+    <div class="cm-shell">
+      <h2 id="cm-rules-title">Вопросы и ответы</h2>
+      <p class="cm-lead">Нажмите на вопрос, чтобы увидеть ответ.</p>
+      <div class="cm-faq">
+        <details><summary>Какие результаты учитываются?</summary><div class="cm-details-body">
+          <p><strong>Результаты за весь 2026 год — во всех шести номинациях.</strong> Для студентов учитываются завершённые курсы с сертификатами, предметные области и часы обучения на Coursera. Один курс учитывается один раз.</p>
+          <p>Результаты студентов проверяются по аналитике Coursera и сертификатам. Преподаватели представляют сведения о дисциплинах, группах и курсах; они сверяются с документацией университета и отчётами Coursera.</p>
+        </div></details>
+        <details><summary>Какие призы и можно ли победить дважды?</summary><div class="cm-details-body">
+          <p>В каждой категории: I место — худи, II — кружка, III — шопер. Комиссия выбирает одного победителя в каждой из шести номинаций.</p>
+          <p>Победить можно только в одной номинации. При лидерстве в нескольких присуждается более высокое место. Решение комиссии оформляется протоколом.</p>
+        </div></details>
+        <details><summary>Как считается результат «Амбассадора Coursera»?</summary><div class="cm-details-body">
+          <p class="cm-formula">Завершили курс ÷ Студентов в группе × 100%</p>
+          <p>Например, 8 из 11 — это 72,73%. Условия: в группе от 11 человек, завершили не менее 70%.</p>
+        </div></details>
+        <details><summary>Что нужно «Энтузиасту Coursera»?</summary><div class="cm-details-body">
+          <p>Учитывается число курсов Coursera, которые преподаватель завершил в 2026 году. Обязательно: сертификат хотя бы по одному курсу, встроенному в учебный процесс в 2026 году, и утверждённая карта интеграции МООК.</p>
+        </div></details>
+        <details><summary>Что будет при равных результатах?</summary><div class="cm-details-body">
+          <p>Дополнительные критерии в Положении не указаны. Победителей определяет комиссия по подтверждённым результатам; решение оформляется протоколом.</p>
+        </div></details>
+        <details><summary>Когда проходит марафон и как передать результаты?</summary><div class="cm-details-body">
+          <p>Конкурс проходит <strong>с 26 октября по 20 декабря 2026 года</strong>. Учитываются результаты за <strong>весь 2026 год</strong>.</p>
+          <p>Способ подачи результатов и дату подведения итогов сообщит организатор — Департамент по академическим вопросам КазНУ имени аль-Фараби.</p>
+        </div></details>
+        <details><summary>Полные условия конкурса</summary><div class="cm-details-body">
+          <h3>1. Общие положения</h3>
+          <p>1.1. Конкурс проводится в Казахском национальном университете имени аль-Фараби для стимулирования обучающихся и профессорско-преподавательского состава к использованию образовательной платформы Coursera.</p>
+          <p>1.2. Организатор — Департамент по академическим вопросам КазНУ имени аль-Фараби.</p>
+          <p>1.3. Сроки проведения конкурса: с 26 октября по 20 декабря 2026 года.</p>
+          <p>1.4. Категории участников: обучающиеся и преподаватели. Во всех номинациях учитываются результаты за весь 2026 год.</p>
+          <h3>2. Номинации и критерии</h3>
+          <p>2.1. Три номинации для обучающихся — «Лидер Coursera», «Мультидисциплинарный студент» и «Максимальная вовлечённость». Один курс учитывается однократно; предметные области — по классификации Coursera, зафиксированной организатором на дату подведения итогов.</p>
+          <p>2.2. Три номинации для преподавателей — «Амбассадор Coursera», «Интегратор Coursera» и «Энтузиаст Coursera».</p>
+          <p>2.2.1. Для «Амбассадора Coursera» сравнивается доля студентов академической группы, успешно завершивших курс Coursera, интегрированный в одну учебную дисциплину. К участию допускаются преподаватели, обеспечившие завершение курса не менее чем 70% студентов группы численностью от 11 человек.</p>
+          <p>2.2.2. Для «Интегратора Coursera» учитывается число дисциплин с подтверждённой интеграцией Coursera, по каждой из которых не менее 5 студентов завершили курс.</p>
+          <p>2.2.3. Для «Энтузиаста Coursera» учитывается число онлайн-курсов, успешно завершённых преподавателем в 2026 году. Обязательно наличие сертификата хотя бы по одному курсу, интегрированному в учебный процесс в 2026 году, что подтверждается утверждённой картой интеграции МООК.</p>
+          <h3>3. Участие и подтверждение результатов</h3>
+          <p>3.1. Участие добровольное. Период учёта результатов — весь 2026 год. Результаты обучающихся проверяются по аналитике Coursera и сертификатам.</p>
+          <p>3.2. Преподаватели представляют сведения о дисциплинах, учебных группах и курсах; сведения сверяются с учебной документацией университета и отчётами Coursera.</p>
+          <p>3.3. Один участник может победить только в одной номинации. При лидерстве в нескольких присуждается более высокое призовое место.</p>
+          <h3>4. Итоги и награждение</h3>
+          <p>4.1. Комиссия определяет по одному победителю в каждой номинации на основании подтверждённых показателей.</p>
+          <p>4.2. Решение комиссии оформляется протоколом. В каждом треке: I место — худи, II — кружка, III — шопер.</p>
+          <h3>5. Заключительные положения</h3>
+          <p>5.1. Организатор обеспечивает сбор и проверку данных, подведение итогов и награждение.</p>
+        </div></details>
+      </div>
     </div>
   </section>
 
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <symbol id="cm-hoodie" viewBox="0 0 40 40"><path d="m14 8 2-4h8l2 4 9 6-5 8-4-3v16H14V19l-4 3-5-8 9-6Zm0 0 6 8 6-8M17 27h6m-7-23 4 9 4-9"></path></symbol>
-      <symbol id="cm-mug" viewBox="0 0 40 40"><path d="M7 10h22v20c0 8-22 8-22 0V10Zm22 3h4c7 0 7 13 0 13h-4M6 35h25M14 3v3m9-3v3"></path></symbol>
-      <symbol id="cm-tote" viewBox="0 0 40 40"><path d="M8 13h24l3 23H5l3-23Zm6 2V9c0-8 12-8 12 0v6M16 24l4 4 5-7"></path></symbol>
-    </defs>
-  </svg>
+  <!-- 6. Контакты -->
+  <section id="cm-contacts" class="cm-section" aria-labelledby="cm-contacts-title" style="border-bottom: 0;">
+    <div class="cm-shell">
+      <h2 id="cm-contacts-title">Остались вопросы? Свяжитесь с нами</h2>
+      <div class="cm-card cm-contact-card">
+        <h3>Круговых Илья Игоревич</h3>
+        <p>Руководитель Офиса академических и цифровых инноваций</p>
+        <dl>
+          <dt>Внутренний телефон</dt><dd>3123</dd>
+          <dt>Электронная почта</dt><dd><a href="mailto:Ilya.Krugovykh2@kaznu.edu.kz">Ilya.Krugovykh2@kaznu.edu.kz</a></dd>
+        </dl>
+      </div>
+      <div class="cm-to-top"><a class="cm-button cm-button--secondary" href="#cm-top">↑ Наверх</a></div>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -639,7 +488,7 @@
     resultContent.innerHTML = "";
     items.forEach(function (item) {
       var box = el("div", "cm-result-item");
-      var h = el("h3", "cm-result-title");
+      var h = el("h4", "cm-result-title");
       h.appendChild(el("small", "", item.num));
       h.appendChild(document.createTextNode(item.title));
       var value = el("div", "cm-result-value", item.value);
@@ -654,7 +503,7 @@
   function renderPending() {
     renderResults(titles[currentTrack].map(function (t) {
       return { num: t[0], title: t[1], value: "—", status: "Ожидает расчёта" };
-    }), "Введи данные и нажми «Рассчитать показатели».");
+    }), "Введите данные и нажмите «Рассчитать».");
   }
 
   function selectTrack(track, focus) {
@@ -668,7 +517,10 @@
     });
     studentForm.hidden = track !== "student";
     teacherForm.hidden = track !== "teacher";
-    badge.textContent = (track === "student" ? "Обучающийся" : "Преподаватель") + " · 2026";
+    badge.textContent = track === "student" ? "Расчёт для студента" : "Расчёт для преподавателя";
+    Array.prototype.forEach.call(document.querySelectorAll(".cm-pick[aria-pressed]"), function (b) {
+      b.setAttribute("aria-pressed", b.dataset.track === track ? "true" : "false");
+    });
     renderPending();
   }
 
@@ -683,13 +535,31 @@
     });
   });
 
+  /* Кнопки «Я студент / Я преподаватель» и переключатель над калькулятором */
+  Array.prototype.forEach.call(document.querySelectorAll(".cm-pick"), function (btn) {
+    btn.addEventListener("click", function () {
+      selectTrack(btn.dataset.track, false);
+      if (btn.dataset.scroll) {
+        document.getElementById(btn.dataset.scroll).scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  });
+
+  /* На узких экранах после расчёта прокручиваем к результату */
+  var resultsBox = document.getElementById("cm-results");
+  function showResultsOnMobile() {
+    if (window.matchMedia && window.matchMedia("(max-width: 900px)").matches) {
+      resultsBox.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   /* ---------- Validation helpers ---------- */
   function readInt(input, errors, label) {
     var raw = String(input.value).trim();
     input.removeAttribute("aria-invalid");
     if (!/^\d+$/.test(raw)) {
       input.setAttribute("aria-invalid", "true");
-      errors.push("«" + label + "» — укажи целое неотрицательное число.");
+      errors.push("«" + label + "» — укажите целое число (0 или больше).");
       return null;
     }
     return parseInt(raw, 10);
@@ -700,7 +570,7 @@
     input.removeAttribute("aria-invalid");
     if (!/^\d+([.,]\d+)?$/.test(raw)) {
       input.setAttribute("aria-invalid", "true");
-      errors.push("«" + label + "» — укажи число, например 64,5.");
+      errors.push("«" + label + "» — укажите число, например 64,5.");
       return null;
     }
     return parseFloat(raw.replace(",", "."));
@@ -742,7 +612,8 @@
         status: areas > 0 ? "Показатель учитывается в номинации" : "Нет предметных областей с завершённым курсом", tone: areas > 0 ? "ok" : "warn" },
       { num: "III", title: "Максимальная вовлечённость", value: fmt(hours, 2), unit: "ч",
         status: hours > 0 ? "Показатель учитывается в номинации" : "Нет часов обучения", tone: hours > 0 ? "ok" : "warn" }
-    ], "Расчёт выполнен. Итоговые показатели подтверждает комиссия.");
+    ], "Готово. Окончательно результаты подтверждает комиссия.");
+    showResultsOnMobile();
   });
 
   studentForm.addEventListener("reset", function () {
@@ -775,7 +646,7 @@
     var wrap = el("div", "cm-discipline-input");
     var label = el("label", "cm-dlabel");
     label.setAttribute("for", id);
-    var hint = el("small", "", "Завершили курс, чел.");
+    var hint = el("small", "", "Сколько студентов завершили курс");
     hint.id = id + "-hint";
     var input = document.createElement("input");
     input.type = "number"; input.min = "0"; input.step = "1"; input.id = id;
@@ -790,7 +661,7 @@
     check.appendChild(cb);
     check.appendChild(el("span", "", "Интеграция подтверждена"));
 
-    var rm = el("button", "cm-remove", "×");
+    var rm = el("button", "cm-remove", "Удалить");
     rm.type = "button";
     rm.addEventListener("click", function () {
       row.remove();
@@ -825,7 +696,7 @@
     e.preventDefault();
     var errors = [];
     var group = readInt(tGroup, errors, "Численность группы");
-    var completed = readInt(tCompleted, errors, "Завершили курс");
+    var completed = readInt(tCompleted, errors, "Сколько завершили курс");
     if (group !== null && completed !== null && completed > group) {
       tCompleted.setAttribute("aria-invalid", "true");
       errors.push("Число завершивших не может превышать численность группы.");
@@ -842,7 +713,7 @@
     /* I. Ambassador */
     var amb;
     if (group === 0) {
-      amb = { value: "—", unit: "", status: "Укажи численность группы", tone: "warn" };
+      amb = { value: "—", unit: "", status: "Укажите, сколько студентов в группе", tone: "warn" };
     } else {
       var share = completed / group * 100;
       var reasons = [];
@@ -885,7 +756,8 @@
       { num: "I", title: "Амбассадор Coursera", value: amb.value, unit: amb.unit, status: amb.status, tone: amb.tone },
       { num: "II", title: "Интегратор Coursera", value: integ.value, unit: integ.unit, status: integ.status, tone: integ.tone },
       { num: "III", title: "Энтузиаст Coursera", value: enth.value, unit: enth.unit, status: enth.status, tone: enth.tone }
-    ], "Расчёт выполнен. Окончательное решение принимает комиссия после проверки документов.");
+    ], "Готово. Окончательное решение принимает комиссия после проверки документов.");
+    showResultsOnMobile();
   });
 
   teacherForm.addEventListener("reset", function () {

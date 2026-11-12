@@ -86,56 +86,37 @@ from openedx.core.djangoapps.site_configuration import helpers as configuration_
       % endif
     % endif
 
+    ## Порядок: Курсы → Каталог MOOC → Для авторов → Конкурсы (▼) → Открытый лекториум → Новости → Система проверки → Аналитика
     % if show_explore_courses:
-       <div class="mobile-nav-item hidden-mobile nav-item" style="padding: 0 !important;margin-top: 3px !important;">
-        <a href="/courses">
-          ${_("Courses")}
-        </a>
+      <div class="mobile-nav-item hidden-mobile nav-item">
+        <a href="/courses">${_("Courses")}</a>
       </div>
-      <div class="mobile-nav-item hidden-mobile nav-item" style="margin-top: 3px !important; padding: 0 !important;">
-        <a href="/coursera-marathon">
-          Coursera Марафон
-        </a>
+      <div class="mobile-nav-item hidden-mobile nav-item">
+        <a href="/catalog_transfer">${_("Catalog MOOC for Transfer")}</a>
       </div>
-      <div class="mobile-nav-item hidden-mobile nav-item" style="margin-top: 3px !important; padding: 0 !important;">
-        <a href="/competition">
-          ${_("Competition")}
-        </a>
+      <div class="mobile-nav-item hidden-mobile nav-item">
+        <a href="/author">${_("For Authors")}</a>
       </div>
-      <div class="mobile-nav-item hidden-mobile nav-item" style="margin-top: 3px !important; padding: 0 !important;">
-        <a href="/catalog_transfer">
-          ${_("Catalog MOOC for Transfer")}
-        </a>
+      <%include file="nav-contests-dropdown.html" args="link_class=''"/>
+    % endif
+
+    <div class="mobile-nav-item hidden-mobile nav-item">
+      <a href="${reverse('sdg4_index')}">${_("OpenLektorium")}</a>
+    </div>
+
+    % if show_explore_courses:
+      <div class="mobile-nav-item hidden-mobile nav-item">
+        <a href="/news">${_("News")}</a>
       </div>
-      <div class="mobile-nav-item hidden-mobile nav-item" style="margin-top: 3px !important; padding: 0 !important;">
-        <a href="/author">
-          ${_("For Authors")}
-        </a>
-      </div>
-      <div class="mobile-nav-item hidden-mobile nav-item" style="margin-top: 3px !important; padding: 0 !important;">
-        <a href="/detect">
-          ${_("The System of Checking")}
-        </a>
-      </div>
-      <div class="mobile-nav-item hidden-mobile nav-item" style="margin-top: 3px !important; padding: 0 !important;">
-        <a href="/news">
-          ${_("News")}
-        </a>
+      <div class="mobile-nav-item hidden-mobile nav-item">
+        <a href="/detect">${_("The System of Checking")}</a>
       </div>
       % if self.real_user.is_staff:
-        <div class="mobile-nav-item hidden-mobile nav-item" style="margin-top: 3px !important; padding: 0 !important;">
-          <a href="${reverse('analyze')}">
-            ${_("Analyze")}
-          </a>
+        <div class="mobile-nav-item hidden-mobile nav-item">
+          <a href="${reverse('analyze')}">${_("Analyze")}</a>
         </div>
       % endif
-
     % endif
-    <div class="mobile-nav-item hidden-mobile nav-item" style="margin-top: 3px !important; padding: 0 !important;">
-      <a href="${reverse('sdg4_index')}">
-        ${_("OpenLektorium")}
-      </a>
-    </div>
   </div>
  <div class="secondary">
    <%include file="user_dropdown.html" args="online_help_token=online_help_token"/>
