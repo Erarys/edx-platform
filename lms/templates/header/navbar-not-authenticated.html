@@ -61,18 +61,25 @@ a.sign-in-btn:hover {
   }
 }
 
-/* Пункты меню для гостей (раньше были inline-стили на каждом пункте) */
+/* Пункты меню для гостей — те же размеры, что и у вошедших пользователей */
+.nav-links .main {
+  display: flex !important;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px !important;
+}
 .nav-links .main .kz-nav-guest,
 .nav-links .main .kz-nav-dropdown {
-  padding: 0 !important;
-  font-size: 13px !important;
-  margin-top: 6px !important;
-}
-.nav-links .main .kz-nav-dropdown > summary {
-  font-size: 13px !important;
+  margin: 0 !important;
+  margin-top: 3px !important;
   padding: 0 !important;
 }
-
+.nav-links .main .kz-nav-guest a {
+  font-size: 14px !important;
+  font-weight: bold !important;
+  padding: 0 6px !important;
+  line-height: 1.2 !important;
+}
 
 </style>
 
