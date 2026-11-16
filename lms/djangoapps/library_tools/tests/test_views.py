@@ -137,6 +137,26 @@ class LibraryToolsTests(SimpleTestCase):
         self.assertEqual(kwargs['fields']['weight'], 1.5)
         self.assertIn('matching_created', request.session[views.FEEDBACK_KEY])
 
+    def test_excel_import_creates_matching_xblock(self):
+        question = questions.Question(
+            'Страны и столицы',
+            'Соедините страну и столицу.',
+            'matching',
+            ['Казахстан', 'Франция'],
+            ['Астана', 'Париж'],
+            7,
+        )
+        preview = {'token': self.preview['token'], 'questions': [question.to_dict()]}
+        results = views._import(self.store, self.library, SimpleNamespace(id=1), preview)
+        self.assertEqual(results[0]['status'], 'created')
+        args, kwargs = self.store.create_child.call_args
+        self.assertEqual(args, (1, self.library.location, 'matching'))
+        self.assertEqual(kwargs['fields']['question'], question.question)
+        self.assertEqual(
+            [(pair['left'], pair['right']) for pair in kwargs['fields']['pairs']],
+            [('Казахстан', 'Астана'), ('Франция', 'Париж')],
+        )
+
     def test_direct_matching_form_rejects_incomplete_or_duplicate_pairs(self):
         invalid_rows = [
             (['Один'], ['One']),
@@ -186,6 +206,25 @@ class LibraryToolsTests(SimpleTestCase):
         self.assertEqual(excel.parse_xlsx(response.content).questions[0].question, self.question.question)
         self.store.create_child.assert_not_called()
         self.store.get_item.assert_called_once_with(key)
+
+    def test_export_includes_matching_components(self):
+        key = self.key.make_usage_key('matching', 'm1')
+        self.library.children = [key]
+        self.store.get_item.return_value = SimpleNamespace(
+            display_name='Страны и столицы',
+            question='Соедините пары.',
+            pairs=[
+                {'left': 'Казахстан', 'right': 'Астана'},
+                {'left': 'Франция', 'right': 'Париж'},
+            ],
+        )
+        request = self.request(data={'library': str(self.key), 'action': 'export'})
+        response, _ = self.run_view(request)
+        parsed = excel.parse_xlsx(response.content)
+        self.assertFalse(parsed.errors)
+        self.assertEqual(parsed.questions[0].type, 'matching')
+        self.assertEqual(parsed.questions[0].answers, ['Казахстан', 'Франция'])
+        self.assertEqual(parsed.questions[0].correct_answers, ['Астана', 'Париж'])
 
     def test_list_search_and_empty_library(self):
         response, render = self.run_view(self.request(data={'q': 'ST2026'}))

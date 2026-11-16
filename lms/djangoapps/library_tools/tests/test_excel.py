@@ -42,6 +42,26 @@ class QuestionExcelTests(TestCase):
             self.assertEqual(result.questions[0].correct_answers, correct)
             self.assertEqual(result.questions[0].type, kind)
 
+    def test_matching_round_trip_uses_ordered_right_parts(self):
+        question = self.example(
+            type='matching',
+            answers=['Казахстан', 'Франция'],
+            correct_answers=['Астана', 'Париж'],
+        )
+        result = excel.parse_xlsx(excel.xlsx_bytes([(question, '')]))
+        self.assertFalse(result.errors)
+        self.assertEqual(result.questions[0], question)
+
+    def test_matching_rejects_mismatched_or_duplicate_pairs(self):
+        for left, right in [
+                (['Один', 'Два'], ['One']),
+                (['Один', 'Один'], ['One', 'Two']),
+                (['Один', 'Два'], ['One', 'One']),
+        ]:
+            with self.subTest(left=left, right=right):
+                content = self.workbook(type='matching', answers=left, correct_answers=right)
+                self.assertEqual(excel.parse_xlsx(content).errors[0]['row'], 2)
+
     def test_file_has_only_requested_columns_and_excel_controls(self):
         with ZipFile(io.BytesIO(self.workbook())) as archive:
             sheet = ET.fromstring(archive.read('xl/worksheets/sheet1.xml'))

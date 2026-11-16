@@ -21,6 +21,7 @@ TYPE_ALIASES = {
     'multiple_choice': 'single', 'multiplechoiceresponse': 'single', 'radio': 'single',
     'multi': 'multi', 'multiple_select': 'multi', 'checkbox': 'multi', 'checkboxes': 'multi',
     'choiceresponse': 'multi', 'dropdown': 'dropdown', 'select': 'dropdown', 'optionresponse': 'dropdown',
+    'matching': 'matching', 'match': 'matching', 'сопоставление': 'matching',
     'text': 'text', 'string': 'text', 'stringresponse': 'text', 'text_case_sensitive': 'text_case_sensitive',
     'numeric': 'numeric', 'number': 'numeric', 'numericalresponse': 'numeric',
 }
@@ -76,7 +77,7 @@ def _sheet(name, rows, widths, question_sheet=False):
         validation = ET.SubElement(validations, 'dataValidation', type='list', allowBlank='0', showErrorMessage='1',
                                    errorTitle='Тип вопроса', error='Выберите тип вопроса из списка.',
                                    sqref=f'{last_column}2:{last_column}{max(len(rows), questions.MAX_QUESTIONS + 1)}')
-        ET.SubElement(validation, 'formula1').text = '"single,multi,dropdown,text,text_case_sensitive,numeric"'
+        ET.SubElement(validation, 'formula1').text = '"single,multi,dropdown,matching,text,text_case_sensitive,numeric"'
     return name, _xml(root)
 
 
@@ -87,7 +88,9 @@ def xlsx_bytes(rows, unsupported=()):
     headers = ['question', *(f'variant{i}' for i in range(1, option_count + 1)), 'correct_answer', 'type']
     values = [headers]
     for question, _ in rows:
-        if question.type == 'numeric':
+        if question.type == 'matching':
+            correct = ' || '.join(question.correct_answers)
+        elif question.type == 'numeric':
             correct = question.correct_answers[0]
         elif question.type in ('text', 'text_case_sensitive'):
             correct = ' || '.join(question.correct_answers)
@@ -165,7 +168,21 @@ def _question(row, row_number):
     kind_key = row['type'].casefold().replace('-', '_').replace(' ', '_')
     kind = TYPE_ALIASES.get(kind_key)
     if not kind:
-        raise ValueError('type: укажите single, multi, dropdown, text, text_case_sensitive или numeric')
+        raise ValueError('type: укажите single, multi, dropdown, matching, text, text_case_sensitive или numeric')
+    if kind == 'matching':
+        answers = [row.get(f'variant{i}', '') for i in range(1, 11)]
+        while answers and not answers[-1]:
+            answers.pop()
+        if len(answers) < 2 or any(not answer for answer in answers):
+            raise ValueError('matching: нужны минимум две левые части подряд без пустых ячеек')
+        correct = [part.strip() for part in row['correct_answer'].split(' || ')]
+        if len(correct) != len(answers) or any(not answer for answer in correct):
+            raise ValueError('matching: в correct_answer укажите правые части по порядку через ||')
+        if len({answer.casefold() for answer in answers}) != len(answers):
+            raise ValueError('matching: левые части не должны повторяться')
+        if len({answer.casefold() for answer in correct}) != len(correct):
+            raise ValueError('matching: правые части не должны повторяться')
+        return questions.Question(prompt[:255], prompt, kind, answers, correct, row_number)
     if kind in ('text', 'text_case_sensitive', 'numeric'):
         if any(row.get(f'variant{i}', '') for i in range(1, 11)):
             raise ValueError('для текстового/числового ответа оставьте столбцы variant пустыми')

@@ -74,9 +74,26 @@ def _inventory(store, library):
     supported, unsupported = [], []
     with store.bulk_operations(library.location.library_key):
         for key in library.children:
+            block = store.get_item(key)
+            if key.block_type == 'matching':
+                pairs = normalize_pairs(block.pairs)
+                if len(pairs) < 2:
+                    unsupported.append({
+                        'title': block.display_name or str(key),
+                        'id': str(key),
+                        'reason': 'Вопрос Matching содержит меньше двух заполненных пар.',
+                    })
+                else:
+                    supported.append((questions.Question(
+                        block.display_name or block.question[:255],
+                        block.question,
+                        'matching',
+                        [pair['left'] for pair in pairs],
+                        [pair['right'] for pair in pairs],
+                    ), str(key)))
+                continue
             if key.block_type != 'problem':
                 continue
-            block = store.get_item(key)
             try:
                 extracted, issues = questions.extract_questions(block)
                 supported.extend((question, str(key)) for question in extracted)
@@ -342,8 +359,28 @@ def _import(store, library, user, preview):
                 result.update(status='already_added', detail='Этот вопрос уже добавлен из данной проверки файла.')
             else:
                 try:
-                    store.create_child(user.id, library.location, 'problem', block_id=block_id,
-                                       fields={'display_name': question.title, 'data': questions.question_xml(question)})
+                    if question.type == 'matching':
+                        pairs = normalize_pairs([
+                            {'left': left, 'right': right}
+                            for left, right in zip(question.answers, question.correct_answers)
+                        ])
+                        store.create_child(
+                            user.id,
+                            library.location,
+                            'matching',
+                            block_id=block_id,
+                            fields={
+                                'display_name': question.title,
+                                'question': question.question,
+                                'pairs': pairs,
+                                'shuffle_answers': True,
+                                'max_attempts': 0,
+                                'weight': 1,
+                            },
+                        )
+                    else:
+                        store.create_child(user.id, library.location, 'problem', block_id=block_id,
+                                           fields={'display_name': question.title, 'data': questions.question_xml(question)})
                     result.update(status='created', detail='Создан новый вопрос.')
                     present.add(block_id)
                 except Exception:  # pylint: disable=broad-except
@@ -488,6 +525,8 @@ def library_tools(request):
                                                      ['2', '4', '5', '6'], ['A', 'C']), ''),
                     (questions.Question('Пример списка', 'Выберите столицу Казахстана.', 'dropdown',
                                         ['Астана', 'Алматы', 'Шымкент'], ['A']), ''),
+                    (questions.Question('Пример сопоставления', 'Соедините страну и столицу.', 'matching',
+                                        ['Казахстан', 'Франция'], ['Астана', 'Париж']), ''),
                     (questions.Question('Пример текста', 'Введите столицу Казахстана.', 'text', [], ['Астана']), ''),
                     (questions.Question('Пример числа', 'Сколько будет 2 + 2?', 'numeric', [], ['4']), '')]
         return _xlsx_response(excel.xlsx_bytes(examples), 'questions-template.xlsx')
