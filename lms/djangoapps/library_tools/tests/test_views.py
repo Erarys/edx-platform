@@ -157,6 +157,25 @@ class LibraryToolsTests(SimpleTestCase):
             [('Казахстан', 'Астана'), ('Франция', 'Париж')],
         )
 
+    def test_repair_titles_updates_only_duplicated_question_titles(self):
+        first = self.key.make_usage_key('problem', 'p1')
+        second = self.key.make_usage_key('problem', 'p2')
+        self.library.children = [first, second]
+        duplicate = SimpleNamespace(
+            display_name='Вопрос?',
+            data=questions.question_xml(self.question),
+        )
+        custom = SimpleNamespace(
+            display_name='Мой заголовок',
+            data=questions.question_xml(self.question),
+        )
+        self.store.get_item.side_effect = [duplicate, custom]
+        changed = views._repair_duplicate_titles(self.store, self.library, SimpleNamespace(id=1))
+        self.assertEqual(changed, 1)
+        self.assertEqual(duplicate.display_name, 'Single select 1')
+        self.assertEqual(custom.display_name, 'Мой заголовок')
+        self.store.update_item.assert_called_once_with(duplicate, 1)
+
     def test_direct_matching_form_rejects_incomplete_or_duplicate_pairs(self):
         invalid_rows = [
             (['Один'], ['One']),

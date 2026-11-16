@@ -50,7 +50,16 @@ class QuestionExcelTests(TestCase):
         )
         result = excel.parse_xlsx(excel.xlsx_bytes([(question, '')]))
         self.assertFalse(result.errors)
-        self.assertEqual(result.questions[0], question)
+        self.assertEqual(result.questions[0].question, question.question)
+        self.assertEqual(result.questions[0].answers, question.answers)
+        self.assertEqual(result.questions[0].correct_answers, question.correct_answers)
+        self.assertEqual(result.questions[0].title, 'Matching 1')
+
+    def test_import_title_is_short_and_does_not_repeat_prompt(self):
+        result = excel.parse_xlsx(self.workbook(type='dropdown'))
+        self.assertFalse(result.errors)
+        self.assertEqual(result.questions[0].title, 'Dropdown 1')
+        self.assertEqual(result.questions[0].question, self.example().question)
 
     def test_matching_rejects_mismatched_or_duplicate_pairs(self):
         for left, right in [

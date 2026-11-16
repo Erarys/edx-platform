@@ -63,6 +63,9 @@ def answer_display(item):
   % if feedback.get('error'):
     <div class="notice error" role="alert">${feedback['error']}</div>
   % endif
+  % if feedback.get('success'):
+    <div class="notice" role="status">${feedback['success']}</div>
+  % endif
   % if feedback.get('matching_created'):
     <div class="notice success" role="status">
       Создан вопрос Matching: <strong>${feedback['matching_created']['title']}</strong>.
@@ -204,6 +207,11 @@ def answer_display(item):
       <div class="toolbar">
         <a class="button" href="${export_url}">Скачать Excel (${supported_count})</a>
         <a class="button secondary" href="${template_url}">Скачать шаблон Excel</a>
+        <form method="post">
+          <input type="hidden" name="csrfmiddlewaretoken" value="${csrf_token}">
+          <input type="hidden" name="library" value="${selected_id}">
+          <button type="submit" name="action" value="repair_titles" class="secondary">Исправить дубли заголовков</button>
+        </form>
       </div>
       <p class="muted">Excel содержит текст вопросов, варианты, правильные ответы и тип задания.
         Оформление, подсказки, решения и настройки оценивания в файл не переносятся.</p>

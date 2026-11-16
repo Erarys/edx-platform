@@ -390,6 +390,34 @@ def _import(store, library, user, preview):
     return results
 
 
+def _repair_duplicate_titles(store, library, user):
+    """Rename only components whose title was generated from their question text."""
+    changed = 0
+    with store.bulk_operations(library.location.library_key):
+        for position, key in enumerate(library.children, 1):
+            if key.block_type not in ('problem', 'matching'):
+                continue
+            block = store.get_item(key)
+            if key.block_type == 'matching':
+                kind = 'matching'
+                prompt = questions.clean_text(block.question)
+            else:
+                try:
+                    extracted, issues = questions.extract_questions(block)
+                except ValueError:
+                    continue
+                if issues or len(extracted) != 1:
+                    continue
+                kind = extracted[0].type
+                prompt = questions.clean_text(extracted[0].question)
+            if questions.clean_text(block.display_name or '') != prompt[:255]:
+                continue
+            block.display_name = f'{excel.TYPE_TITLES[kind]} {position}'
+            store.update_item(block, user.id)
+            changed += 1
+    return changed
+
+
 @admin_required
 @never_cache
 @csrf_protect
@@ -513,6 +541,13 @@ def library_tools(request):
                     'error': 'Не удалось создать вопрос Matching. Проверьте журнал LMS.',
                     'matching_form': form_values,
                 }
+        elif action == 'repair_titles':
+            try:
+                changed = _repair_duplicate_titles(store, library, request.user)
+                request.session[FEEDBACK_KEY] = {'success': f'Исправлены заголовки: {changed}.'}
+            except Exception:  # pylint: disable=broad-except
+                LOG.exception('Could not repair duplicate question titles: %s', selected_id)
+                request.session[FEEDBACK_KEY] = {'error': 'Не удалось исправить заголовки. Проверьте журнал LMS.'}
         elif action == 'cancel':
             request.session.pop(PREVIEW_KEY, None)
         else:

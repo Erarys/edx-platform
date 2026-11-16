@@ -26,6 +26,15 @@ TYPE_ALIASES = {
     'numeric': 'numeric', 'number': 'numeric', 'numericalresponse': 'numeric',
 }
 CELL_REF = re.compile(r'([A-Z]{1,2})([1-9][0-9]*)\Z')
+TYPE_TITLES = {
+    'single': 'Single select',
+    'multi': 'Multiple select',
+    'dropdown': 'Dropdown',
+    'matching': 'Matching',
+    'text': 'Text input',
+    'text_case_sensitive': 'Text input',
+    'numeric': 'Numeric input',
+}
 
 
 @dataclass
@@ -169,6 +178,7 @@ def _question(row, row_number):
     kind = TYPE_ALIASES.get(kind_key)
     if not kind:
         raise ValueError('type: укажите single, multi, dropdown, matching, text, text_case_sensitive или numeric')
+    title = f'{TYPE_TITLES[kind]} {row_number - 1}'
     if kind == 'matching':
         answers = [row.get(f'variant{i}', '') for i in range(1, 11)]
         while answers and not answers[-1]:
@@ -182,7 +192,7 @@ def _question(row, row_number):
             raise ValueError('matching: левые части не должны повторяться')
         if len({answer.casefold() for answer in correct}) != len(correct):
             raise ValueError('matching: правые части не должны повторяться')
-        return questions.Question(prompt[:255], prompt, kind, answers, correct, row_number)
+        return questions.Question(title, prompt, kind, answers, correct, row_number)
     if kind in ('text', 'text_case_sensitive', 'numeric'):
         if any(row.get(f'variant{i}', '') for i in range(1, 11)):
             raise ValueError('для текстового/числового ответа оставьте столбцы variant пустыми')
@@ -196,7 +206,7 @@ def _question(row, row_number):
             correct = [part.strip() for part in value.split(' || ')]
             if any(not answer for answer in correct):
                 raise ValueError('пустой допустимый текстовый ответ')
-        return questions.Question(prompt[:255], prompt, kind, [], correct, row_number)
+        return questions.Question(title, prompt, kind, [], correct, row_number)
     answers = [row.get(f'variant{i}', '') for i in range(1, 11)]
     while answers and not answers[-1]:
         answers.pop()
@@ -216,7 +226,7 @@ def _question(row, row_number):
             correct.append(letter)
     if kind == 'dropdown' and len(correct) != 1:
         raise ValueError('dropdown требует ровно один правильный ответ')
-    return questions.Question(prompt[:255], prompt, kind, answers, correct, row_number)
+    return questions.Question(title, prompt, kind, answers, correct, row_number)
 
 
 def parse_xlsx(content):
