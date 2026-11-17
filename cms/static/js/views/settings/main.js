@@ -379,6 +379,10 @@ function(ValidatingView, CodeMirror, _, $, ui, DateUtils, FileUploadModel,
                     }
                 });
                 cmTextArea = this.codeMirrors[thisTarget.id].getInputField();
+                // CodeMirror 5.49.2 does not protect its hidden input from page-level
+                // textarea min-height rules. If that input expands, the browser scrolls
+                // it into view on every keystroke and makes the settings page jump.
+                cmTextArea.style.minHeight = '1em';
                 cmTextArea.setAttribute('id', thisTarget.id + '-cm-textarea');
             }
         },

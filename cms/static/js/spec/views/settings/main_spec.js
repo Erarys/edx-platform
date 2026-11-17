@@ -90,6 +90,12 @@ define([
             $('.ui-datepicker').remove();
         });
 
+        it('keeps the CodeMirror input from expanding and scrolling the page', function() {
+            var codeMirrorInput = this.view.codeMirrors['course-overview'].getInputField();
+
+            expect(codeMirrorInput.style.minHeight).toEqual('1em');
+        });
+
         it('Changing the time field do not affect other time fields', function() {
             var requests = AjaxHelpers.requests(this),
                 expectedJson = $.extend(true, {}, modelData, {
