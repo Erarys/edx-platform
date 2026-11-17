@@ -19,6 +19,7 @@
 %>
 
 <%block name="header_extras">
+  <link rel="stylesheet" type="text/css" href="${static.url('js/vendor/CodeMirror-5.65.21/lib/codemirror.css')}" />
 % for template_name in ["basic-modal", "modal-button", "upload-dialog", "license-selector", "course-settings-learning-fields", "course-instructor-details"]:
   <script type="text/template" id="${template_name}-tpl">
     <%static:include path="js/${template_name}.underscore" />

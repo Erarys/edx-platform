@@ -1,7 +1,8 @@
-define(['js/views/validation', 'codemirror', 'underscore', 'jquery', 'jquery.ui', 'js/utils/date_utils',
+define(['js/views/validation', 'codemirror5/lib/codemirror', 'underscore', 'jquery', 'jquery.ui', 'js/utils/date_utils',
     'js/models/uploads', 'js/views/uploads', 'js/views/license', 'js/models/license',
     'common/js/components/views/feedback_notification', 'jquery.timepicker', 'date', 'gettext',
-    'js/views/learning_info', 'js/views/instructor_info', 'edx-ui-toolkit/js/utils/string-utils'],
+    'js/views/learning_info', 'js/views/instructor_info', 'edx-ui-toolkit/js/utils/string-utils',
+    'codemirror5/mode/xml/xml'],
 function(ValidatingView, CodeMirror, _, $, ui, DateUtils, FileUploadModel,
     FileUploadDialog, LicenseView, LicenseModel, NotificationView,
     timepicker, date, gettext, LearningInfoView, InstructorInfoView, StringUtils) {
@@ -369,7 +370,13 @@ function(ValidatingView, CodeMirror, _, $, ui, DateUtils, FileUploadModel,
             if (!this.codeMirrors[thisTarget.id]) {
                 cachethis = this;
                 field = this.selectorToField[thisTarget.id];
-                this.codeMirrors[thisTarget.id] = CodeMirror.fromTextArea(thisTarget, {mode: 'text/html', lineNumbers: true, lineWrapping: true});
+                this.codeMirrors[thisTarget.id] = CodeMirror.fromTextArea(thisTarget, {
+                    mode: 'text/html',
+                    lineNumbers: true,
+                    lineWrapping: true,
+                    inputStyle: 'contenteditable',
+                    screenReaderLabel: gettext('HTML Code Editor')
+                });
                 this.codeMirrors[thisTarget.id].on('change', function(mirror) {
                     mirror.save();
                     cachethis.clearValidationErrors();
@@ -379,10 +386,6 @@ function(ValidatingView, CodeMirror, _, $, ui, DateUtils, FileUploadModel,
                     }
                 });
                 cmTextArea = this.codeMirrors[thisTarget.id].getInputField();
-                // CodeMirror 5.49.2 does not protect its hidden input from page-level
-                // textarea min-height rules. If that input expands, the browser scrolls
-                // it into view on every keystroke and makes the settings page jump.
-                cmTextArea.style.minHeight = '1em';
                 cmTextArea.setAttribute('id', thisTarget.id + '-cm-textarea');
             }
         },

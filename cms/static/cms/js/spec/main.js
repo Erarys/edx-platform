@@ -57,6 +57,7 @@
             'backbone-relational': 'xmodule_js/common_static/js/vendor/backbone-relational.min',
             'tinymce': 'xmodule_js/common_static/js/vendor/tinymce/js/tinymce/tinymce.full.min',
             'jquery.tinymce': 'xmodule_js/common_static/js/vendor/tinymce/js/tinymce/jquery.tinymce',
+            'codemirror5': 'xmodule_js/common_static/js/vendor/CodeMirror-5.65.21',
             'xmodule': 'xmodule_js/src/xmodule',
             'xblock/cms.runtime.v1': 'cms/js/xblock/cms.runtime.v1',
             'xblock': 'common/js/xblock',

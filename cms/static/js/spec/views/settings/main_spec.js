@@ -90,10 +90,14 @@ define([
             $('.ui-datepicker').remove();
         });
 
-        it('keeps the CodeMirror input from expanding and scrolling the page', function() {
-            var codeMirrorInput = this.view.codeMirrors['course-overview'].getInputField();
+        it('uses the current contenteditable CodeMirror input without a hidden textarea', function() {
+            var codeMirror = this.view.codeMirrors['course-overview'],
+                codeMirrorInput = codeMirror.getInputField();
 
-            expect(codeMirrorInput.style.minHeight).toEqual('1em');
+            expect(codeMirror.constructor.version).toEqual('5.65.21');
+            expect(codeMirrorInput.tagName).toEqual('DIV');
+            expect(codeMirrorInput.getAttribute('contenteditable')).toEqual('true');
+            expect(codeMirrorInput.getAttribute('aria-label')).toEqual('HTML Code Editor');
         });
 
         it('Changing the time field do not affect other time fields', function() {

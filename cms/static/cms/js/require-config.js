@@ -90,6 +90,7 @@
         paths: {
             'domReady': 'js/vendor/domReady',
             'codemirror': 'js/vendor/codemirror-compressed',
+            'codemirror5': 'js/vendor/CodeMirror-5.65.21',
             'codemirror/stex': 'js/vendor/CodeMirror/stex',
             'jquery': 'common/js/vendor/jquery',
             'jquery-migrate': 'common/js/vendor/jquery-migrate',
